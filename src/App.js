@@ -682,10 +682,17 @@ export default function App() {
               className="flex flex-col md:flex-row bg-gray-800 rounded-lg min-h-[100px]"
             >
               <div
-                className={`${tier.color} md:w-24 w-full flex-shrink-0 flex items-center justify-center p-3`}
+                className={`${tier.color} md:w-24 w-full flex-shrink-0 flex flex-col items-center justify-center p-3`}
               >
                 <span className="text-2xl font-extrabold text-white">
                   {tier.id}
+                </span>
+                <span className="text-xs font-semibold text-white/90 mt-1 text-center leading-tight">
+                  {tier.minPoints}pt
+                  <br className="hidden md:block" /> ~{" "}
+                  {tIdx === 0
+                    ? "MAX"
+                    : `${TIER_SETTINGS[tIdx - 1].minPoints - 1}pt`}
                 </span>
               </div>
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center">
