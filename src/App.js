@@ -8,14 +8,14 @@ import {
   Trash2,
   User,
   Users,
-  ChevronRight,
   Loader2,
-  Database,
   Lock,
   Unlock,
   RefreshCw,
   AlertTriangle,
   Camera,
+  X,
+  Activity,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -56,7 +56,6 @@ const appId =
   typeof __app_id !== "undefined" ? __app_id : "virtual-league-dev-final";
 
 // ★ 보안 업그레이드: 비밀번호 난독화 (해싱) 적용 ★
-// 기존의 "wak123" 글자를 지우고, 컴퓨터만 알아볼 수 있게 변환된 암호값을 저장합니다.
 const ADMIN_HASH = "zITMrF2d";
 
 const SEED_PLAYERS = [
@@ -139,7 +138,9 @@ export default function App() {
   const [matchToDelete, setMatchToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // 포커스 풀림 방지를 위해 끌어올린 상태값들
+  // ★ 추가된 기능 상태: 프로필 모달에 띄울 선택된 스트리머 이름
+  const [selectedPlayer, setSelectedPlayer] = useState(null);
+
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
   const [matchMode, setMatchMode] = useState("individual");
@@ -269,6 +270,84 @@ export default function App() {
       : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
   };
 
+  // ★ 연승/연패 계산 도우미 함수 ★
+  const getPlayerStreak = (playerName) => {
+    const playerMatches = matches.filter((m) =>
+      m.results?.some((r) => r.playerName === playerName)
+    );
+    if (playerMatches.length === 0) return { type: "none", count: 0 };
+
+    let streakType = "none";
+    let count = 0;
+
+    for (const match of playerMatches) {
+      const result = match.results.find((r) => r.playerName === playerName);
+      if (!result) continue;
+
+      const isWin = result.scoreChange > 0;
+      const isLoss = result.scoreChange < 0;
+
+      if (count === 0) {
+        if (isWin) {
+          streakType = "win";
+          count = 1;
+        } else if (isLoss) {
+          streakType = "lose";
+          count = 1;
+        } else break; // 0점 변동은 흐름 끊김
+      } else {
+        if (streakType === "win" && isWin) count++;
+        else if (streakType === "lose" && isLoss) count++;
+        else break; // 흐름 바뀌면 종료
+      }
+    }
+    return { type: streakType, count };
+  };
+
+  // ★ 개인 전적 통계 도우미 함수 ★
+  const getPlayerStats = (playerName) => {
+    const playerMatches = matches.filter((m) =>
+      m.results?.some((r) => r.playerName === playerName)
+    );
+    const totalMatches = playerMatches.length;
+
+    // 우승(1위) 횟수 및 확률
+    const wins = playerMatches.filter((m) => {
+      const r = m.results.find((res) => res.playerName === playerName);
+      return r && r.rank === 1;
+    }).length;
+    const winRate =
+      totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
+
+    // 주력 게임 (가장 많이 플레이한 게임)
+    const gameCounts = {};
+    playerMatches.forEach((m) => {
+      gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1;
+    });
+    let mostPlayedGame = "전적 없음";
+    let maxCount = 0;
+    for (const [game, count] of Object.entries(gameCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostPlayedGame = game;
+      }
+    }
+
+    // 최근 5경기
+    const recentMatches = playerMatches.slice(0, 5).map((m) => {
+      const r = m.results.find((res) => res.playerName === playerName);
+      return {
+        id: m.id,
+        gameName: m.gameName,
+        date: m.date,
+        rank: r.rank,
+        scoreChange: r.scoreChange,
+      };
+    });
+
+    return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
+  };
+
   const handleSeedDatabase = async () => {
     if (!user) return;
     setIsLoading(true);
@@ -307,18 +386,12 @@ export default function App() {
     }
   };
 
-  // ★ 관리자 로그인 로직 변경 ★
   const handleAdminLogin = (e) => {
     e.preventDefault();
-
-    // 사용자가 입력한 글자를 컴퓨터만 아는 '암호 문자열'로 똑같이 변환해봅니다.
-    // (Base64 변환 후 글자를 뒤집는 난독화 방식 적용)
     const hashedInput = btoa(encodeURIComponent(passwordInput))
       .split("")
       .reverse()
       .join("");
-
-    // 변환된 암호가 미리 저장된 암호(ADMIN_HASH)와 똑같은지 확인합니다!
     if (hashedInput === ADMIN_HASH) {
       setIsAdminAuth(true);
       showToast("관리자 인증 성공!");
@@ -338,7 +411,7 @@ export default function App() {
       );
       showToast("프로필 이미지가 저장되었습니다.");
     } catch (error) {
-      showToast("이미지 저장 중 오류 발생", "error");
+      showToast("이미 저장 중 오류 발생", "error");
     }
   };
 
@@ -386,26 +459,28 @@ export default function App() {
 
   const renderHomeView = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50">
-        <h2 className="text-3xl font-bold text-white mb-2">
-          버츄얼 종겜 리그에 오신 것을 환영합니다
-        </h2>
-        <p className="text-gray-300 mb-6">
-          매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.
-        </p>
-        <div className="flex gap-4">
-          <button
-            onClick={() => navigateTo("tier")}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg"
-          >
-            <Trophy className="w-5 h-5 mr-2" /> 티어표 보기
-          </button>
-          <button
-            onClick={() => navigateTo("matches")}
-            className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg"
-          >
-            <Swords className="w-5 h-5 mr-2" /> 경기 기록
-          </button>
+      <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden">
+        <div className="relative z-10">
+          <h2 className="text-3xl font-bold text-white mb-2">
+            버츄얼 종겜 리그에 오신 것을 환영합니다
+          </h2>
+          <p className="text-gray-300 mb-6">
+            매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.
+          </p>
+          <div className="flex gap-4">
+            <button
+              onClick={() => navigateTo("tier")}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition"
+            >
+              <Trophy className="w-5 h-5 mr-2" /> 티어표 보기
+            </button>
+            <button
+              onClick={() => navigateTo("matches")}
+              className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg hover:bg-gray-700 transition"
+            >
+              <Swords className="w-5 h-5 mr-2" /> 경기 기록
+            </button>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -454,12 +529,13 @@ export default function App() {
                 .map((player, idx) => (
                   <div
                     key={player.id}
-                    className="flex items-center bg-gray-700/30 p-2 rounded-lg"
+                    onClick={() => setSelectedPlayer(player.name)}
+                    className="flex items-center bg-gray-700/30 p-2 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group"
                   >
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3 ${
                         idx === 0
-                          ? "bg-yellow-500 text-black"
+                          ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]"
                           : "bg-gray-600 text-white"
                       }`}
                     >
@@ -472,9 +548,9 @@ export default function App() {
                           e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
                         }}
                         alt="avatar"
-                        className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-gray-600"
+                        className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition"
                       />
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-white group-hover:text-green-400 transition">
                         {player.name}
                       </span>
                     </div>
@@ -565,7 +641,8 @@ export default function App() {
                         {team.players.map((p) => (
                           <div
                             key={p}
-                            className="flex items-center bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 shadow-sm"
+                            onClick={() => setSelectedPlayer(p)}
+                            className="flex items-center bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group"
                           >
                             <img
                               src={getAvatarSrc(p)}
@@ -575,7 +652,7 @@ export default function App() {
                               alt="avatar"
                               className="w-5 h-5 rounded-full mr-2 bg-gray-800 object-cover"
                             />
-                            <span className="text-sm font-medium text-white">
+                            <span className="text-sm font-medium text-white group-hover:text-green-400">
                               {p}
                             </span>
                           </div>
@@ -610,10 +687,11 @@ export default function App() {
                   .map((result, idx) => (
                     <div
                       key={idx}
-                      className={`p-3 rounded-lg border flex flex-col justify-center ${
+                      onClick={() => setSelectedPlayer(result.playerName)}
+                      className={`p-3 rounded-lg border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${
                         result.rank === 1
-                          ? "bg-yellow-500/10 border-yellow-500/30"
-                          : "bg-gray-700/30 border-gray-600"
+                          ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400"
+                          : "bg-gray-700/30 border-gray-600 hover:border-green-400"
                       }`}
                     >
                       <div className="flex justify-between items-center mb-2">
@@ -640,7 +718,7 @@ export default function App() {
                           alt="avatar"
                           className="w-7 h-7 rounded-full bg-gray-800 object-cover"
                         />
-                        <span className="font-medium text-white truncate text-lg">
+                        <span className="font-medium text-white truncate text-lg group-hover:text-green-400 transition">
                           {result.playerName}
                         </span>
                       </div>
@@ -696,26 +774,47 @@ export default function App() {
                 </span>
               </div>
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center">
-                {tierPlayers.map((player) => (
-                  <div key={player.id} className="flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform hover:scale-110 hover:border-green-400">
-                      <img
-                        src={getAvatarSrc(player.name)}
-                        onError={(e) => {
-                          e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
-                        }}
-                        alt={player.name}
-                        className="w-full h-full object-cover"
-                      />
+                {tierPlayers.map((player) => {
+                  const streak = getPlayerStreak(player.name);
+                  return (
+                    <div
+                      key={player.id}
+                      onClick={() => setSelectedPlayer(player.name)}
+                      className="relative flex flex-col items-center cursor-pointer group"
+                    >
+                      {/* ★ 연승/연패 뱃지 ★ */}
+                      {streak.count >= 2 && (
+                        <div
+                          className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${
+                            streak.type === "win"
+                              ? "bg-red-900/90 text-red-400 border-red-500/50"
+                              : "bg-blue-900/90 text-blue-400 border-blue-500/50"
+                          }`}
+                        >
+                          {streak.type === "win" ? "🔥" : "🧊"}
+                          {streak.count}
+                          {streak.type === "win" ? "연승" : "연패"}
+                        </div>
+                      )}
+                      <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
+                        <img
+                          src={getAvatarSrc(player.name)}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                          }}
+                          alt={player.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded group-hover:text-green-400 transition-colors">
+                        {player.name}
+                      </span>
+                      <span className="text-xs font-bold text-green-400 mt-0.5">
+                        {player.points} pt
+                      </span>
                     </div>
-                    <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded">
-                      {player.name}
-                    </span>
-                    <span className="text-xs font-bold text-green-400 mt-0.5">
-                      {player.points} pt
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -1239,6 +1338,7 @@ export default function App() {
         </div>
       )}
 
+      {/* 삭제 확인 모달 */}
       {matchToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
@@ -1280,6 +1380,132 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* ★ 개인 프로필 모달 ★ */}
+      {selectedPlayer &&
+        (() => {
+          const stats = getPlayerStats(selectedPlayer);
+          const playerInfo = players.find((p) => p.name === selectedPlayer);
+          if (!playerInfo) return null;
+
+          return (
+            <div
+              className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
+              onClick={() => setSelectedPlayer(null)}
+            >
+              <div
+                className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* 모달 상단 헤더 (아바타 & 이름) */}
+                <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
+                  <button
+                    onClick={() => setSelectedPlayer(null)}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                  <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
+                    <img
+                      src={getAvatarSrc(selectedPlayer)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`;
+                      }}
+                      alt={selectedPlayer}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 className="text-2xl font-black text-white">
+                    {selectedPlayer}
+                  </h3>
+                  <span className="text-green-400 font-bold mt-1 text-lg">
+                    {playerInfo.points} pt
+                  </span>
+                </div>
+
+                {/* 통계 요약 */}
+                <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
+                  <div className="flex flex-col items-center py-4">
+                    <span className="text-xs text-gray-400 font-medium mb-1">
+                      총 참가
+                    </span>
+                    <span className="text-xl font-bold text-white">
+                      {stats.totalMatches}전
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center py-4">
+                    <span className="text-xs text-gray-400 font-medium mb-1">
+                      우승 확률(1위)
+                    </span>
+                    <span className="text-xl font-bold text-yellow-400">
+                      {stats.winRate}%
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center py-4 px-2 text-center">
+                    <span className="text-xs text-gray-400 font-medium mb-1">
+                      주력 종목
+                    </span>
+                    <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">
+                      {stats.mostPlayedGame}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 최근 5경기 전적 */}
+                <div className="p-6">
+                  <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
+                    <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대
+                    5경기)
+                  </h4>
+                  {stats.recentMatches.length === 0 ? (
+                    <p className="text-center text-gray-500 py-6 text-sm">
+                      경기 기록이 없습니다.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {stats.recentMatches.map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50"
+                        >
+                          <div className="flex-1 truncate pr-2">
+                            <p className="text-sm font-bold text-white truncate">
+                              {m.gameName}
+                            </p>
+                            <p className="text-[10px] text-gray-500">
+                              {m.date}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`text-xs font-bold ${
+                                m.rank === 1
+                                  ? "text-yellow-400"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {m.rank}위
+                            </span>
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${
+                                m.scoreChange >= 0
+                                  ? "bg-green-500/20 text-green-400"
+                                  : "bg-red-500/20 text-red-400"
+                              }`}
+                            >
+                              {m.scoreChange > 0 ? "+" : ""}
+                              {m.scoreChange}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
