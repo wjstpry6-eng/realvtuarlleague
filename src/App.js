@@ -32,6 +32,7 @@ import {
   updateDoc,
   addDoc,
   deleteDoc,
+  setDoc,
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -140,6 +141,7 @@ export default function App() {
 
   // ★ 추가된 기능 상태: 프로필 모달에 띄울 선택된 스트리머 이름
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
@@ -212,6 +214,7 @@ export default function App() {
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
       setPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
+
     const matchesRef = collection(
       db,
       "artifacts",
@@ -245,9 +248,27 @@ export default function App() {
         setIsLoading(false);
       }
     );
+
+    // ★ 메타데이터(업데이트 시간) 리스너 추가 ★
+    const metaRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "metadata",
+      "app_info"
+    );
+    const unsubMeta = onSnapshot(metaRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setLastUpdated(docSnap.data().lastUpdated);
+      }
+    });
+
     return () => {
       unsubPlayers();
       unsubMatches();
+      unsubMeta();
     };
   }, [user]);
 
@@ -268,6 +289,39 @@ export default function App() {
     return p?.imageUrl?.trim()
       ? p.imageUrl
       : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
+  };
+
+  // ★ 업데이트 시간 기록 도우미 함수 ★
+  const updateLastModifiedTime = async () => {
+    try {
+      const metaRef = doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "metadata",
+        "app_info"
+      );
+      await setDoc(
+        metaRef,
+        { lastUpdated: new Date().toISOString() },
+        { merge: true }
+      );
+    } catch (error) {
+      console.error("Meta update error:", error);
+    }
+  };
+
+  // ★ 시간 포맷팅 함수 (ex: 03.02 14:30) ★
+  const formatLastUpdated = (isoString) => {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${month}.${day} ${hours}:${minutes}`;
   };
 
   // ★ 연승/연패 계산 도우미 함수 ★
@@ -294,24 +348,22 @@ export default function App() {
         } else if (isLoss) {
           streakType = "lose";
           count = 1;
-        } else break; // 0점 변동은 흐름 끊김
+        } else break;
       } else {
         if (streakType === "win" && isWin) count++;
         else if (streakType === "lose" && isLoss) count++;
-        else break; // 흐름 바뀌면 종료
+        else break;
       }
     }
     return { type: streakType, count };
   };
 
-  // ★ 개인 전적 통계 도우미 함수 ★
   const getPlayerStats = (playerName) => {
     const playerMatches = matches.filter((m) =>
       m.results?.some((r) => r.playerName === playerName)
     );
     const totalMatches = playerMatches.length;
 
-    // 우승(1위) 횟수 및 확률
     const wins = playerMatches.filter((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return r && r.rank === 1;
@@ -319,7 +371,6 @@ export default function App() {
     const winRate =
       totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
 
-    // 주력 게임 (가장 많이 플레이한 게임)
     const gameCounts = {};
     playerMatches.forEach((m) => {
       gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1;
@@ -333,7 +384,6 @@ export default function App() {
       }
     }
 
-    // 최근 5경기
     const recentMatches = playerMatches.slice(0, 5).map((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return {
@@ -375,6 +425,9 @@ export default function App() {
           );
         }
       }
+
+      await updateLastModifiedTime(); // 업데이트 시간 기록
+
       showToast(
         newCount === 0 ? "이미 데이터가 있습니다." : "테스트 데이터 주입 성공!"
       );
@@ -409,9 +462,10 @@ export default function App() {
           imageUrl: url || "",
         }
       );
+      await updateLastModifiedTime(); // 업데이트 시간 기록
       showToast("프로필 이미지가 저장되었습니다.");
     } catch (error) {
-      showToast("이미 저장 중 오류 발생", "error");
+      showToast("이미지 저장 중 오류 발생", "error");
     }
   };
 
@@ -447,6 +501,7 @@ export default function App() {
           matchToDelete.id
         )
       );
+      await updateLastModifiedTime(); // 업데이트 시간 기록
       showToast("경기가 삭제되고 점수가 복원되었습니다.");
       setMatchToDelete(null);
     } catch (error) {
@@ -920,6 +975,8 @@ export default function App() {
           { id: 1, rank: 1, scoreChange: 100, players: ["우왁굳", "천양"] },
           { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
         ]);
+
+        await updateLastModifiedTime(); // 업데이트 시간 기록
 
         showToast("결과 저장 성공!");
         navigateTo("tier");
@@ -1526,6 +1583,13 @@ export default function App() {
             >
               WAK
             </a>
+            {/* ★ 추가된 업데이트 시간 표시 ★ */}
+            {lastUpdated && (
+              <span className="ml-2 md:ml-3 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
+                <RefreshCw className="w-3 h-3 mr-1 opacity-70" />
+                최근 갱신: {formatLastUpdated(lastUpdated)}
+              </span>
+            )}
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
             <button
