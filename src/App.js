@@ -33,6 +33,7 @@ import {
   addDoc,
   deleteDoc,
   setDoc,
+  increment,
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -139,9 +140,10 @@ export default function App() {
   const [matchToDelete, setMatchToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ★ 추가된 기능 상태: 프로필 모달에 띄울 선택된 스트리머 이름
+  // 프로필 모달 및 메타데이터 상태
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [todayVisits, setTodayVisits] = useState(0); // ★ 오늘 방문자 수 상태 추가
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
@@ -249,7 +251,7 @@ export default function App() {
       }
     );
 
-    // ★ 메타데이터(업데이트 시간) 리스너 추가 ★
+    // ★ 메타데이터(업데이트 시간) 리스너 ★
     const metaRef = doc(
       db,
       "artifacts",
@@ -265,11 +267,67 @@ export default function App() {
       }
     });
 
+    // ★ 오늘 방문자 수 실시간 리스너 ★
+    const today = new Date();
+    const todayDocId = `${today.getFullYear()}-${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const visitRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "daily_visits",
+      todayDocId
+    );
+
+    const unsubVisit = onSnapshot(visitRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setTodayVisits(docSnap.data().count || 0);
+      }
+    });
+
     return () => {
       unsubPlayers();
       unsubMatches();
       unsubMeta();
+      unsubVisit();
     };
+  }, [user]);
+
+  // ★ 오늘 방문자 수 카운트 1 증가시키는 로직 (하루 1명당 1번만) ★
+  useEffect(() => {
+    const recordVisit = async () => {
+      const today = new Date();
+      const todayDocId = `${today.getFullYear()}-${String(
+        today.getMonth() + 1
+      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const storageKey = `wak_visited_${todayDocId}`;
+
+      // 브라우저 캐시에 오늘 방문한 기록이 없다면? => DB에 방문자 +1
+      if (!localStorage.getItem(storageKey)) {
+        try {
+          const visitRef = doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "daily_visits",
+            todayDocId
+          );
+          await setDoc(visitRef, { count: increment(1) }, { merge: true });
+          localStorage.setItem(storageKey, "true"); // 방문 도장 쾅!
+        } catch (error) {
+          console.error("Visit record error:", error);
+        }
+      }
+    };
+
+    if (user) {
+      recordVisit();
+    }
   }, [user]);
 
   useEffect(() => {
@@ -291,7 +349,6 @@ export default function App() {
       : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
   };
 
-  // ★ 업데이트 시간 기록 도우미 함수 ★
   const updateLastModifiedTime = async () => {
     try {
       const metaRef = doc(
@@ -313,7 +370,6 @@ export default function App() {
     }
   };
 
-  // ★ 시간 포맷팅 함수 (ex: 03.02 14:30) ★
   const formatLastUpdated = (isoString) => {
     if (!isoString) return "";
     const d = new Date(isoString);
@@ -324,7 +380,6 @@ export default function App() {
     return `${month}.${day} ${hours}:${minutes}`;
   };
 
-  // ★ 연승/연패 계산 도우미 함수 ★
   const getPlayerStreak = (playerName) => {
     const playerMatches = matches.filter((m) =>
       m.results?.some((r) => r.playerName === playerName)
@@ -1590,6 +1645,11 @@ export default function App() {
                 최근 갱신: {formatLastUpdated(lastUpdated)}
               </span>
             )}
+            {/* ★ 추가된 오늘 방문자 수 표시 ★ */}
+            <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
+              <Users className="w-3 h-3 mr-1 opacity-70" />
+              오늘 방문자: {todayVisits}
+            </span>
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
             <button
