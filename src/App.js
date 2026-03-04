@@ -33,6 +33,7 @@ import {
   addDoc,
   deleteDoc,
   setDoc,
+  increment,
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -98,9 +99,10 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // 프로필 모달 및 메타데이터(업데이트 시간) 상태
+  // 프로필 모달 및 메타데이터 상태 (업데이트 시간, 방문자수)
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [todayVisits, setTodayVisits] = useState(0); 
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
@@ -140,7 +142,6 @@ export default function App() {
     window.location.hash = tabName;
   };
 
-  // ★ Auth 오류 방지를 위해 중첩 try-catch 적용 ★
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -230,11 +231,47 @@ export default function App() {
       }
     });
 
+    // ★ 오늘 방문자 수 실시간 리스너 ★
+    const today = new Date();
+    const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+    
+    const unsubVisit = onSnapshot(visitRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setTodayVisits(docSnap.data().count || 0);
+      }
+    });
+
     return () => {
       unsubPlayers();
       unsubMatches();
       unsubMeta();
+      unsubVisit();
     };
+  }, [user]);
+
+  // ★ 오늘 방문자 수 증가 로직 (localStorage 활용) ★
+  useEffect(() => {
+    const recordVisit = async () => {
+      const today = new Date();
+      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const storageKey = `wak_visited_${todayDocId}`;
+
+      // 로컬 스토리지에 오늘 방문 기록이 없으면 카운트 증가
+      if (!localStorage.getItem(storageKey)) {
+        try {
+          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+          await setDoc(visitRef, { count: increment(1) }, { merge: true });
+          localStorage.setItem(storageKey, "true"); 
+        } catch (error) {
+          console.error("Visit record error:", error);
+        }
+      }
+    };
+
+    if (user) {
+      recordVisit();
+    }
   }, [user]);
 
   useEffect(() => {
@@ -360,7 +397,7 @@ export default function App() {
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
-  // ★ 실전용: 파이어베이스 데이터 완전 초기화 로직 ★
+  // ★ 데이터 초기화 및 백지 상태 시작 로직 ★
   const handleResetDatabase = async () => {
     if (!user) return;
     setIsResetting(true);
@@ -735,7 +772,6 @@ export default function App() {
   );
 
   const renderTierListView = () => {
-    // ★ 상대평가 로직: 전체 참가자 정렬 및 순위 부여 (동점자 공동 순위 처리) ★
     const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
     const totalPlayers = sortedPlayers.length;
 
@@ -747,7 +783,6 @@ export default function App() {
       return { ...player, rank: currentRank };
     });
 
-    // ★ 티어별 인원 커트라인 계산 (무조건 올림) ★
     const cutoffs = {
       S: Math.ceil(totalPlayers * 0.10),
       A: Math.ceil(totalPlayers * 0.30),
@@ -765,11 +800,9 @@ export default function App() {
       return "D";
     };
 
-    // 티어별로 플레이어 분류 및 동적 순위 텍스트 계산
     const categorizedPlayers = TIER_SETTINGS.map((tier, index) => {
       const playersInTier = rankedPlayers.filter(p => getTierIdByRank(p.rank) === tier.id);
       
-      // 화면에 보여줄 동적 순위 범위 (예: 1위 ~ 3위)
       let startRank = 1;
       if (index > 0) {
          const prevTierId = TIER_SETTINGS[index - 1].id;
@@ -818,7 +851,6 @@ export default function App() {
                 <span className="text-2xl font-extrabold text-white text-shadow">
                   {tier.id}
                 </span>
-                {/* ★ 비율 및 동적 순위 텍스트 표시 ★ */}
                 <span className="text-xs font-bold text-white/90 mt-1 text-center">
                   {tier.label}
                 </span>
@@ -837,7 +869,6 @@ export default function App() {
                         onClick={() => setSelectedPlayer(player.name)}
                         className="group relative flex flex-col items-center cursor-pointer"
                       >
-                        {/* ★ 연승/연패 뱃지 ★ */}
                         {streak.count >= 2 && (
                           <div
                             className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${
@@ -961,7 +992,6 @@ export default function App() {
               { points: p.points + r.scoreChange }
             );
           else
-            // ★ 실전용: 신규 참가자는 무조건 0점부터 시작 ★
             await addDoc(
               collection(db, "artifacts", appId, "public", "data", "players"),
               {
@@ -982,7 +1012,7 @@ export default function App() {
           { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
         ]);
 
-        await updateLastModifiedTime(); // 업데이트 시간 기록
+        await updateLastModifiedTime(); 
 
         showToast("결과 저장 성공!");
         navigateTo("tier");
@@ -1557,6 +1587,11 @@ export default function App() {
                 최근 갱신: {formatLastUpdated(lastUpdated)}
               </span>
             )}
+            {/* ★ 복구된 오늘의 방문자 수 표시 ★ */}
+            <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
+              <Users className="w-3 h-3 mr-1 opacity-70" />
+              오늘 방문자: {todayVisits}
+            </span>
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
             <button
