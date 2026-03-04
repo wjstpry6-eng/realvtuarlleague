@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   Camera,
   X,
-  Activity,
+  Activity
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -60,64 +60,30 @@ const appId =
 // ★ 보안 업그레이드: 비밀번호 난독화 (해싱) 적용 ★
 const ADMIN_HASH = "zITMrF2d";
 
+// ★ 실전용: 기본 참가자 0점 세팅 ★
 const SEED_PLAYERS = [
-  { name: "우왁굳", points: 1550 },
-  { name: "천양", points: 1300 },
-  { name: "릴파", points: 1250 },
-  { name: "아이네", points: 1100 },
-  { name: "고세구", points: 1050 },
-  { name: "징버거", points: 950 },
-  { name: "비챤", points: 850 },
-  { name: "주르르", points: 800 },
-  { name: "뢴트게늄", points: 650 },
-  { name: "해루석", points: 500 },
+  { name: "우왁굳", points: 0 },
+  { name: "천양", points: 0 },
+  { name: "릴파", points: 0 },
+  { name: "아이네", points: 0 },
+  { name: "고세구", points: 0 },
+  { name: "징버거", points: 0 },
+  { name: "비챤", points: 0 },
+  { name: "주르르", points: 0 },
+  { name: "뢴트게늄", points: 0 },
+  { name: "해루석", points: 0 },
 ];
 
-const SEED_MATCHES = [
-  {
-    date: "2026-02-25",
-    gameName: "스트리트 파이터 6",
-    createdAt: new Date().toISOString(),
-    matchType: "individual",
-    results: [
-      { playerName: "우왁굳", rank: 1, scoreChange: 150 },
-      { playerName: "천양", rank: 2, scoreChange: 80 },
-      { playerName: "뢴트게늄", rank: 3, scoreChange: -30 },
-      { playerName: "해루석", rank: 4, scoreChange: -50 },
-    ],
-  },
-  {
-    date: "2026-02-22",
-    gameName: "마리오 카트",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-    matchType: "individual",
-    results: [
-      { playerName: "릴파", rank: 1, scoreChange: 120 },
-      { playerName: "고세구", rank: 2, scoreChange: 70 },
-      { playerName: "우왁굳", rank: 3, scoreChange: 20 },
-      { playerName: "주르르", rank: 4, scoreChange: -40 },
-    ],
-  },
-  {
-    date: "2026-02-18",
-    gameName: "폴가이즈",
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    matchType: "individual",
-    results: [
-      { playerName: "아이네", rank: 1, scoreChange: 100 },
-      { playerName: "징버거", rank: 2, scoreChange: 50 },
-      { playerName: "비챤", rank: 3, scoreChange: 10 },
-      { playerName: "천양", rank: 4, scoreChange: -20 },
-    ],
-  },
-];
+// ★ 실전용: 테스트 경기 데이터 제거 ★
+const SEED_MATCHES = [];
 
+// ★ 실전용: D 티어 최소 점수를 -9999로 설정하여 마이너스 점수 커버 ★
 const TIER_SETTINGS = [
   { id: "S", name: "S 티어", color: "bg-red-500", minPoints: 1300 },
   { id: "A", name: "A 티어", color: "bg-orange-500", minPoints: 1000 },
   { id: "B", name: "B 티어", color: "bg-yellow-500", minPoints: 700 },
   { id: "C", name: "C 티어", color: "bg-green-500", minPoints: 400 },
-  { id: "D", name: "D 티어", color: "bg-blue-500", minPoints: 0 },
+  { id: "D", name: "D 티어", color: "bg-blue-500", minPoints: -9999 },
 ];
 
 export default function App() {
@@ -140,14 +106,17 @@ export default function App() {
   const [matchToDelete, setMatchToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // 프로필 모달 및 메타데이터 상태
+  // ★ 실전용: 데이터 초기화 모달 상태 추가 ★
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [todayVisits, setTodayVisits] = useState(0); // ★ 오늘 방문자 수 상태 추가
+  const [todayVisits, setTodayVisits] = useState(0); 
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
-  const [matchMode, setMatchMode] = useState("individual");
+  const [matchMode, setMatchMode] = useState("individual"); 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageInputs, setImageInputs] = useState({});
 
@@ -205,26 +174,12 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const playersRef = collection(
-      db,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "players"
-    );
+    const playersRef = collection(db, "artifacts", appId, "public", "data", "players");
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
       setPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    const matchesRef = collection(
-      db,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "matches"
-    );
+    const matchesRef = collection(db, "artifacts", appId, "public", "data", "matches");
     const unsubMatches = onSnapshot(
       matchesRef,
       (snapshot) => {
@@ -251,37 +206,17 @@ export default function App() {
       }
     );
 
-    // ★ 메타데이터(업데이트 시간) 리스너 ★
-    const metaRef = doc(
-      db,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "metadata",
-      "app_info"
-    );
+    const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) {
         setLastUpdated(docSnap.data().lastUpdated);
       }
     });
 
-    // ★ 오늘 방문자 수 실시간 리스너 ★
     const today = new Date();
-    const todayDocId = `${today.getFullYear()}-${String(
-      today.getMonth() + 1
-    ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const visitRef = doc(
-      db,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "daily_visits",
-      todayDocId
-    );
-
+    const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+    
     const unsubVisit = onSnapshot(visitRef, (docSnap) => {
       if (docSnap.exists()) {
         setTodayVisits(docSnap.data().count || 0);
@@ -296,29 +231,17 @@ export default function App() {
     };
   }, [user]);
 
-  // ★ 오늘 방문자 수 카운트 1 증가시키는 로직 (하루 1명당 1번만) ★
   useEffect(() => {
     const recordVisit = async () => {
       const today = new Date();
-      const todayDocId = `${today.getFullYear()}-${String(
-        today.getMonth() + 1
-      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const storageKey = `wak_visited_${todayDocId}`;
 
-      // 브라우저 캐시에 오늘 방문한 기록이 없다면? => DB에 방문자 +1
       if (!localStorage.getItem(storageKey)) {
         try {
-          const visitRef = doc(
-            db,
-            "artifacts",
-            appId,
-            "public",
-            "data",
-            "daily_visits",
-            todayDocId
-          );
+          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
           await setDoc(visitRef, { count: increment(1) }, { merge: true });
-          localStorage.setItem(storageKey, "true"); // 방문 도장 쾅!
+          localStorage.setItem(storageKey, "true"); 
         } catch (error) {
           console.error("Visit record error:", error);
         }
@@ -333,12 +256,7 @@ export default function App() {
   useEffect(() => {
     if (!matchDate) {
       const today = new Date();
-      setMatchDate(
-        `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
-          2,
-          "0"
-        )}-${String(today.getDate()).padStart(2, "0")}`
-      );
+      setMatchDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
     }
   }, [matchDate]);
 
@@ -351,20 +269,8 @@ export default function App() {
 
   const updateLastModifiedTime = async () => {
     try {
-      const metaRef = doc(
-        db,
-        "artifacts",
-        appId,
-        "public",
-        "data",
-        "metadata",
-        "app_info"
-      );
-      await setDoc(
-        metaRef,
-        { lastUpdated: new Date().toISOString() },
-        { merge: true }
-      );
+      const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
+      await setDoc(metaRef, { lastUpdated: new Date().toISOString() }, { merge: true });
     } catch (error) {
       console.error("Meta update error:", error);
     }
@@ -373,61 +279,52 @@ export default function App() {
   const formatLastUpdated = (isoString) => {
     if (!isoString) return "";
     const d = new Date(isoString);
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const hours = String(d.getHours()).padStart(2, "0");
-    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${month}.${day} ${hours}:${minutes}`;
   };
 
   const getPlayerStreak = (playerName) => {
-    const playerMatches = matches.filter((m) =>
-      m.results?.some((r) => r.playerName === playerName)
-    );
-    if (playerMatches.length === 0) return { type: "none", count: 0 };
+    const playerMatches = matches.filter(m => m.results?.some(r => r.playerName === playerName));
+    if (playerMatches.length === 0) return { type: 'none', count: 0 };
 
-    let streakType = "none";
+    let streakType = 'none';
     let count = 0;
 
     for (const match of playerMatches) {
-      const result = match.results.find((r) => r.playerName === playerName);
+      const result = match.results.find(r => r.playerName === playerName);
       if (!result) continue;
 
       const isWin = result.scoreChange > 0;
       const isLoss = result.scoreChange < 0;
 
       if (count === 0) {
-        if (isWin) {
-          streakType = "win";
-          count = 1;
-        } else if (isLoss) {
-          streakType = "lose";
-          count = 1;
-        } else break;
+        if (isWin) { streakType = 'win'; count = 1; }
+        else if (isLoss) { streakType = 'lose'; count = 1; }
+        else break; 
       } else {
-        if (streakType === "win" && isWin) count++;
-        else if (streakType === "lose" && isLoss) count++;
-        else break;
+        if (streakType === 'win' && isWin) count++;
+        else if (streakType === 'lose' && isLoss) count++;
+        else break; 
       }
     }
     return { type: streakType, count };
   };
 
   const getPlayerStats = (playerName) => {
-    const playerMatches = matches.filter((m) =>
-      m.results?.some((r) => r.playerName === playerName)
-    );
+    const playerMatches = matches.filter(m => m.results?.some(r => r.playerName === playerName));
     const totalMatches = playerMatches.length;
 
-    const wins = playerMatches.filter((m) => {
-      const r = m.results.find((res) => res.playerName === playerName);
+    const wins = playerMatches.filter(m => {
+      const r = m.results.find(res => res.playerName === playerName);
       return r && r.rank === 1;
     }).length;
-    const winRate =
-      totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
+    const winRate = totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
 
     const gameCounts = {};
-    playerMatches.forEach((m) => {
+    playerMatches.forEach(m => {
       gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1;
     });
     let mostPlayedGame = "전적 없음";
@@ -439,67 +336,55 @@ export default function App() {
       }
     }
 
-    const recentMatches = playerMatches.slice(0, 5).map((m) => {
-      const r = m.results.find((res) => res.playerName === playerName);
+    const recentMatches = playerMatches.slice(0, 5).map(m => {
+      const r = m.results.find(res => res.playerName === playerName);
       return {
         id: m.id,
         gameName: m.gameName,
         date: m.date,
         rank: r.rank,
-        scoreChange: r.scoreChange,
+        scoreChange: r.scoreChange
       };
     });
 
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
-  const handleSeedDatabase = async () => {
+  // ★ 실전용: 데이터 초기화 및 0점 로스터 강제 세팅 로직 ★
+  const handleResetDatabase = async () => {
     if (!user) return;
-    setIsLoading(true);
+    setIsResetting(true);
     try {
-      const existingPlayerNames = players.map((p) => p.name);
-      let newCount = 0;
+      // 1. 모든 매치 기록 삭제
+      for (const m of matches) {
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "matches", m.id));
+      }
+      // 2. 모든 플레이어 기록 삭제
+      for (const p of players) {
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
+      }
+      // 3. 0점 초기 로스터 세팅
       for (const p of SEED_PLAYERS) {
-        if (!existingPlayerNames.includes(p.name)) {
-          await addDoc(
-            collection(db, "artifacts", appId, "public", "data", "players"),
-            { ...p, createdAt: new Date().toISOString() }
-          );
-          newCount++;
-        }
-      }
-      for (const m of SEED_MATCHES) {
-        const isMatchExists = matches.some(
-          (existing) =>
-            existing.gameName === m.gameName && existing.date === m.date
+        await addDoc(
+          collection(db, "artifacts", appId, "public", "data", "players"),
+          { ...p, createdAt: new Date().toISOString() }
         );
-        if (!isMatchExists) {
-          await addDoc(
-            collection(db, "artifacts", appId, "public", "data", "matches"),
-            m
-          );
-        }
       }
-
-      await updateLastModifiedTime(); // 업데이트 시간 기록
-
-      showToast(
-        newCount === 0 ? "이미 데이터가 있습니다." : "테스트 데이터 주입 성공!"
-      );
+      await updateLastModifiedTime();
+      showToast("데이터가 초기화되고 실전 모드(0점)가 시작되었습니다!", "success");
+      setShowResetModal(false);
     } catch (error) {
-      showToast("오류 발생", "error");
+      console.error("Reset Error:", error);
+      showToast("초기화 중 오류가 발생했습니다.", "error");
     } finally {
-      setIsLoading(false);
+      setIsResetting(false);
       navigateTo("tier");
     }
   };
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    const hashedInput = btoa(encodeURIComponent(passwordInput))
-      .split("")
-      .reverse()
-      .join("");
+    const hashedInput = btoa(encodeURIComponent(passwordInput)).split('').reverse().join('');
     if (hashedInput === ADMIN_HASH) {
       setIsAdminAuth(true);
       showToast("관리자 인증 성공!");
@@ -517,7 +402,7 @@ export default function App() {
           imageUrl: url || "",
         }
       );
-      await updateLastModifiedTime(); // 업데이트 시간 기록
+      await updateLastModifiedTime(); 
       showToast("프로필 이미지가 저장되었습니다.");
     } catch (error) {
       showToast("이미지 저장 중 오류 발생", "error");
@@ -531,32 +416,16 @@ export default function App() {
       for (const result of matchToDelete.results) {
         const player = players.find((p) => p.name === result.playerName);
         if (player) {
-          const playerRef = doc(
-            db,
-            "artifacts",
-            appId,
-            "public",
-            "data",
-            "players",
-            player.id
-          );
+          const playerRef = doc(db, "artifacts", appId, "public", "data", "players", player.id);
           await updateDoc(playerRef, {
             points: player.points - result.scoreChange,
           });
         }
       }
       await deleteDoc(
-        doc(
-          db,
-          "artifacts",
-          appId,
-          "public",
-          "data",
-          "matches",
-          matchToDelete.id
-        )
+        doc(db, "artifacts", appId, "public", "data", "matches", matchToDelete.id)
       );
-      await updateLastModifiedTime(); // 업데이트 시간 기록
+      await updateLastModifiedTime(); 
       showToast("경기가 삭제되고 점수가 복원되었습니다.");
       setMatchToDelete(null);
     } catch (error) {
@@ -654,9 +523,7 @@ export default function App() {
                     <div className="flex-1 flex items-center gap-2">
                       <img
                         src={getAvatarSrc(player.name)}
-                        onError={(e) => {
-                          e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
-                        }}
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }}
                         alt="avatar"
                         className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition"
                       />
@@ -696,15 +563,10 @@ export default function App() {
                 };
               teamsByRank[r.rank].players.push(r.playerName);
             });
-            const sortedTeams = Object.values(teamsByRank).sort(
-              (a, b) => a.rank - b.rank
-            );
+            const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
 
             return (
-              <div
-                key={match.id}
-                className="bg-gray-800 rounded-xl p-5 border border-gray-700"
-              >
+              <div key={match.id} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
                 <div className="flex items-center mb-4">
                   <h3 className="text-xl font-bold text-white">
                     {match.gameName}
@@ -729,9 +591,7 @@ export default function App() {
                       <div className="flex justify-between items-center mb-3 border-b border-gray-600/50 pb-2">
                         <span
                           className={`text-sm font-bold ${
-                            team.rank === 1
-                              ? "text-yellow-400"
-                              : "text-gray-300"
+                            team.rank === 1 ? "text-yellow-400" : "text-gray-300"
                           }`}
                         >
                           {team.rank}위 팀
@@ -756,9 +616,7 @@ export default function App() {
                           >
                             <img
                               src={getAvatarSrc(p)}
-                              onError={(e) => {
-                                e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`;
-                              }}
+                              onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }}
                               alt="avatar"
                               className="w-5 h-5 rounded-full mr-2 bg-gray-800 object-cover"
                             />
@@ -776,10 +634,7 @@ export default function App() {
           }
 
           return (
-            <div
-              key={match.id}
-              className="bg-gray-800 rounded-xl p-5 border border-gray-700"
-            >
+            <div key={match.id} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
               <div className="flex items-center mb-4">
                 <h3 className="text-xl font-bold text-white">
                   {match.gameName}
@@ -822,9 +677,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <img
                           src={getAvatarSrc(result.playerName)}
-                          onError={(e) => {
-                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`;
-                          }}
+                          onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }}
                           alt="avatar"
                           className="w-7 h-7 rounded-full bg-gray-800 object-cover"
                         />
@@ -875,43 +728,30 @@ export default function App() {
                 <span className="text-2xl font-extrabold text-white">
                   {tier.id}
                 </span>
+                {/* ★ 실전용: D티어(-9999)는 최소 점수를 MIN으로 표시 ★ */}
                 <span className="text-xs font-semibold text-white/90 mt-1 text-center leading-tight">
-                  {tier.minPoints}pt
-                  <br className="hidden md:block" /> ~{" "}
-                  {tIdx === 0
-                    ? "MAX"
-                    : `${TIER_SETTINGS[tIdx - 1].minPoints - 1}pt`}
+                  {tier.minPoints === -9999 ? "MIN" : `${tier.minPoints}pt`}
+                  <br className="hidden md:block" /> ~ {tIdx === 0 ? "MAX" : `${TIER_SETTINGS[tIdx - 1].minPoints - 1}pt`}
                 </span>
               </div>
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center">
                 {tierPlayers.map((player) => {
                   const streak = getPlayerStreak(player.name);
                   return (
-                    <div
-                      key={player.id}
+                    <div 
+                      key={player.id} 
                       onClick={() => setSelectedPlayer(player.name)}
                       className="relative flex flex-col items-center cursor-pointer group"
                     >
-                      {/* ★ 연승/연패 뱃지 ★ */}
                       {streak.count >= 2 && (
-                        <div
-                          className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${
-                            streak.type === "win"
-                              ? "bg-red-900/90 text-red-400 border-red-500/50"
-                              : "bg-blue-900/90 text-blue-400 border-blue-500/50"
-                          }`}
-                        >
-                          {streak.type === "win" ? "🔥" : "🧊"}
-                          {streak.count}
-                          {streak.type === "win" ? "연승" : "연패"}
+                        <div className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${streak.type === 'win' ? 'bg-red-900/90 text-red-400 border-red-500/50' : 'bg-blue-900/90 text-blue-400 border-blue-500/50'}`}>
+                          {streak.type === 'win' ? '🔥' : '🧊'}{streak.count}{streak.type === 'win' ? '연승' : '연패'}
                         </div>
                       )}
                       <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
                         <img
                           src={getAvatarSrc(player.name)}
-                          onError={(e) => {
-                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
-                          }}
+                          onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }}
                           alt={player.name}
                           className="w-full h-full object-cover"
                         />
@@ -1011,11 +851,12 @@ export default function App() {
               { points: p.points + r.scoreChange }
             );
           else
+            // ★ 실전용: 신규 참가자 추가 시 0점부터 시작 ★
             await addDoc(
               collection(db, "artifacts", appId, "public", "data", "players"),
               {
                 name: pName,
-                points: 500 + r.scoreChange,
+                points: 0 + r.scoreChange, 
                 createdAt: new Date().toISOString(),
               }
             );
@@ -1031,7 +872,7 @@ export default function App() {
           { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
         ]);
 
-        await updateLastModifiedTime(); // 업데이트 시간 기록
+        await updateLastModifiedTime(); 
 
         showToast("결과 저장 성공!");
         navigateTo("tier");
@@ -1313,69 +1154,42 @@ export default function App() {
 
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-blue-400" /> 참가자 프로필
-            이미지 관리
+            <Camera className="w-5 h-5 mr-2 text-blue-400" /> 참가자 프로필 이미지 관리
           </h2>
           <p className="text-sm text-gray-400 mb-6">
-            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 참가자의 사진을
-            변경할 수 있습니다. <br />
-            (빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
           </p>
 
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {[...players]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((player) => (
-                <div
-                  key={player.id}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={getAvatarSrc(player.name)}
-                      onError={(e) => {
-                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
-                      }}
-                      alt="avatar"
-                      className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0"
-                    />
-                    <span className="font-bold text-white w-20 truncate">
-                      {player.name}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 gap-2">
-                    <input
-                      type="text"
-                      placeholder="https://..."
-                      value={
-                        imageInputs[player.id] !== undefined
-                          ? imageInputs[player.id]
-                          : player.imageUrl || ""
-                      }
-                      onChange={(e) =>
-                        setImageInputs({
-                          ...imageInputs,
-                          [player.id]: e.target.value,
-                        })
-                      }
-                      className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
-                    />
-                    <button
-                      onClick={() =>
-                        handleUpdateImage(player.id, imageInputs[player.id])
-                      }
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                    >
-                      저장
-                    </button>
-                  </div>
+            {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+              <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={getAvatarSrc(player.name)} 
+                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
+                    alt="avatar" 
+                    className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
+                  />
+                  <span className="font-bold text-white w-20 truncate">{player.name}</span>
                 </div>
-              ))}
-            {players.length === 0 && (
-              <p className="text-center text-gray-500 py-4">
-                등록된 참가자가 없습니다.
-              </p>
-            )}
+                <div className="flex flex-1 gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
+                    onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
+                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                  />
+                  <button
+                    onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            ))}
+            {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
           </div>
         </div>
 
@@ -1418,13 +1232,17 @@ export default function App() {
           </div>
         </div>
 
-        <div className="bg-indigo-900/30 border border-indigo-700/50 rounded-xl p-6">
+        {/* ★ 실전용: 초기화 버튼 영역 ★ */}
+        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
+          <p className="text-sm text-gray-400 mb-4">
+            기존에 쌓인 테스트용 데이터를 싹 지우고, 왁타버스 멤버들이 <strong className="text-white">모두 0점부터 시작하는 상태</strong>로 리셋합니다. (실전 오픈용)
+          </p>
           <button
-            onClick={handleSeedDatabase}
-            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg flex justify-center items-center"
+            onClick={() => setShowResetModal(true)}
+            className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"
           >
-            <RefreshCw className="w-4 h-4 mr-2" /> 누락된 테스트 데이터 강제
-            주입
+            <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 실전 모드(0점) 시작하기
           </button>
         </div>
       </div>
@@ -1493,131 +1311,115 @@ export default function App() {
         </div>
       )}
 
-      {/* ★ 개인 프로필 모달 ★ */}
-      {selectedPlayer &&
-        (() => {
-          const stats = getPlayerStats(selectedPlayer);
-          const playerInfo = players.find((p) => p.name === selectedPlayer);
-          if (!playerInfo) return null;
-
-          return (
-            <div
-              className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
-              onClick={() => setSelectedPlayer(null)}
-            >
-              <div
-                className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
+      {/* ★ 실전용: 데이터 초기화 모달 ★ */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
+            <div className="flex items-center text-red-400 mb-4">
+              <AlertTriangle className="w-8 h-8 mr-2" />
+              <h3 className="text-xl font-bold text-white">
+                정말 초기화하시겠습니까?
+              </h3>
+            </div>
+            <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+              지금까지의 <span className="font-bold text-red-400">모든 경기 기록과 참가자가 삭제</span>됩니다.<br /><br />
+              삭제 후 모든 스트리머가 0점부터 시작하는<br />'실전 모드'로 즉시 전환됩니다. (복구 불가)
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetModal(false)}
+                disabled={isResetting}
+                className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium"
               >
-                {/* 모달 상단 헤더 (아바타 & 이름) */}
-                <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
-                  <button
-                    onClick={() => setSelectedPlayer(null)}
-                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                  <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
-                    <img
-                      src={getAvatarSrc(selectedPlayer)}
-                      onError={(e) => {
-                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`;
-                      }}
-                      alt={selectedPlayer}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <h3 className="text-2xl font-black text-white">
-                    {selectedPlayer}
-                  </h3>
-                  <span className="text-green-400 font-bold mt-1 text-lg">
-                    {playerInfo.points} pt
-                  </span>
-                </div>
+                취소
+              </button>
+              <button
+                onClick={handleResetDatabase}
+                disabled={isResetting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center"
+              >
+                {isResetting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "초기화 및 실전 시작"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                {/* 통계 요약 */}
-                <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
-                  <div className="flex flex-col items-center py-4">
-                    <span className="text-xs text-gray-400 font-medium mb-1">
-                      총 참가
-                    </span>
-                    <span className="text-xl font-bold text-white">
-                      {stats.totalMatches}전
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center py-4">
-                    <span className="text-xs text-gray-400 font-medium mb-1">
-                      우승 확률(1위)
-                    </span>
-                    <span className="text-xl font-bold text-yellow-400">
-                      {stats.winRate}%
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center py-4 px-2 text-center">
-                    <span className="text-xs text-gray-400 font-medium mb-1">
-                      주력 종목
-                    </span>
-                    <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">
-                      {stats.mostPlayedGame}
-                    </span>
-                  </div>
-                </div>
+      {/* 개인 프로필 모달 */}
+      {selectedPlayer && (() => {
+        const stats = getPlayerStats(selectedPlayer);
+        const playerInfo = players.find(p => p.name === selectedPlayer);
+        if (!playerInfo) return null;
 
-                {/* 최근 5경기 전적 */}
-                <div className="p-6">
-                  <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
-                    <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대
-                    5경기)
-                  </h4>
-                  {stats.recentMatches.length === 0 ? (
-                    <p className="text-center text-gray-500 py-6 text-sm">
-                      경기 기록이 없습니다.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {stats.recentMatches.map((m) => (
-                        <div
-                          key={m.id}
-                          className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50"
-                        >
-                          <div className="flex-1 truncate pr-2">
-                            <p className="text-sm font-bold text-white truncate">
-                              {m.gameName}
-                            </p>
-                            <p className="text-[10px] text-gray-500">
-                              {m.date}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`text-xs font-bold ${
-                                m.rank === 1
-                                  ? "text-yellow-400"
-                                  : "text-gray-400"
-                              }`}
-                            >
-                              {m.rank}위
-                            </span>
-                            <span
-                              className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${
-                                m.scoreChange >= 0
-                                  ? "bg-green-500/20 text-green-400"
-                                  : "bg-red-500/20 text-red-400"
-                              }`}
-                            >
-                              {m.scoreChange > 0 ? "+" : ""}
-                              {m.scoreChange}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+        return (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
+            <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
+                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+                  <X className="w-6 h-6" />
+                </button>
+                <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
+                  <img
+                    src={getAvatarSrc(selectedPlayer)}
+                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`; }}
+                    alt={selectedPlayer}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
+                <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
+              </div>
+
+              <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
+                <div className="flex flex-col items-center py-4">
+                  <span className="text-xs text-gray-400 font-medium mb-1">총 참가</span>
+                  <span className="text-xl font-bold text-white">{stats.totalMatches}전</span>
+                </div>
+                <div className="flex flex-col items-center py-4">
+                  <span className="text-xs text-gray-400 font-medium mb-1">우승 확률(1위)</span>
+                  <span className="text-xl font-bold text-yellow-400">{stats.winRate}%</span>
+                </div>
+                <div className="flex flex-col items-center py-4 px-2 text-center">
+                  <span className="text-xs text-gray-400 font-medium mb-1">주력 종목</span>
+                  <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">{stats.mostPlayedGame}</span>
                 </div>
               </div>
+
+              <div className="p-6">
+                <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
+                  <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대 5경기)
+                </h4>
+                {stats.recentMatches.length === 0 ? (
+                  <p className="text-center text-gray-500 py-6 text-sm">경기 기록이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {stats.recentMatches.map((m) => (
+                      <div key={m.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                        <div className="flex-1 truncate pr-2">
+                          <p className="text-sm font-bold text-white truncate">{m.gameName}</p>
+                          <p className="text-[10px] text-gray-500">{m.date}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xs font-bold ${m.rank === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                            {m.rank}위
+                          </span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${m.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                            {m.scoreChange > 0 ? "+" : ""}{m.scoreChange}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          );
-        })()}
+          </div>
+        );
+      })()}
 
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
@@ -1638,14 +1440,12 @@ export default function App() {
             >
               WAK
             </a>
-            {/* ★ 추가된 업데이트 시간 표시 ★ */}
             {lastUpdated && (
               <span className="ml-2 md:ml-3 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
                 <RefreshCw className="w-3 h-3 mr-1 opacity-70" />
                 최근 갱신: {formatLastUpdated(lastUpdated)}
               </span>
             )}
-            {/* ★ 추가된 오늘 방문자 수 표시 ★ */}
             <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
               <Users className="w-3 h-3 mr-1 opacity-70" />
               오늘 방문자: {todayVisits}
