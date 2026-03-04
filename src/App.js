@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   Camera,
   X,
-  Activity
+  Activity,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -33,7 +33,6 @@ import {
   addDoc,
   deleteDoc,
   setDoc,
-  increment,
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -60,30 +59,19 @@ const appId =
 // ★ 보안 업그레이드: 비밀번호 난독화 (해싱) 적용 ★
 const ADMIN_HASH = "zITMrF2d";
 
-// ★ 실전용: 기본 참가자 0점 세팅 ★
-const SEED_PLAYERS = [
-  { name: "우왁굳", points: 0 },
-  { name: "천양", points: 0 },
-  { name: "릴파", points: 0 },
-  { name: "아이네", points: 0 },
-  { name: "고세구", points: 0 },
-  { name: "징버거", points: 0 },
-  { name: "비챤", points: 0 },
-  { name: "주르르", points: 0 },
-  { name: "뢴트게늄", points: 0 },
-  { name: "해루석", points: 0 },
-];
+// ★ 실전용: 참가자 명단 완전 백지화 (0명부터 시작) ★
+const SEED_PLAYERS = [];
 
 // ★ 실전용: 테스트 경기 데이터 제거 ★
 const SEED_MATCHES = [];
 
-// ★ 실전용: D 티어 최소 점수를 -9999로 설정하여 마이너스 점수 커버 ★
+// ★ 실전용 상대평가 티어 설정 (비율 기준) ★
 const TIER_SETTINGS = [
-  { id: "S", name: "S 티어", color: "bg-red-500", minPoints: 1300 },
-  { id: "A", name: "A 티어", color: "bg-orange-500", minPoints: 1000 },
-  { id: "B", name: "B 티어", color: "bg-yellow-500", minPoints: 700 },
-  { id: "C", name: "C 티어", color: "bg-green-500", minPoints: 400 },
-  { id: "D", name: "D 티어", color: "bg-blue-500", minPoints: -9999 },
+  { id: "S", name: "S 티어", color: "bg-red-500", percent: 10, label: "상위 10%" },
+  { id: "A", name: "A 티어", color: "bg-orange-500", percent: 30, label: "상위 11% ~ 30%" },
+  { id: "B", name: "B 티어", color: "bg-yellow-500", percent: 60, label: "상위 31% ~ 60%" },
+  { id: "C", name: "C 티어", color: "bg-green-500", percent: 85, label: "상위 61% ~ 85%" },
+  { id: "D", name: "D 티어", color: "bg-blue-500", percent: 100, label: "하위 15%" },
 ];
 
 export default function App() {
@@ -110,22 +98,22 @@ export default function App() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
+  // 프로필 모달 및 메타데이터(업데이트 시간) 상태
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [todayVisits, setTodayVisits] = useState(0); 
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
-  const [matchMode, setMatchMode] = useState("individual"); 
+  const [matchMode, setMatchMode] = useState("individual");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageInputs, setImageInputs] = useState({});
 
   const [individualResults, setIndividualResults] = useState([
-    { playerName: "우왁굳", rank: 1, scoreChange: 100 },
+    { playerName: "", rank: 1, scoreChange: 100 },
     { playerName: "", rank: 2, scoreChange: 50 },
   ]);
   const [teamResults, setTeamResults] = useState([
-    { id: 1, rank: 1, scoreChange: 100, players: ["우왁굳", "천양"] },
+    { id: 1, rank: 1, scoreChange: 100, players: ["", ""] },
     { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
   ]);
 
@@ -152,6 +140,7 @@ export default function App() {
     window.location.hash = tabName;
   };
 
+  // ★ Auth 오류 방지를 위해 중첩 try-catch 적용 ★
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -159,7 +148,12 @@ export default function App() {
           typeof __initial_auth_token !== "undefined" &&
           __initial_auth_token
         ) {
-          await signInWithCustomToken(auth, __initial_auth_token);
+          try {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } catch (tokenError) {
+            console.warn("Token mismatch fallback:", tokenError);
+            await signInAnonymously(auth);
+          }
         } else {
           await signInAnonymously(auth);
         }
@@ -174,12 +168,26 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const playersRef = collection(db, "artifacts", appId, "public", "data", "players");
+    const playersRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "players"
+    );
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
       setPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    const matchesRef = collection(db, "artifacts", appId, "public", "data", "matches");
+    const matchesRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "matches"
+    );
     const unsubMatches = onSnapshot(
       matchesRef,
       (snapshot) => {
@@ -206,20 +214,19 @@ export default function App() {
       }
     );
 
-    const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
+    // 업데이트 시간 리스너
+    const metaRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "metadata",
+      "app_info"
+    );
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) {
         setLastUpdated(docSnap.data().lastUpdated);
-      }
-    });
-
-    const today = new Date();
-    const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
-    
-    const unsubVisit = onSnapshot(visitRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setTodayVisits(docSnap.data().count || 0);
       }
     });
 
@@ -227,36 +234,18 @@ export default function App() {
       unsubPlayers();
       unsubMatches();
       unsubMeta();
-      unsubVisit();
     };
-  }, [user]);
-
-  useEffect(() => {
-    const recordVisit = async () => {
-      const today = new Date();
-      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const storageKey = `wak_visited_${todayDocId}`;
-
-      if (!localStorage.getItem(storageKey)) {
-        try {
-          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
-          await setDoc(visitRef, { count: increment(1) }, { merge: true });
-          localStorage.setItem(storageKey, "true"); 
-        } catch (error) {
-          console.error("Visit record error:", error);
-        }
-      }
-    };
-
-    if (user) {
-      recordVisit();
-    }
   }, [user]);
 
   useEffect(() => {
     if (!matchDate) {
       const today = new Date();
-      setMatchDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`);
+      setMatchDate(
+        `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}-${String(today.getDate()).padStart(2, "0")}`
+      );
     }
   }, [matchDate]);
 
@@ -269,8 +258,20 @@ export default function App() {
 
   const updateLastModifiedTime = async () => {
     try {
-      const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
-      await setDoc(metaRef, { lastUpdated: new Date().toISOString() }, { merge: true });
+      const metaRef = doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "metadata",
+        "app_info"
+      );
+      await setDoc(
+        metaRef,
+        { lastUpdated: new Date().toISOString() },
+        { merge: true }
+      );
     } catch (error) {
       console.error("Meta update error:", error);
     }
@@ -279,52 +280,61 @@ export default function App() {
   const formatLastUpdated = (isoString) => {
     if (!isoString) return "";
     const d = new Date(isoString);
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
     return `${month}.${day} ${hours}:${minutes}`;
   };
 
   const getPlayerStreak = (playerName) => {
-    const playerMatches = matches.filter(m => m.results?.some(r => r.playerName === playerName));
-    if (playerMatches.length === 0) return { type: 'none', count: 0 };
+    const playerMatches = matches.filter((m) =>
+      m.results?.some((r) => r.playerName === playerName)
+    );
+    if (playerMatches.length === 0) return { type: "none", count: 0 };
 
-    let streakType = 'none';
+    let streakType = "none";
     let count = 0;
 
     for (const match of playerMatches) {
-      const result = match.results.find(r => r.playerName === playerName);
+      const result = match.results.find((r) => r.playerName === playerName);
       if (!result) continue;
 
       const isWin = result.scoreChange > 0;
       const isLoss = result.scoreChange < 0;
 
       if (count === 0) {
-        if (isWin) { streakType = 'win'; count = 1; }
-        else if (isLoss) { streakType = 'lose'; count = 1; }
-        else break; 
+        if (isWin) {
+          streakType = "win";
+          count = 1;
+        } else if (isLoss) {
+          streakType = "lose";
+          count = 1;
+        } else break;
       } else {
-        if (streakType === 'win' && isWin) count++;
-        else if (streakType === 'lose' && isLoss) count++;
-        else break; 
+        if (streakType === "win" && isWin) count++;
+        else if (streakType === "lose" && isLoss) count++;
+        else break;
       }
     }
     return { type: streakType, count };
   };
 
   const getPlayerStats = (playerName) => {
-    const playerMatches = matches.filter(m => m.results?.some(r => r.playerName === playerName));
+    const playerMatches = matches.filter((m) =>
+      m.results?.some((r) => r.playerName === playerName)
+    );
     const totalMatches = playerMatches.length;
 
-    const wins = playerMatches.filter(m => {
-      const r = m.results.find(res => res.playerName === playerName);
+    const wins = playerMatches.filter((m) => {
+      const r = m.results.find((res) => res.playerName === playerName);
       return r && r.rank === 1;
     }).length;
-    const winRate = totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
+    const winRate =
+      totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
 
     const gameCounts = {};
-    playerMatches.forEach(m => {
+    playerMatches.forEach((m) => {
       gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1;
     });
     let mostPlayedGame = "전적 없음";
@@ -336,42 +346,33 @@ export default function App() {
       }
     }
 
-    const recentMatches = playerMatches.slice(0, 5).map(m => {
-      const r = m.results.find(res => res.playerName === playerName);
+    const recentMatches = playerMatches.slice(0, 5).map((m) => {
+      const r = m.results.find((res) => res.playerName === playerName);
       return {
         id: m.id,
         gameName: m.gameName,
         date: m.date,
         rank: r.rank,
-        scoreChange: r.scoreChange
+        scoreChange: r.scoreChange,
       };
     });
 
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
-  // ★ 실전용: 데이터 초기화 및 0점 로스터 강제 세팅 로직 ★
+  // ★ 실전용: 파이어베이스 데이터 완전 초기화 로직 ★
   const handleResetDatabase = async () => {
     if (!user) return;
     setIsResetting(true);
     try {
-      // 1. 모든 매치 기록 삭제
       for (const m of matches) {
         await deleteDoc(doc(db, "artifacts", appId, "public", "data", "matches", m.id));
       }
-      // 2. 모든 플레이어 기록 삭제
       for (const p of players) {
         await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
       }
-      // 3. 0점 초기 로스터 세팅
-      for (const p of SEED_PLAYERS) {
-        await addDoc(
-          collection(db, "artifacts", appId, "public", "data", "players"),
-          { ...p, createdAt: new Date().toISOString() }
-        );
-      }
       await updateLastModifiedTime();
-      showToast("데이터가 초기화되고 실전 모드(0점)가 시작되었습니다!", "success");
+      showToast("데이터가 초기화되고 백지상태로 시작됩니다!", "success");
       setShowResetModal(false);
     } catch (error) {
       console.error("Reset Error:", error);
@@ -384,7 +385,10 @@ export default function App() {
 
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    const hashedInput = btoa(encodeURIComponent(passwordInput)).split('').reverse().join('');
+    const hashedInput = btoa(encodeURIComponent(passwordInput))
+      .split("")
+      .reverse()
+      .join("");
     if (hashedInput === ADMIN_HASH) {
       setIsAdminAuth(true);
       showToast("관리자 인증 성공!");
@@ -402,7 +406,7 @@ export default function App() {
           imageUrl: url || "",
         }
       );
-      await updateLastModifiedTime(); 
+      await updateLastModifiedTime();
       showToast("프로필 이미지가 저장되었습니다.");
     } catch (error) {
       showToast("이미지 저장 중 오류 발생", "error");
@@ -416,16 +420,32 @@ export default function App() {
       for (const result of matchToDelete.results) {
         const player = players.find((p) => p.name === result.playerName);
         if (player) {
-          const playerRef = doc(db, "artifacts", appId, "public", "data", "players", player.id);
+          const playerRef = doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "players",
+            player.id
+          );
           await updateDoc(playerRef, {
             points: player.points - result.scoreChange,
           });
         }
       }
       await deleteDoc(
-        doc(db, "artifacts", appId, "public", "data", "matches", matchToDelete.id)
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "matches",
+          matchToDelete.id
+        )
       );
-      await updateLastModifiedTime(); 
+      await updateLastModifiedTime();
       showToast("경기가 삭제되고 점수가 복원되었습니다.");
       setMatchToDelete(null);
     } catch (error) {
@@ -523,7 +543,9 @@ export default function App() {
                     <div className="flex-1 flex items-center gap-2">
                       <img
                         src={getAvatarSrc(player.name)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }}
+                        onError={(e) => {
+                          e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                        }}
                         alt="avatar"
                         className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition"
                       />
@@ -563,10 +585,15 @@ export default function App() {
                 };
               teamsByRank[r.rank].players.push(r.playerName);
             });
-            const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
+            const sortedTeams = Object.values(teamsByRank).sort(
+              (a, b) => a.rank - b.rank
+            );
 
             return (
-              <div key={match.id} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+              <div
+                key={match.id}
+                className="bg-gray-800 rounded-xl p-5 border border-gray-700"
+              >
                 <div className="flex items-center mb-4">
                   <h3 className="text-xl font-bold text-white">
                     {match.gameName}
@@ -591,7 +618,9 @@ export default function App() {
                       <div className="flex justify-between items-center mb-3 border-b border-gray-600/50 pb-2">
                         <span
                           className={`text-sm font-bold ${
-                            team.rank === 1 ? "text-yellow-400" : "text-gray-300"
+                            team.rank === 1
+                              ? "text-yellow-400"
+                              : "text-gray-300"
                           }`}
                         >
                           {team.rank}위 팀
@@ -616,7 +645,9 @@ export default function App() {
                           >
                             <img
                               src={getAvatarSrc(p)}
-                              onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }}
+                              onError={(e) => {
+                                e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`;
+                              }}
                               alt="avatar"
                               className="w-5 h-5 rounded-full mr-2 bg-gray-800 object-cover"
                             />
@@ -634,7 +665,10 @@ export default function App() {
           }
 
           return (
-            <div key={match.id} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
+            <div
+              key={match.id}
+              className="bg-gray-800 rounded-xl p-5 border border-gray-700"
+            >
               <div className="flex items-center mb-4">
                 <h3 className="text-xl font-bold text-white">
                   {match.gameName}
@@ -677,7 +711,9 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <img
                           src={getAvatarSrc(result.playerName)}
-                          onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`;
+                          }}
                           alt="avatar"
                           className="w-7 h-7 rounded-full bg-gray-800 object-cover"
                         />
@@ -698,80 +734,154 @@ export default function App() {
     </div>
   );
 
-  const renderTierListView = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white flex items-center">
-        <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력 티어표
-      </h2>
-      <div className="bg-gray-900 rounded-xl border border-gray-700 flex flex-col gap-1 p-1">
-        {TIER_SETTINGS.map((tier, tIdx) => {
-          const isLastTier = tIdx === TIER_SETTINGS.length - 1;
-          const tierPlayers = players
-            .filter((p) => {
-              if (isLastTier)
-                return p.points < TIER_SETTINGS[tIdx - 1].minPoints;
-              return (
-                p.points >= tier.minPoints &&
-                p.points <
-                  (tIdx === 0 ? Infinity : TIER_SETTINGS[tIdx - 1].minPoints)
-              );
-            })
-            .sort((a, b) => b.points - a.points);
-          return (
+  const renderTierListView = () => {
+    // ★ 상대평가 로직: 전체 참가자 정렬 및 순위 부여 (동점자 공동 순위 처리) ★
+    const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
+    const totalPlayers = sortedPlayers.length;
+
+    let currentRank = 1;
+    const rankedPlayers = sortedPlayers.map((player, index) => {
+      if (index > 0 && player.points < sortedPlayers[index - 1].points) {
+        currentRank = index + 1;
+      }
+      return { ...player, rank: currentRank };
+    });
+
+    // ★ 티어별 인원 커트라인 계산 (무조건 올림) ★
+    const cutoffs = {
+      S: Math.ceil(totalPlayers * 0.10),
+      A: Math.ceil(totalPlayers * 0.30),
+      B: Math.ceil(totalPlayers * 0.60),
+      C: Math.ceil(totalPlayers * 0.85),
+      D: totalPlayers
+    };
+
+    const getTierIdByRank = (rank) => {
+      if (totalPlayers === 0) return "D";
+      if (rank <= cutoffs.S) return "S";
+      if (rank <= cutoffs.A) return "A";
+      if (rank <= cutoffs.B) return "B";
+      if (rank <= cutoffs.C) return "C";
+      return "D";
+    };
+
+    // 티어별로 플레이어 분류 및 동적 순위 텍스트 계산
+    const categorizedPlayers = TIER_SETTINGS.map((tier, index) => {
+      const playersInTier = rankedPlayers.filter(p => getTierIdByRank(p.rank) === tier.id);
+      
+      // 화면에 보여줄 동적 순위 범위 (예: 1위 ~ 3위)
+      let startRank = 1;
+      if (index > 0) {
+         const prevTierId = TIER_SETTINGS[index - 1].id;
+         startRank = cutoffs[prevTierId] + 1;
+      }
+      const endRank = cutoffs[tier.id];
+      
+      let rankLabel = "";
+      if (totalPlayers > 0) {
+         if (startRank > endRank) {
+           rankLabel = "(공석)";
+         } else if (startRank === endRank) {
+           rankLabel = `(${startRank}위)`;
+         } else {
+           rankLabel = `(${startRank}위 ~ ${endRank}위)`;
+         }
+      } else {
+         rankLabel = "(0명)";
+      }
+
+      return { ...tier, players: playersInTier, rankLabel };
+    });
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center">
+              <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력 티어표
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
+              상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden flex flex-col gap-1 p-1">
+          {categorizedPlayers.map((tier) => (
             <div
               key={tier.id}
-              className="flex flex-col md:flex-row bg-gray-800 rounded-lg min-h-[100px]"
+              className="flex flex-col md:flex-row bg-gray-800 rounded-lg overflow-hidden min-h-[100px]"
             >
               <div
-                className={`${tier.color} md:w-24 w-full flex-shrink-0 flex flex-col items-center justify-center p-3`}
+                className={`${tier.color} md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-gray-900 shadow-inner`}
               >
-                <span className="text-2xl font-extrabold text-white">
+                <span className="text-2xl font-extrabold text-white text-shadow">
                   {tier.id}
                 </span>
-                {/* ★ 실전용: D티어(-9999)는 최소 점수를 MIN으로 표시 ★ */}
-                <span className="text-xs font-semibold text-white/90 mt-1 text-center leading-tight">
-                  {tier.minPoints === -9999 ? "MIN" : `${tier.minPoints}pt`}
-                  <br className="hidden md:block" /> ~ {tIdx === 0 ? "MAX" : `${TIER_SETTINGS[tIdx - 1].minPoints - 1}pt`}
+                {/* ★ 비율 및 동적 순위 텍스트 표시 ★ */}
+                <span className="text-xs font-bold text-white/90 mt-1 text-center">
+                  {tier.label}
+                </span>
+                <span className="text-[10px] text-white/70 mt-0.5 text-center">
+                  {tier.rankLabel}
                 </span>
               </div>
-              <div className="flex-1 p-4 flex flex-wrap gap-4 items-center">
-                {tierPlayers.map((player) => {
-                  const streak = getPlayerStreak(player.name);
-                  return (
-                    <div 
-                      key={player.id} 
-                      onClick={() => setSelectedPlayer(player.name)}
-                      className="relative flex flex-col items-center cursor-pointer group"
-                    >
-                      {streak.count >= 2 && (
-                        <div className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${streak.type === 'win' ? 'bg-red-900/90 text-red-400 border-red-500/50' : 'bg-blue-900/90 text-blue-400 border-blue-500/50'}`}>
-                          {streak.type === 'win' ? '🔥' : '🧊'}{streak.count}{streak.type === 'win' ? '연승' : '연패'}
+
+              <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
+                {tier.players.length > 0 ? (
+                  tier.players.map((player) => {
+                    const streak = getPlayerStreak(player.name);
+                    return (
+                      <div
+                        key={player.id}
+                        onClick={() => setSelectedPlayer(player.name)}
+                        className="group relative flex flex-col items-center cursor-pointer"
+                      >
+                        {/* ★ 연승/연패 뱃지 ★ */}
+                        {streak.count >= 2 && (
+                          <div
+                            className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${
+                              streak.type === "win"
+                                ? "bg-red-900/90 text-red-400 border-red-500/50"
+                                : "bg-blue-900/90 text-blue-400 border-blue-500/50"
+                            }`}
+                          >
+                            {streak.type === "win" ? "🔥" : "🧊"}
+                            {streak.count}
+                            {streak.type === "win" ? "연승" : "연패"}
+                          </div>
+                        )}
+                        <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
+                          <img
+                            src={getAvatarSrc(player.name)}
+                            onError={(e) => {
+                              e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                            }}
+                            alt={player.name}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                      )}
-                      <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
-                        <img
-                          src={getAvatarSrc(player.name)}
-                          onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }}
-                          alt={player.name}
-                          className="w-full h-full object-cover"
-                        />
+                        <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded group-hover:text-green-400 transition-colors">
+                          {player.name}
+                        </span>
+                        <span className="text-xs font-bold text-green-400 mt-0.5">
+                          {player.points} pt
+                        </span>
                       </div>
-                      <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded group-hover:text-green-400 transition-colors">
-                        {player.name}
-                      </span>
-                      <span className="text-xs font-bold text-green-400 mt-0.5">
-                        {player.points} pt
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                ) : (
+                  <span className="text-gray-500 text-sm italic p-2">
+                    해당 티어 플레이어 없음
+                  </span>
+                )}
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderAdminView = () => {
     if (!isAdminAuth)
@@ -851,12 +961,12 @@ export default function App() {
               { points: p.points + r.scoreChange }
             );
           else
-            // ★ 실전용: 신규 참가자 추가 시 0점부터 시작 ★
+            // ★ 실전용: 신규 참가자는 무조건 0점부터 시작 ★
             await addDoc(
               collection(db, "artifacts", appId, "public", "data", "players"),
               {
                 name: pName,
-                points: 0 + r.scoreChange, 
+                points: 0 + r.scoreChange,
                 createdAt: new Date().toISOString(),
               }
             );
@@ -864,15 +974,15 @@ export default function App() {
 
         setGameName("");
         setIndividualResults([
-          { playerName: "우왁굳", rank: 1, scoreChange: 100 },
+          { playerName: "", rank: 1, scoreChange: 100 },
           { playerName: "", rank: 2, scoreChange: 50 },
         ]);
         setTeamResults([
-          { id: 1, rank: 1, scoreChange: 100, players: ["우왁굳", "천양"] },
+          { id: 1, rank: 1, scoreChange: 100, players: ["", ""] },
           { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
         ]);
 
-        await updateLastModifiedTime(); 
+        await updateLastModifiedTime(); // 업데이트 시간 기록
 
         showToast("결과 저장 성공!");
         navigateTo("tier");
@@ -1236,13 +1346,13 @@ export default function App() {
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
           <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
           <p className="text-sm text-gray-400 mb-4">
-            기존에 쌓인 테스트용 데이터를 싹 지우고, 왁타버스 멤버들이 <strong className="text-white">모두 0점부터 시작하는 상태</strong>로 리셋합니다. (실전 오픈용)
+            기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className="text-white">0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
           </p>
           <button
             onClick={() => setShowResetModal(true)}
             className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"
           >
-            <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 실전 모드(0점) 시작하기
+            <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로 시작하기
           </button>
         </div>
       </div>
@@ -1323,7 +1433,7 @@ export default function App() {
             </div>
             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
               지금까지의 <span className="font-bold text-red-400">모든 경기 기록과 참가자가 삭제</span>됩니다.<br /><br />
-              삭제 후 모든 스트리머가 0점부터 시작하는<br />'실전 모드'로 즉시 전환됩니다. (복구 불가)
+              삭제 후 참가자가 아무도 없는 완전한<br />'백지 상태'로 즉시 전환됩니다. (복구 불가)
             </p>
             <div className="flex gap-3">
               <button
@@ -1440,16 +1550,13 @@ export default function App() {
             >
               WAK
             </a>
+            {/* ★ 추가된 업데이트 시간 표시 ★ */}
             {lastUpdated && (
               <span className="ml-2 md:ml-3 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
                 <RefreshCw className="w-3 h-3 mr-1 opacity-70" />
                 최근 갱신: {formatLastUpdated(lastUpdated)}
               </span>
             )}
-            <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
-              <Users className="w-3 h-3 mr-1 opacity-70" />
-              오늘 방문자: {todayVisits}
-            </span>
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
             <button
