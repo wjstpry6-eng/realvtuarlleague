@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Trophy,
   Gamepad2,
@@ -16,6 +16,10 @@ import {
   Camera,
   X,
   Activity,
+  Crown,
+  Clover,
+  Gem,
+  TrendingUp
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -78,7 +82,7 @@ const TIER_SETTINGS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "matches", "tier", "admin"].includes(hash) ? hash : "home";
+    return ["home", "matches", "stats", "tier", "admin"].includes(hash) ? hash : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -95,11 +99,9 @@ export default function App() {
   const [matchToDelete, setMatchToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // ★ 실전용: 데이터 초기화 모달 상태 추가 ★
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
-  // 프로필 모달 및 메타데이터 상태 (업데이트 시간, 방문자수)
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [todayVisits, setTodayVisits] = useState(0); 
@@ -130,7 +132,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "matches", "tier", "admin"].includes(hash))
+      if (["home", "matches", "stats", "tier", "admin"].includes(hash))
         setActiveTab(hash);
       else setActiveTab("home");
     };
@@ -215,7 +217,6 @@ export default function App() {
       }
     );
 
-    // 업데이트 시간 리스너
     const metaRef = doc(
       db,
       "artifacts",
@@ -231,7 +232,6 @@ export default function App() {
       }
     });
 
-    // ★ 오늘 방문자 수 실시간 리스너 ★
     const today = new Date();
     const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
@@ -250,14 +250,12 @@ export default function App() {
     };
   }, [user]);
 
-  // ★ 오늘 방문자 수 증가 로직 (localStorage 활용) ★
   useEffect(() => {
     const recordVisit = async () => {
       const today = new Date();
       const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const storageKey = `wak_visited_${todayDocId}`;
 
-      // 로컬 스토리지에 오늘 방문 기록이 없으면 카운트 증가
       if (!localStorage.getItem(storageKey)) {
         try {
           const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
@@ -397,7 +395,6 @@ export default function App() {
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
-  // ★ 데이터 초기화 및 백지 상태 시작 로직 ★
   const handleResetDatabase = async () => {
     if (!user) return;
     setIsResetting(true);
@@ -770,6 +767,200 @@ export default function App() {
       </div>
     </div>
   );
+
+  // ★ 추가된 통계 탭 컴포넌트 ★
+  const renderStatsView = () => {
+    // 참가자별 통계 데이터 계산
+    const playerStatsMap = useMemo(() => {
+      return players.map((p) => {
+        let matchCount = 0;
+        let winCount = 0;
+
+        matches.forEach((m) => {
+          const res = m.results?.find((r) => r.playerName === p.name);
+          if (res) {
+            matchCount++;
+            if (res.rank === 1) winCount++;
+          }
+        });
+
+        // 평균 점수 계산 (소수점 1자리까지)
+        const avgScore = matchCount > 0 ? (p.points / matchCount) : 0;
+
+        return {
+          ...p,
+          matchCount,
+          winCount,
+          avgScore: Number(avgScore.toFixed(1)),
+        };
+      }).sort((a, b) => b.points - a.points); // 기본 정렬: 총 점수 높은 순
+    }, [players, matches]);
+
+    // 각 분야별 1위 찾기 (명예의 전당용)
+    const mostWinsPlayer = [...playerStatsMap].sort((a, b) => b.winCount - a.winCount || b.points - a.points)[0];
+    const mostPlayedPlayer = [...playerStatsMap].sort((a, b) => b.matchCount - a.matchCount || b.points - a.points)[0];
+    const bestAvgPlayer = [...playerStatsMap].filter(p => p.matchCount > 0).sort((a, b) => b.avgScore - a.avgScore)[0];
+
+    return (
+      <div className="space-y-8">
+        <div>
+          <h2 className="text-2xl font-bold text-white flex items-center mb-2">
+            <TrendingUp className="w-6 h-6 mr-2 text-indigo-400" /> 종합 통계 대시보드
+          </h2>
+          <p className="text-sm text-gray-400">
+            매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.
+          </p>
+        </div>
+
+        {/* 1. 명예의 전당 (The Kings) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 종합 우승왕 */}
+          <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 opacity-10">
+              <Crown className="w-32 h-32 text-yellow-500" />
+            </div>
+            <Crown className="w-8 h-8 text-yellow-400 mb-3" />
+            <h3 className="text-sm font-bold text-gray-300 mb-1">👑 종합 우승왕</h3>
+            {mostWinsPlayer && mostWinsPlayer.winCount > 0 ? (
+              <>
+                <div 
+                  className="flex items-center gap-2 cursor-pointer group"
+                  onClick={() => setSelectedPlayer(mostWinsPlayer.name)}
+                >
+                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-yellow-500/50 group-hover:scale-110 transition" />
+                  <span className="text-xl font-black text-white group-hover:text-yellow-400 transition">{mostWinsPlayer.name}</span>
+                </div>
+                <p className="text-yellow-400 font-bold mt-2 bg-yellow-900/30 px-3 py-1 rounded-full text-sm">
+                  총 {mostWinsPlayer.winCount}회 우승
+                </p>
+              </>
+            ) : (
+              <span className="text-gray-500 mt-2">기록 없음</span>
+            )}
+          </div>
+
+          {/* 선택받은 자 */}
+          <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 opacity-10">
+              <Clover className="w-32 h-32 text-emerald-500" />
+            </div>
+            <Clover className="w-8 h-8 text-emerald-400 mb-3" />
+            <h3 className="text-sm font-bold text-gray-300 mb-1">🍀 선택받은 자</h3>
+            {mostPlayedPlayer && mostPlayedPlayer.matchCount > 0 ? (
+              <>
+                <div 
+                  className="flex items-center gap-2 cursor-pointer group"
+                  onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}
+                >
+                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-emerald-500/50 group-hover:scale-110 transition" />
+                  <span className="text-xl font-black text-white group-hover:text-emerald-400 transition">{mostPlayedPlayer.name}</span>
+                </div>
+                <p className="text-emerald-400 font-bold mt-2 bg-emerald-900/30 px-3 py-1 rounded-full text-sm">
+                  총 {mostPlayedPlayer.matchCount}회 참가
+                </p>
+              </>
+            ) : (
+              <span className="text-gray-500 mt-2">기록 없음</span>
+            )}
+          </div>
+
+          {/* 최고 효율 플레이어 */}
+          <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 opacity-10">
+              <Gem className="w-32 h-32 text-cyan-500" />
+            </div>
+            <Gem className="w-8 h-8 text-cyan-400 mb-3" />
+            <h3 className="text-sm font-bold text-gray-300 mb-1">💎 최고 효율 플레이어</h3>
+            {bestAvgPlayer && bestAvgPlayer.matchCount > 0 ? (
+              <>
+                <div 
+                  className="flex items-center gap-2 cursor-pointer group"
+                  onClick={() => setSelectedPlayer(bestAvgPlayer.name)}
+                >
+                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-cyan-500/50 group-hover:scale-110 transition" />
+                  <span className="text-xl font-black text-white group-hover:text-cyan-400 transition">{bestAvgPlayer.name}</span>
+                </div>
+                <p className="text-cyan-400 font-bold mt-2 bg-cyan-900/30 px-3 py-1 rounded-full text-sm">
+                  평균 {bestAvgPlayer.avgScore} pt
+                </p>
+              </>
+            ) : (
+              <span className="text-gray-500 mt-2">기록 없음</span>
+            )}
+          </div>
+        </div>
+
+        {/* 2. 전체 통계 리스트 (Leaderboard) */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+          <div className="p-4 border-b border-gray-700 bg-gray-800/50">
+            <h3 className="text-lg font-bold text-white flex items-center">
+              <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> 참가자 전체 통계 리스트
+            </h3>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-gray-400 bg-gray-900 uppercase">
+                <tr>
+                  <th scope="col" className="px-6 py-4 rounded-tl-lg">순위</th>
+                  <th scope="col" className="px-6 py-4">선수명</th>
+                  <th scope="col" className="px-6 py-4 text-center">참가 횟수</th>
+                  <th scope="col" className="px-6 py-4 text-center">1위 횟수</th>
+                  <th scope="col" className="px-6 py-4 text-center">평균 획득 점수</th>
+                  <th scope="col" className="px-6 py-4 text-right rounded-tr-lg">총 획득 점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {playerStatsMap.length > 0 ? (
+                  playerStatsMap.map((player, idx) => (
+                    <tr 
+                      key={player.id} 
+                      className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer"
+                      onClick={() => setSelectedPlayer(player.name)}
+                    >
+                      <td className="px-6 py-4 font-bold text-gray-400">
+                        {idx + 1}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
+                        <img 
+                          src={getAvatarSrc(player.name)} 
+                          alt={player.name} 
+                          className="w-6 h-6 rounded-full bg-gray-900 object-cover" 
+                        />
+                        {player.name}
+                      </td>
+                      <td className="px-6 py-4 text-center text-gray-300">
+                        {player.matchCount}회
+                      </td>
+                      <td className="px-6 py-4 text-center text-gray-300">
+                        {player.winCount > 0 ? (
+                          <span className="text-yellow-400 font-bold">{player.winCount}회</span>
+                        ) : (
+                          "0회"
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-center font-medium text-cyan-400">
+                        {player.avgScore} pt
+                      </td>
+                      <td className="px-6 py-4 text-right font-black text-green-400">
+                        {player.points} pt
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
+                      아직 등록된 참가자 통계가 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderTierListView = () => {
     const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
@@ -1614,6 +1805,17 @@ export default function App() {
             >
               경기
             </button>
+            {/* ★ 새로 추가된 통계 탭 버튼 ★ */}
+            <button
+              onClick={() => navigateTo("stats")}
+              className={`px-3 py-1.5 rounded text-sm font-medium ${
+                activeTab === "stats"
+                  ? "bg-gray-800 text-green-400"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              통계
+            </button>
             <button
               onClick={() => navigateTo("tier")}
               className={`px-3 py-1.5 rounded text-sm font-medium ${
@@ -1646,6 +1848,8 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-4 py-8 relative">
         {activeTab === "home" && renderHomeView()}
         {activeTab === "matches" && renderMatchesView()}
+        {/* ★ 새로 추가된 통계 탭 렌더링 ★ */}
+        {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
