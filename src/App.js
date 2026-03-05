@@ -19,7 +19,7 @@ import {
   Crown,
   Clover,
   Gem,
-  TrendingUp,
+  TrendingUp
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -72,49 +72,17 @@ const SEED_MATCHES = [];
 
 // ★ 실전용 상대평가 티어 설정 (비율 기준) ★
 const TIER_SETTINGS = [
-  {
-    id: "S",
-    name: "S 티어",
-    color: "bg-red-500",
-    percent: 10,
-    label: "상위 10%",
-  },
-  {
-    id: "A",
-    name: "A 티어",
-    color: "bg-orange-500",
-    percent: 30,
-    label: "상위 11% ~ 30%",
-  },
-  {
-    id: "B",
-    name: "B 티어",
-    color: "bg-yellow-500",
-    percent: 60,
-    label: "상위 31% ~ 60%",
-  },
-  {
-    id: "C",
-    name: "C 티어",
-    color: "bg-green-500",
-    percent: 85,
-    label: "상위 61% ~ 85%",
-  },
-  {
-    id: "D",
-    name: "D 티어",
-    color: "bg-blue-500",
-    percent: 100,
-    label: "하위 15%",
-  },
+  { id: "S", name: "S 티어", color: "bg-red-500", percent: 10, label: "상위 10%" },
+  { id: "A", name: "A 티어", color: "bg-orange-500", percent: 30, label: "상위 11% ~ 30%" },
+  { id: "B", name: "B 티어", color: "bg-yellow-500", percent: 60, label: "상위 31% ~ 60%" },
+  { id: "C", name: "C 티어", color: "bg-green-500", percent: 85, label: "상위 61% ~ 85%" },
+  { id: "D", name: "D 티어", color: "bg-blue-500", percent: 100, label: "하위 15%" },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "matches", "stats", "tier", "admin"].includes(hash)
-      ? hash
-      : "home";
+    return ["home", "matches", "stats", "tier", "admin"].includes(hash) ? hash : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -136,7 +104,7 @@ export default function App() {
 
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [todayVisits, setTodayVisits] = useState(0);
+  const [todayVisits, setTodayVisits] = useState(0); 
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
@@ -265,19 +233,9 @@ export default function App() {
     });
 
     const today = new Date();
-    const todayDocId = `${today.getFullYear()}-${String(
-      today.getMonth() + 1
-    ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const visitRef = doc(
-      db,
-      "artifacts",
-      appId,
-      "public",
-      "data",
-      "daily_visits",
-      todayDocId
-    );
-
+    const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+    
     const unsubVisit = onSnapshot(visitRef, (docSnap) => {
       if (docSnap.exists()) {
         setTodayVisits(docSnap.data().count || 0);
@@ -295,24 +253,14 @@ export default function App() {
   useEffect(() => {
     const recordVisit = async () => {
       const today = new Date();
-      const todayDocId = `${today.getFullYear()}-${String(
-        today.getMonth() + 1
-      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const storageKey = `wak_visited_${todayDocId}`;
 
       if (!localStorage.getItem(storageKey)) {
         try {
-          const visitRef = doc(
-            db,
-            "artifacts",
-            appId,
-            "public",
-            "data",
-            "daily_visits",
-            todayDocId
-          );
+          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
           await setDoc(visitRef, { count: increment(1) }, { merge: true });
-          localStorage.setItem(storageKey, "true");
+          localStorage.setItem(storageKey, "true"); 
         } catch (error) {
           console.error("Visit record error:", error);
         }
@@ -452,14 +400,10 @@ export default function App() {
     setIsResetting(true);
     try {
       for (const m of matches) {
-        await deleteDoc(
-          doc(db, "artifacts", appId, "public", "data", "matches", m.id)
-        );
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "matches", m.id));
       }
       for (const p of players) {
-        await deleteDoc(
-          doc(db, "artifacts", appId, "public", "data", "players", p.id)
-        );
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
       }
       await updateLastModifiedTime();
       showToast("데이터가 초기화되고 백지상태로 시작됩니다!", "success");
@@ -828,53 +772,43 @@ export default function App() {
   const renderStatsView = () => {
     // 참가자별 통계 데이터 계산
     const playerStatsMap = useMemo(() => {
-      return players
-        .map((p) => {
-          let matchCount = 0;
-          let winCount = 0;
+      return players.map((p) => {
+        let matchCount = 0;
+        let winCount = 0;
 
-          matches.forEach((m) => {
-            const res = m.results?.find((r) => r.playerName === p.name);
-            if (res) {
-              matchCount++;
-              if (res.rank === 1) winCount++;
-            }
-          });
+        matches.forEach((m) => {
+          const res = m.results?.find((r) => r.playerName === p.name);
+          if (res) {
+            matchCount++;
+            if (res.rank === 1) winCount++;
+          }
+        });
 
-          // 평균 점수 계산 (소수점 1자리까지)
-          const avgScore = matchCount > 0 ? p.points / matchCount : 0;
+        // 평균 점수 계산 (소수점 1자리까지)
+        const avgScore = matchCount > 0 ? (p.points / matchCount) : 0;
 
-          return {
-            ...p,
-            matchCount,
-            winCount,
-            avgScore: Number(avgScore.toFixed(1)),
-          };
-        })
-        .sort((a, b) => b.points - a.points); // 기본 정렬: 총 점수 높은 순
+        return {
+          ...p,
+          matchCount,
+          winCount,
+          avgScore: Number(avgScore.toFixed(1)),
+        };
+      }).sort((a, b) => b.points - a.points); // 기본 정렬: 총 점수 높은 순
     }, [players, matches]);
 
     // 각 분야별 1위 찾기 (명예의 전당용)
-    const mostWinsPlayer = [...playerStatsMap].sort(
-      (a, b) => b.winCount - a.winCount || b.points - a.points
-    )[0];
-    const mostPlayedPlayer = [...playerStatsMap].sort(
-      (a, b) => b.matchCount - a.matchCount || b.points - a.points
-    )[0];
-    const bestAvgPlayer = [...playerStatsMap]
-      .filter((p) => p.matchCount > 0)
-      .sort((a, b) => b.avgScore - a.avgScore)[0];
+    const mostWinsPlayer = [...playerStatsMap].sort((a, b) => b.winCount - a.winCount || b.points - a.points)[0];
+    const mostPlayedPlayer = [...playerStatsMap].sort((a, b) => b.matchCount - a.matchCount || b.points - a.points)[0];
+    const bestAvgPlayer = [...playerStatsMap].filter(p => p.matchCount > 0).sort((a, b) => b.avgScore - a.avgScore)[0];
 
     return (
       <div className="space-y-8">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center mb-2">
-            <TrendingUp className="w-6 h-6 mr-2 text-indigo-400" /> 종합 통계
-            대시보드
+            <TrendingUp className="w-6 h-6 mr-2 text-indigo-400" /> 종합 통계 대시보드
           </h2>
           <p className="text-sm text-gray-400">
-            매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적
-            기록입니다.
+            매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.
           </p>
         </div>
 
@@ -886,23 +820,15 @@ export default function App() {
               <Crown className="w-32 h-32 text-yellow-500" />
             </div>
             <Crown className="w-8 h-8 text-yellow-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">
-              👑 종합 우승왕
-            </h3>
+            <h3 className="text-sm font-bold text-gray-300 mb-1">👑 종합 우승왕</h3>
             {mostWinsPlayer && mostWinsPlayer.winCount > 0 ? (
               <>
-                <div
+                <div 
                   className="flex items-center gap-2 cursor-pointer group"
                   onClick={() => setSelectedPlayer(mostWinsPlayer.name)}
                 >
-                  <img
-                    src={getAvatarSrc(mostWinsPlayer.name)}
-                    alt="avatar"
-                    className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-yellow-500/50 group-hover:scale-110 transition"
-                  />
-                  <span className="text-xl font-black text-white group-hover:text-yellow-400 transition">
-                    {mostWinsPlayer.name}
-                  </span>
+                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-yellow-500/50 group-hover:scale-110 transition" />
+                  <span className="text-xl font-black text-white group-hover:text-yellow-400 transition">{mostWinsPlayer.name}</span>
                 </div>
                 <p className="text-yellow-400 font-bold mt-2 bg-yellow-900/30 px-3 py-1 rounded-full text-sm">
                   총 {mostWinsPlayer.winCount}회 우승
@@ -919,23 +845,15 @@ export default function App() {
               <Clover className="w-32 h-32 text-emerald-500" />
             </div>
             <Clover className="w-8 h-8 text-emerald-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">
-              🍀 선택받은 자
-            </h3>
+            <h3 className="text-sm font-bold text-gray-300 mb-1">🍀 선택받은 자</h3>
             {mostPlayedPlayer && mostPlayedPlayer.matchCount > 0 ? (
               <>
-                <div
+                <div 
                   className="flex items-center gap-2 cursor-pointer group"
                   onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}
                 >
-                  <img
-                    src={getAvatarSrc(mostPlayedPlayer.name)}
-                    alt="avatar"
-                    className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-emerald-500/50 group-hover:scale-110 transition"
-                  />
-                  <span className="text-xl font-black text-white group-hover:text-emerald-400 transition">
-                    {mostPlayedPlayer.name}
-                  </span>
+                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-emerald-500/50 group-hover:scale-110 transition" />
+                  <span className="text-xl font-black text-white group-hover:text-emerald-400 transition">{mostPlayedPlayer.name}</span>
                 </div>
                 <p className="text-emerald-400 font-bold mt-2 bg-emerald-900/30 px-3 py-1 rounded-full text-sm">
                   총 {mostPlayedPlayer.matchCount}회 참가
@@ -952,23 +870,15 @@ export default function App() {
               <Gem className="w-32 h-32 text-cyan-500" />
             </div>
             <Gem className="w-8 h-8 text-cyan-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">
-              💎 최고 효율 플레이어
-            </h3>
+            <h3 className="text-sm font-bold text-gray-300 mb-1">💎 최고 효율 플레이어</h3>
             {bestAvgPlayer && bestAvgPlayer.matchCount > 0 ? (
               <>
-                <div
+                <div 
                   className="flex items-center gap-2 cursor-pointer group"
                   onClick={() => setSelectedPlayer(bestAvgPlayer.name)}
                 >
-                  <img
-                    src={getAvatarSrc(bestAvgPlayer.name)}
-                    alt="avatar"
-                    className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-cyan-500/50 group-hover:scale-110 transition"
-                  />
-                  <span className="text-xl font-black text-white group-hover:text-cyan-400 transition">
-                    {bestAvgPlayer.name}
-                  </span>
+                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-cyan-500/50 group-hover:scale-110 transition" />
+                  <span className="text-xl font-black text-white group-hover:text-cyan-400 transition">{bestAvgPlayer.name}</span>
                 </div>
                 <p className="text-cyan-400 font-bold mt-2 bg-cyan-900/30 px-3 py-1 rounded-full text-sm">
                   평균 {bestAvgPlayer.avgScore} pt
@@ -984,43 +894,27 @@ export default function App() {
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
           <div className="p-4 border-b border-gray-700 bg-gray-800/50">
             <h3 className="text-lg font-bold text-white flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> 참가자 전체
-              통계 리스트
+              <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> 참가자 전체 통계 리스트
             </h3>
           </div>
-
+          
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="text-xs text-gray-400 bg-gray-900 uppercase">
                 <tr>
-                  <th scope="col" className="px-6 py-4 rounded-tl-lg">
-                    순위
-                  </th>
-                  <th scope="col" className="px-6 py-4">
-                    선수명
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    참가 횟수
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    1위 횟수
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    평균 획득 점수
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-right rounded-tr-lg"
-                  >
-                    총 획득 점수
-                  </th>
+                  <th scope="col" className="px-6 py-4 rounded-tl-lg">순위</th>
+                  <th scope="col" className="px-6 py-4">선수명</th>
+                  <th scope="col" className="px-6 py-4 text-center">참가 횟수</th>
+                  <th scope="col" className="px-6 py-4 text-center">1위 횟수</th>
+                  <th scope="col" className="px-6 py-4 text-center">평균 획득 점수</th>
+                  <th scope="col" className="px-6 py-4 text-right rounded-tr-lg">총 획득 점수</th>
                 </tr>
               </thead>
               <tbody>
                 {playerStatsMap.length > 0 ? (
                   playerStatsMap.map((player, idx) => (
-                    <tr
-                      key={player.id}
+                    <tr 
+                      key={player.id} 
                       className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer"
                       onClick={() => setSelectedPlayer(player.name)}
                     >
@@ -1028,10 +922,10 @@ export default function App() {
                         {idx + 1}
                       </td>
                       <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
-                        <img
-                          src={getAvatarSrc(player.name)}
-                          alt={player.name}
-                          className="w-6 h-6 rounded-full bg-gray-900 object-cover"
+                        <img 
+                          src={getAvatarSrc(player.name)} 
+                          alt={player.name} 
+                          className="w-6 h-6 rounded-full bg-gray-900 object-cover" 
                         />
                         {player.name}
                       </td>
@@ -1040,9 +934,7 @@ export default function App() {
                       </td>
                       <td className="px-6 py-4 text-center text-gray-300">
                         {player.winCount > 0 ? (
-                          <span className="text-yellow-400 font-bold">
-                            {player.winCount}회
-                          </span>
+                          <span className="text-yellow-400 font-bold">{player.winCount}회</span>
                         ) : (
                           "0회"
                         )}
@@ -1057,10 +949,7 @@ export default function App() {
                   ))
                 ) : (
                   <tr>
-                    <td
-                      colSpan="6"
-                      className="px-6 py-10 text-center text-gray-500"
-                    >
+                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500">
                       아직 등록된 참가자 통계가 없습니다.
                     </td>
                   </tr>
@@ -1086,11 +975,11 @@ export default function App() {
     });
 
     const cutoffs = {
-      S: Math.ceil(totalPlayers * 0.1),
-      A: Math.ceil(totalPlayers * 0.3),
-      B: Math.ceil(totalPlayers * 0.6),
+      S: Math.ceil(totalPlayers * 0.10),
+      A: Math.ceil(totalPlayers * 0.30),
+      B: Math.ceil(totalPlayers * 0.60),
       C: Math.ceil(totalPlayers * 0.85),
-      D: totalPlayers,
+      D: totalPlayers
     };
 
     const getTierIdByRank = (rank) => {
@@ -1103,28 +992,26 @@ export default function App() {
     };
 
     const categorizedPlayers = TIER_SETTINGS.map((tier, index) => {
-      const playersInTier = rankedPlayers.filter(
-        (p) => getTierIdByRank(p.rank) === tier.id
-      );
-
+      const playersInTier = rankedPlayers.filter(p => getTierIdByRank(p.rank) === tier.id);
+      
       let startRank = 1;
       if (index > 0) {
-        const prevTierId = TIER_SETTINGS[index - 1].id;
-        startRank = cutoffs[prevTierId] + 1;
+         const prevTierId = TIER_SETTINGS[index - 1].id;
+         startRank = cutoffs[prevTierId] + 1;
       }
       const endRank = cutoffs[tier.id];
-
+      
       let rankLabel = "";
       if (totalPlayers > 0) {
-        if (startRank > endRank) {
-          rankLabel = "(공석)";
-        } else if (startRank === endRank) {
-          rankLabel = `(${startRank}위)`;
-        } else {
-          rankLabel = `(${startRank}위 ~ ${endRank}위)`;
-        }
+         if (startRank > endRank) {
+           rankLabel = "(공석)";
+         } else if (startRank === endRank) {
+           rankLabel = `(${startRank}위)`;
+         } else {
+           rankLabel = `(${startRank}위 ~ ${endRank}위)`;
+         }
       } else {
-        rankLabel = "(0명)";
+         rankLabel = "(0명)";
       }
 
       return { ...tier, players: playersInTier, rankLabel };
@@ -1135,8 +1022,7 @@ export default function App() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center">
-              <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력
-              티어표
+              <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력 티어표
             </h2>
             <p className="text-sm text-gray-400 mt-1">
               상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.
@@ -1317,7 +1203,7 @@ export default function App() {
           { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
         ]);
 
-        await updateLastModifiedTime();
+        await updateLastModifiedTime(); 
 
         showToast("결과 저장 성공!");
         navigateTo("tier");
@@ -1599,69 +1485,42 @@ export default function App() {
 
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-blue-400" /> 참가자 프로필
-            이미지 관리
+            <Camera className="w-5 h-5 mr-2 text-blue-400" /> 참가자 프로필 이미지 관리
           </h2>
           <p className="text-sm text-gray-400 mb-6">
-            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 참가자의 사진을
-            변경할 수 있습니다. <br />
-            (빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
           </p>
 
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {[...players]
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((player) => (
-                <div
-                  key={player.id}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={getAvatarSrc(player.name)}
-                      onError={(e) => {
-                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
-                      }}
-                      alt="avatar"
-                      className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0"
-                    />
-                    <span className="font-bold text-white w-20 truncate">
-                      {player.name}
-                    </span>
-                  </div>
-                  <div className="flex flex-1 gap-2">
-                    <input
-                      type="text"
-                      placeholder="https://..."
-                      value={
-                        imageInputs[player.id] !== undefined
-                          ? imageInputs[player.id]
-                          : player.imageUrl || ""
-                      }
-                      onChange={(e) =>
-                        setImageInputs({
-                          ...imageInputs,
-                          [player.id]: e.target.value,
-                        })
-                      }
-                      className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
-                    />
-                    <button
-                      onClick={() =>
-                        handleUpdateImage(player.id, imageInputs[player.id])
-                      }
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                    >
-                      저장
-                    </button>
-                  </div>
+            {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+              <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={getAvatarSrc(player.name)} 
+                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
+                    alt="avatar" 
+                    className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
+                  />
+                  <span className="font-bold text-white w-20 truncate">{player.name}</span>
                 </div>
-              ))}
-            {players.length === 0 && (
-              <p className="text-center text-gray-500 py-4">
-                등록된 참가자가 없습니다.
-              </p>
-            )}
+                <div className="flex flex-1 gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
+                    onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
+                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                  />
+                  <button
+                    onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            ))}
+            {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
           </div>
         </div>
 
@@ -1706,20 +1565,15 @@ export default function App() {
 
         {/* ★ 실전용: 초기화 버튼 영역 ★ */}
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-red-300 mb-2">
-            🚨 데이터베이스 완벽 초기화
-          </h3>
+          <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
           <p className="text-sm text-gray-400 mb-4">
-            기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가{" "}
-            <strong className="text-white">0명인 완전 초기 상태</strong>로
-            리셋합니다. (실전 오픈용)
+            기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className="text-white">0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
           </p>
           <button
             onClick={() => setShowResetModal(true)}
             className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"
           >
-            <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로
-            시작하기
+            <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로 시작하기
           </button>
         </div>
       </div>
@@ -1799,16 +1653,8 @@ export default function App() {
               </h3>
             </div>
             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-              지금까지의{" "}
-              <span className="font-bold text-red-400">
-                모든 경기 기록과 참가자가 삭제
-              </span>
-              됩니다.
-              <br />
-              <br />
-              삭제 후 참가자가 아무도 없는 완전한
-              <br />
-              '백지 상태'로 즉시 전환됩니다. (복구 불가)
+              지금까지의 <span className="font-bold text-red-400">모든 경기 기록과 참가자가 삭제</span>됩니다.<br /><br />
+              삭제 후 참가자가 아무도 없는 완전한<br />'백지 상태'로 즉시 전환됩니다. (복구 불가)
             </p>
             <div className="flex gap-3">
               <button
@@ -1835,127 +1681,76 @@ export default function App() {
       )}
 
       {/* 개인 프로필 모달 */}
-      {selectedPlayer &&
-        (() => {
-          const stats = getPlayerStats(selectedPlayer);
-          const playerInfo = players.find((p) => p.name === selectedPlayer);
-          if (!playerInfo) return null;
+      {selectedPlayer && (() => {
+        const stats = getPlayerStats(selectedPlayer);
+        const playerInfo = players.find(p => p.name === selectedPlayer);
+        if (!playerInfo) return null;
 
-          return (
-            <div
-              className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
-              onClick={() => setSelectedPlayer(null)}
-            >
-              <div
-                className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
-                  <button
-                    onClick={() => setSelectedPlayer(null)}
-                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                  <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
-                    <img
-                      src={getAvatarSrc(selectedPlayer)}
-                      onError={(e) => {
-                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`;
-                      }}
-                      alt={selectedPlayer}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <h3 className="text-2xl font-black text-white">
-                    {selectedPlayer}
-                  </h3>
-                  <span className="text-green-400 font-bold mt-1 text-lg">
-                    {playerInfo.points} pt
-                  </span>
+        return (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
+            <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
+                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition">
+                  <X className="w-6 h-6" />
+                </button>
+                <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
+                  <img
+                    src={getAvatarSrc(selectedPlayer)}
+                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`; }}
+                    alt={selectedPlayer}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
+                <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
+                <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
+              </div>
 
-                <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
-                  <div className="flex flex-col items-center py-4">
-                    <span className="text-xs text-gray-400 font-medium mb-1">
-                      총 참가
-                    </span>
-                    <span className="text-xl font-bold text-white">
-                      {stats.totalMatches}전
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center py-4">
-                    <span className="text-xs text-gray-400 font-medium mb-1">
-                      우승 확률(1위)
-                    </span>
-                    <span className="text-xl font-bold text-yellow-400">
-                      {stats.winRate}%
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center py-4 px-2 text-center">
-                    <span className="text-xs text-gray-400 font-medium mb-1">
-                      주력 종목
-                    </span>
-                    <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">
-                      {stats.mostPlayedGame}
-                    </span>
-                  </div>
+              <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
+                <div className="flex flex-col items-center py-4">
+                  <span className="text-xs text-gray-400 font-medium mb-1">총 참가</span>
+                  <span className="text-xl font-bold text-white">{stats.totalMatches}전</span>
                 </div>
-
-                <div className="p-6">
-                  <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
-                    <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대
-                    5경기)
-                  </h4>
-                  {stats.recentMatches.length === 0 ? (
-                    <p className="text-center text-gray-500 py-6 text-sm">
-                      경기 기록이 없습니다.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {stats.recentMatches.map((m) => (
-                        <div
-                          key={m.id}
-                          className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50"
-                        >
-                          <div className="flex-1 truncate pr-2">
-                            <p className="text-sm font-bold text-white truncate">
-                              {m.gameName}
-                            </p>
-                            <p className="text-[10px] text-gray-500">
-                              {m.date}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`text-xs font-bold ${
-                                m.rank === 1
-                                  ? "text-yellow-400"
-                                  : "text-gray-400"
-                              }`}
-                            >
-                              {m.rank}위
-                            </span>
-                            <span
-                              className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${
-                                m.scoreChange >= 0
-                                  ? "bg-green-500/20 text-green-400"
-                                  : "bg-red-500/20 text-red-400"
-                              }`}
-                            >
-                              {m.scoreChange > 0 ? "+" : ""}
-                              {m.scoreChange}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="flex flex-col items-center py-4">
+                  <span className="text-xs text-gray-400 font-medium mb-1">우승 확률(1위)</span>
+                  <span className="text-xl font-bold text-yellow-400">{stats.winRate}%</span>
+                </div>
+                <div className="flex flex-col items-center py-4 px-2 text-center">
+                  <span className="text-xs text-gray-400 font-medium mb-1">주력 종목</span>
+                  <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">{stats.mostPlayedGame}</span>
                 </div>
               </div>
+
+              <div className="p-6">
+                <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
+                  <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대 5경기)
+                </h4>
+                {stats.recentMatches.length === 0 ? (
+                  <p className="text-center text-gray-500 py-6 text-sm">경기 기록이 없습니다.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {stats.recentMatches.map((m) => (
+                      <div key={m.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                        <div className="flex-1 truncate pr-2">
+                          <p className="text-sm font-bold text-white truncate">{m.gameName}</p>
+                          <p className="text-[10px] text-gray-500">{m.date}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xs font-bold ${m.rank === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>
+                            {m.rank}위
+                          </span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${m.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                            {m.scoreChange > 0 ? "+" : ""}{m.scoreChange}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          );
-        })()}
+          </div>
+        );
+      })()}
 
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
