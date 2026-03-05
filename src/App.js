@@ -20,6 +20,8 @@ import {
   Clover,
   Gem,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -153,33 +155,66 @@ export default function App() {
     { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
   ]);
 
-  // ★ 통계 계산 로직을 최상단으로 이동 (Hook 에러 완벽 해결) ★
+  // ★ 통계 정렬 상태 관리 (기본값: 총 획득 점수 내림차순) ★
+  const [sortConfig, setSortConfig] = useState({
+    key: "points",
+    direction: "desc",
+  });
+
+  // ★ 통계 계산 로직 (Hook 에러 완벽 해결) ★
   const playerStatsMap = useMemo(() => {
-    return players
-      .map((p) => {
-        let matchCount = 0;
-        let winCount = 0;
+    return players.map((p) => {
+      let matchCount = 0;
+      let winCount = 0;
 
-        matches.forEach((m) => {
-          const res = m.results?.find((r) => r.playerName === p.name);
-          if (res) {
-            matchCount++;
-            if (res.rank === 1) winCount++;
-          }
-        });
+      matches.forEach((m) => {
+        const res = m.results?.find((r) => r.playerName === p.name);
+        if (res) {
+          matchCount++;
+          if (res.rank === 1) winCount++;
+        }
+      });
 
-        // 평균 점수 계산 (소수점 1자리까지)
-        const avgScore = matchCount > 0 ? p.points / matchCount : 0;
+      // 평균 점수 계산 (소수점 1자리까지)
+      const avgScore = matchCount > 0 ? p.points / matchCount : 0;
 
-        return {
-          ...p,
-          matchCount,
-          winCount,
-          avgScore: Number(avgScore.toFixed(1)),
-        };
-      })
-      .sort((a, b) => b.points - a.points); // 기본 정렬: 총 점수 높은 순
+      return {
+        ...p,
+        matchCount,
+        winCount,
+        avgScore: Number(avgScore.toFixed(1)),
+      };
+    }); // 정렬은 아래 sortedPlayerStats에서 처리하므로 여기서는 sort를 뺐습니다.
   }, [players, matches]);
+
+  // ★ 실제 화면에 보여줄 정렬된 데이터 (클릭 시마다 변경됨) ★
+  const sortedPlayerStats = useMemo(() => {
+    let sortableItems = [...playerStatsMap];
+    sortableItems.sort((a, b) => {
+      if (a[sortConfig.key] < b[sortConfig.key]) {
+        return sortConfig.direction === "asc" ? -1 : 1;
+      }
+      if (a[sortConfig.key] > b[sortConfig.key]) {
+        return sortConfig.direction === "asc" ? 1 : -1;
+      }
+      // 동률일 경우 이름 순서대로 (가나다순)
+      return a.name.localeCompare(b.name);
+    });
+    return sortableItems;
+  }, [playerStatsMap, sortConfig]);
+
+  // 테이블 제목 클릭 시 정렬 방식을 바꿔주는 함수
+  const requestSort = (key) => {
+    let direction = "desc"; // 기본적으로 내림차순 적용
+    if (
+      sortConfig &&
+      sortConfig.key === key &&
+      sortConfig.direction === "desc"
+    ) {
+      direction = "asc"; // 이미 내림차순이면 오름차순으로 변경
+    }
+    setSortConfig({ key, direction });
+  };
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -865,6 +900,20 @@ export default function App() {
       .filter((p) => p.matchCount > 0)
       .sort((a, b) => b.avgScore - a.avgScore)[0];
 
+    // 화살표 아이콘 UI 컴포넌트
+    const SortIcon = ({ columnKey }) => {
+      if (sortConfig.key !== columnKey) {
+        return (
+          <ChevronDown className="w-3 h-3 ml-1 opacity-30 group-hover:opacity-100 transition" />
+        );
+      }
+      return sortConfig.direction === "asc" ? (
+        <ChevronUp className="w-3 h-3 ml-1 text-green-400" />
+      ) : (
+        <ChevronDown className="w-3 h-3 ml-1 text-green-400" />
+      );
+    };
+
     return (
       <div className="space-y-8">
         <div>
@@ -1008,26 +1057,48 @@ export default function App() {
                   <th scope="col" className="px-6 py-4">
                     선수명
                   </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    참가 횟수
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    1위 횟수
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    평균 획득 점수
+                  {/* ★ 정렬 기능이 들어간 테이블 헤더 버튼들 ★ */}
+                  <th
+                    scope="col"
+                    className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("matchCount")}
+                  >
+                    <div className="flex items-center justify-center">
+                      참가 횟수 <SortIcon columnKey="matchCount" />
+                    </div>
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-4 text-right rounded-tr-lg"
+                    className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("winCount")}
                   >
-                    총 획득 점수
+                    <div className="flex items-center justify-center">
+                      1위 횟수 <SortIcon columnKey="winCount" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("avgScore")}
+                  >
+                    <div className="flex items-center justify-center">
+                      평균 획득 점수 <SortIcon columnKey="avgScore" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg"
+                    onClick={() => requestSort("points")}
+                  >
+                    <div className="flex items-center justify-end">
+                      총 획득 점수 <SortIcon columnKey="points" />
+                    </div>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {playerStatsMap.length > 0 ? (
-                  playerStatsMap.map((player, idx) => (
+                {sortedPlayerStats.length > 0 ? (
+                  sortedPlayerStats.map((player, idx) => (
                     <tr
                       key={player.id}
                       className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer"
