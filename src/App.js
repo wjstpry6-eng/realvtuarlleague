@@ -899,7 +899,6 @@ export default function App() {
     );
   };
 
-  // ★ 추가된 WOW 탭 컴포넌트 ★
   const renderWowView = () => {
     const WowSortIcon = ({ columnKey }) => {
       if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-3 h-3 ml-1 opacity-30 group-hover:opacity-100 transition" />;
@@ -917,7 +916,7 @@ export default function App() {
               <Shield className="w-8 h-8 mr-3 text-blue-400" /> 월드 오브 워크래프트 x 버츄얼 종겜 리그
             </h2>
             <p className="text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm">
-              왁타버스 길드에 가입하여 피나는 노력 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
+              왁타버스 길드에 가입하여 피나는 수련 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
               <br/>종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 합류하게 될까요?
             </p>
           </div>
@@ -1407,8 +1406,9 @@ export default function App() {
         );
       })()}
 
+      {/* ★ 네비게이션 바: 너비 대폭 확장 (max-w-4xl -> max-w-6xl) 및 스크롤 숨김 처리 ★ */}
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
-        <div className="max-w-4xl mx-auto w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
+        <div className="max-w-6xl mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <h1 className="text-lg md:text-xl font-bold text-white cursor-pointer flex items-center whitespace-nowrap" onClick={() => navigateTo("home")}>
               <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" /> 버츄얼 종겜 리그
@@ -1426,27 +1426,26 @@ export default function App() {
             </span>
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
-            <button onClick={() => navigateTo("home")} className={`px-3 py-1.5 rounded text-sm font-medium ${activeTab === "home" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>홈</button>
-            <button onClick={() => navigateTo("matches")} className={`px-3 py-1.5 rounded text-sm font-medium ${activeTab === "matches" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>경기</button>
-            <button onClick={() => navigateTo("stats")} className={`px-3 py-1.5 rounded text-sm font-medium ${activeTab === "stats" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>통계</button>
-            <button onClick={() => navigateTo("tier")} className={`px-3 py-1.5 rounded text-sm font-medium ${activeTab === "tier" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>티어</button>
-            {/* ★ 추가된 WOW 탭 네비게이션 버튼 ★ */}
-            <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
+            <button onClick={() => navigateTo("home")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "home" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>홈</button>
+            <button onClick={() => navigateTo("matches")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "matches" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>경기</button>
+            <button onClick={() => navigateTo("stats")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "stats" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>통계</button>
+            <button onClick={() => navigateTo("tier")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "tier" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>티어</button>
+            <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
               <Shield className="w-4 h-4 mr-1" /> WOW
             </button>
-            <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
+            <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
               {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
             </button>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 relative">
+      {/* ★ 메인 컨텐츠 너비도 대폭 확장 (max-w-4xl -> max-w-6xl) ★ */}
+      <main className="max-w-6xl mx-auto px-4 py-8 relative">
         {activeTab === "home" && renderHomeView()}
         {activeTab === "matches" && renderMatchesView()}
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
-        {/* ★ 추가된 WOW 탭 렌더링 ★ */}
         {activeTab === "wow" && renderWowView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
