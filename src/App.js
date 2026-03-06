@@ -712,91 +712,92 @@ export default function App() {
     const bestAvgPlayer = [...playerStatsMap].filter(p => p.matchCount > 0).sort((a, b) => b.avgScore - a.avgScore)[0];
 
     const SortIcon = ({ columnKey }) => {
-      if (sortConfig.key !== columnKey) return <ChevronDown className="w-3 h-3 ml-1 opacity-30 group-hover:opacity-100 transition" />;
-      return sortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3 ml-1 text-green-400" /> : <ChevronDown className="w-3 h-3 ml-1 text-green-400" />;
+      // 화살표 아이콘 크기도 기존 w-3에서 w-4로 살짝 키웠습니다.
+      if (sortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
+      return sortConfig.direction === 'asc' ? <ChevronUp className="w-4 h-4 ml-1 text-green-400" /> : <ChevronDown className="w-4 h-4 ml-1 text-green-400" />;
     };
 
     return (
       <div className="space-y-8">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center mb-2">
-            <TrendingUp className="w-6 h-6 mr-2 text-indigo-400" /> 종합 통계 대시보드
+          <h2 className="text-3xl font-bold text-white flex items-center mb-3">
+            <TrendingUp className="w-8 h-8 mr-3 text-indigo-400" /> 종합 통계 대시보드
           </h2>
-          <p className="text-sm text-gray-400">매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.</p>
+          <p className="text-base text-gray-400">매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-10"><Crown className="w-32 h-32 text-yellow-500" /></div>
-            <Crown className="w-8 h-8 text-yellow-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">👑 종합 우승왕</h3>
-            <p className="text-[10px] text-yellow-500/70 mb-3 text-center break-keep">1위를 가장 많이 달성한 유저</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 opacity-10"><Crown className="w-40 h-40 text-yellow-500" /></div>
+            <Crown className="w-10 h-10 text-yellow-400 mb-3" />
+            <h3 className="text-lg font-bold text-gray-300 mb-1">👑 종합 우승왕</h3>
+            <p className="text-xs md:text-sm text-yellow-500/70 mb-4 text-center break-keep">1위를 가장 많이 달성한 유저</p>
             {mostWinsPlayer && mostWinsPlayer.winCount > 0 ? (
               <>
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setSelectedPlayer(mostWinsPlayer.name)}>
-                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-yellow-500/50 group-hover:scale-110 transition" />
-                  <span className="text-xl font-black text-white group-hover:text-yellow-400 transition">{mostWinsPlayer.name}</span>
+                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(mostWinsPlayer.name)}>
+                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-yellow-500/50 group-hover:scale-110 transition" />
+                  <span className="text-2xl font-black text-white group-hover:text-yellow-400 transition">{mostWinsPlayer.name}</span>
                 </div>
-                <p className="text-yellow-400 font-bold mt-2 bg-yellow-900/30 px-3 py-1 rounded-full text-sm">총 {mostWinsPlayer.winCount}회 우승</p>
+                <p className="text-yellow-400 font-bold mt-4 bg-yellow-900/30 px-4 py-1.5 rounded-full text-base">총 {mostWinsPlayer.winCount}회 우승</p>
               </>
-            ) : (<span className="text-gray-500 mt-2">기록 없음</span>)}
+            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-10"><Clover className="w-32 h-32 text-emerald-500" /></div>
-            <Clover className="w-8 h-8 text-emerald-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">🍀 선택받은 자</h3>
-            <p className="text-[10px] text-emerald-500/70 mb-3 text-center break-keep">경기에 가장 많이 참가한 유저</p>
+          <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 opacity-10"><Clover className="w-40 h-40 text-emerald-500" /></div>
+            <Clover className="w-10 h-10 text-emerald-400 mb-3" />
+            <h3 className="text-lg font-bold text-gray-300 mb-1">🍀 선택받은 자</h3>
+            <p className="text-xs md:text-sm text-emerald-500/70 mb-4 text-center break-keep">경기에 가장 많이 참가한 유저</p>
             {mostPlayedPlayer && mostPlayedPlayer.matchCount > 0 ? (
               <>
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}>
-                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-emerald-500/50 group-hover:scale-110 transition" />
-                  <span className="text-xl font-black text-white group-hover:text-emerald-400 transition">{mostPlayedPlayer.name}</span>
+                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}>
+                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-emerald-500/50 group-hover:scale-110 transition" />
+                  <span className="text-2xl font-black text-white group-hover:text-emerald-400 transition">{mostPlayedPlayer.name}</span>
                 </div>
-                <p className="text-emerald-400 font-bold mt-2 bg-emerald-900/30 px-3 py-1 rounded-full text-sm">총 {mostPlayedPlayer.matchCount}회 참가</p>
+                <p className="text-emerald-400 font-bold mt-4 bg-emerald-900/30 px-4 py-1.5 rounded-full text-base">총 {mostPlayedPlayer.matchCount}회 참가</p>
               </>
-            ) : (<span className="text-gray-500 mt-2">기록 없음</span>)}
+            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
           </div>
 
-          <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-10"><Gem className="w-32 h-32 text-cyan-500" /></div>
-            <Gem className="w-8 h-8 text-cyan-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">💎 최고 효율 플레이어</h3>
-            <p className="text-[10px] text-cyan-500/70 mb-3 text-center break-keep">경기당 평균 획득 점수가 가장 높은 유저</p>
+          <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
+            <div className="absolute -right-4 -top-4 opacity-10"><Gem className="w-40 h-40 text-cyan-500" /></div>
+            <Gem className="w-10 h-10 text-cyan-400 mb-3" />
+            <h3 className="text-lg font-bold text-gray-300 mb-1">💎 최고 효율 플레이어</h3>
+            <p className="text-xs md:text-sm text-cyan-500/70 mb-4 text-center break-keep">경기당 평균 획득 점수가 가장 높은 유저</p>
             {bestAvgPlayer && bestAvgPlayer.matchCount > 0 ? (
               <>
-                <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setSelectedPlayer(bestAvgPlayer.name)}>
-                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-cyan-500/50 group-hover:scale-110 transition" />
-                  <span className="text-xl font-black text-white group-hover:text-cyan-400 transition">{bestAvgPlayer.name}</span>
+                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(bestAvgPlayer.name)}>
+                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-cyan-500/50 group-hover:scale-110 transition" />
+                  <span className="text-2xl font-black text-white group-hover:text-cyan-400 transition">{bestAvgPlayer.name}</span>
                 </div>
-                <p className="text-cyan-400 font-bold mt-2 bg-cyan-900/30 px-3 py-1 rounded-full text-sm">평균 {bestAvgPlayer.avgScore} pt</p>
+                <p className="text-cyan-400 font-bold mt-4 bg-cyan-900/30 px-4 py-1.5 rounded-full text-base">평균 {bestAvgPlayer.avgScore} pt</p>
               </>
-            ) : (<span className="text-gray-500 mt-2">기록 없음</span>)}
+            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-          <div className="p-4 border-b border-gray-700 bg-gray-800/50">
-            <h3 className="text-lg font-bold text-white flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> 참가자 전체 통계 리스트
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
+          <div className="p-5 border-b border-gray-700 bg-gray-800/50">
+            <h3 className="text-xl font-bold text-white flex items-center">
+              <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> 참가자 전체 통계 리스트
             </h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-400 bg-gray-900 uppercase">
+            <table className="w-full text-base text-left">
+              <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
                 <tr>
-                  <th scope="col" className="px-6 py-4 rounded-tl-lg">순위</th>
-                  <th scope="col" className="px-6 py-4">선수명</th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('matchCount')}>
+                  <th scope="col" className="px-6 py-5 rounded-tl-lg">순위</th>
+                  <th scope="col" className="px-6 py-5">선수명</th>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('matchCount')}>
                     <div className="flex items-center justify-center">참가 횟수 <SortIcon columnKey="matchCount" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('winCount')}>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('winCount')}>
                     <div className="flex items-center justify-center">1위 횟수 <SortIcon columnKey="winCount" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('avgScore')}>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('avgScore')}>
                     <div className="flex items-center justify-center">평균 획득 점수 <SortIcon columnKey="avgScore" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestSort('points')}>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestSort('points')}>
                     <div className="flex items-center justify-end">총 획득 점수 <SortIcon columnKey="points" /></div>
                   </th>
                 </tr>
@@ -805,21 +806,21 @@ export default function App() {
                 {sortedPlayerStats.length > 0 ? (
                   sortedPlayerStats.map((player, idx) => (
                     <tr key={player.id} className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
-                      <td className="px-6 py-4 font-bold text-gray-400">{idx + 1}</td>
-                      <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
-                        <img src={getAvatarSrc(player.name)} alt={player.name} className="w-6 h-6 rounded-full bg-gray-900 object-cover" />
+                      <td className="px-6 py-5 font-bold text-gray-400 text-lg">{idx + 1}</td>
+                      <td className="px-6 py-5 font-bold text-white flex items-center gap-4 text-lg">
+                        <img src={getAvatarSrc(player.name)} alt={player.name} className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-gray-600" />
                         {player.name}
                       </td>
-                      <td className="px-6 py-4 text-center text-gray-300">{player.matchCount}회</td>
-                      <td className="px-6 py-4 text-center text-gray-300">
+                      <td className="px-6 py-5 text-center text-gray-300 text-lg">{player.matchCount}회</td>
+                      <td className="px-6 py-5 text-center text-gray-300 text-lg">
                         {player.winCount > 0 ? <span className="text-yellow-400 font-bold">{player.winCount}회</span> : "0회"}
                       </td>
-                      <td className="px-6 py-4 text-center font-medium text-cyan-400">{player.avgScore} pt</td>
-                      <td className="px-6 py-4 text-right font-black text-green-400">{player.points} pt</td>
+                      <td className="px-6 py-5 text-center font-medium text-cyan-400 text-lg">{player.avgScore} pt</td>
+                      <td className="px-6 py-5 text-right font-black text-green-400 text-xl">{player.points} pt</td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-500">아직 등록된 참가자 통계가 없습니다.</td></tr>
+                  <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500 text-lg">아직 등록된 참가자 통계가 없습니다.</td></tr>
                 )}
               </tbody>
             </table>
@@ -934,7 +935,7 @@ export default function App() {
               <Shield className="w-8 h-8 mr-3 text-blue-400" /> 월드 오브 워크래프트 x 버츄얼 종겜 리그
             </h2>
             <p className="text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm">
-              왁타버스 길드에 가입하여 피나는 수련 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
+              왁타버스 길드에 가입하여 피나는 노력 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
               <br/>종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 합류하게 될까요?
             </p>
           </div>
