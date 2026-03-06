@@ -121,9 +121,11 @@ export default function App() {
   const [matchDate, setMatchDate] = useState("");
   const [matchMode, setMatchMode] = useState("individual");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [imageInputs, setImageInputs] = useState({});
+  // ★ WOW 길드원 전용 프로필 이미지 입력 상태 추가 ★
+  const [wowImageInputs, setWowImageInputs] = useState({});
 
-  // ★ 관리자 WOW 길드원 추가 폼 상태 ★
   const [wowStreamerName, setWowStreamerName] = useState("");
   const [wowNickname, setWowNickname] = useState("");
   const [wowJobClass, setWowJobClass] = useState("");
@@ -187,7 +189,6 @@ export default function App() {
     setSortConfig({ key, direction });
   };
 
-  // ★ WOW 탭 정렬 로직 ★
   const sortedWowRoster = useMemo(() => {
     let sortableItems = [...wowRoster];
     sortableItems.sort((a, b) => {
@@ -287,7 +288,6 @@ export default function App() {
       }
     );
 
-    // ★ WOW 왁타버스 길드원 데이터 리스너 ★
     const wowRef = collection(db, "artifacts", appId, "public", "data", "wow_roster");
     const unsubWow = onSnapshot(wowRef, (snapshot) => {
       setWowRoster(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
@@ -345,11 +345,19 @@ export default function App() {
     }
   }, [matchDate]);
 
+  // 종겜 리그 참가자용 아바타 호출 함수
   const getAvatarSrc = (playerName) => {
     const p = players.find((p) => p.name === playerName);
     return p?.imageUrl?.trim()
       ? p.imageUrl
       : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
+  };
+
+  // ★ WOW 길드원 전용 아바타 호출 함수 추가 ★
+  const getWowAvatarSrc = (member) => {
+    return member?.imageUrl?.trim()
+      ? member.imageUrl
+      : `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
   };
 
   const updateLastModifiedTime = async () => {
@@ -416,7 +424,6 @@ export default function App() {
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
-  // ★ WOW 관리자 액션 함수 ★
   const handleAddWowMember = async (e) => {
     e.preventDefault();
     if (!user) return;
@@ -448,7 +455,7 @@ export default function App() {
   const handleUpdateWowLevel = async (id, newLevel) => {
     if (!user) return;
     if (newLevel < 1) newLevel = 1;
-    if (newLevel > 60) newLevel = 60; // 와우 만렙 임의 지정, 필요시 해제 가능
+    if (newLevel > 60) newLevel = 60;
     try {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), {
         level: newLevel
@@ -508,7 +515,18 @@ export default function App() {
     try {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { imageUrl: url || "" });
       await updateLastModifiedTime();
-      showToast("프로필 이미지가 저장되었습니다.");
+      showToast("종겜 리그 프로필 이미지가 저장되었습니다.");
+    } catch (error) {
+      showToast("이미지 저장 중 오류 발생", "error");
+    }
+  };
+
+  // ★ WOW 길드원 전용 프로필 이미지 업데이트 함수 ★
+  const handleUpdateWowImage = async (memberId, url) => {
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { imageUrl: url || "" });
+      await updateLastModifiedTime();
+      showToast("와우 길드원 프로필 이미지가 저장되었습니다.");
     } catch (error) {
       showToast("이미지 저장 중 오류 발생", "error");
     }
@@ -958,7 +976,8 @@ export default function App() {
                         className={`border-b border-gray-700 transition ${isQualified ? 'bg-yellow-900/10 hover:bg-yellow-900/20' : 'hover:bg-gray-700/50'}`}
                       >
                         <td className="px-6 py-3">
-                           <img src={getAvatarSrc(member.streamerName)} alt={member.streamerName} className={`w-10 h-10 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
+                           {/* ★ WOW 전용 아바타 함수 사용 ★ */}
+                           <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-10 h-10 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
                         </td>
                         <td className={`px-6 py-4 font-bold ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
                           {member.streamerName}
@@ -1150,7 +1169,7 @@ export default function App() {
           </form>
         </div>
 
-        {/* ★ 새롭게 추가된 WOW 왁타버스 길드원 관리 섹션 ★ */}
+        {/* WOW 왁타버스 길드원 관리 섹션 */}
         <div className="bg-gradient-to-b from-blue-900/20 to-gray-800 rounded-xl p-6 border border-blue-800/40 shadow-lg">
           <h2 className="text-xl font-bold text-blue-300 mb-2 flex items-center">
             <Shield className="w-5 h-5 mr-2" /> WOW 왁타버스 길드 관리
@@ -1159,7 +1178,6 @@ export default function App() {
             와우 서버에서 플레이 중인 버튜버 캐릭터를 등록하고, 방송을 보며 실시간으로 레벨을 갱신해주세요.
           </p>
 
-          {/* 길드원 등록 폼 */}
           <form onSubmit={handleAddWowMember} className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <input type="text" value={wowStreamerName} onChange={e=>setWowStreamerName(e.target.value)} placeholder="스트리머명 (예: 단답벌레)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
@@ -1174,12 +1192,12 @@ export default function App() {
             </div>
           </form>
 
-          {/* 길드원 리스트 및 레벨 수정 패널 */}
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {wowRoster.sort((a,b) => b.level - a.level).map(member => (
               <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
                 <div className="flex items-center gap-3">
-                  <img src={getAvatarSrc(member.streamerName)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-900 object-cover border border-gray-600" />
+                  {/* ★ WOW 아바타 호출 함수 적용 ★ */}
+                  <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-900 object-cover border border-gray-600" />
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-white">{member.streamerName}</span>
@@ -1190,7 +1208,6 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {/* 실시간 레벨 조절기 */}
                   <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
                     <button onClick={() => handleUpdateWowLevel(member.id, member.level - 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Minus className="w-4 h-4"/></button>
                     <span className="w-12 text-center font-black text-yellow-400">Lv {member.level}</span>
@@ -1206,12 +1223,54 @@ export default function App() {
           </div>
         </div>
 
+        {/* ★ 새롭게 추가된 WOW 길드원 프로필 이미지 관리 ★ */}
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-blue-400" /> 참가자 프로필 이미지 관리
+            <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원 프로필 이미지 관리
           </h2>
           <p className="text-sm text-gray-400 mb-6">
-            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 와우 캐릭터 혹은 버튜버 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+          </p>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {[...wowRoster].sort((a,b) => a.streamerName.localeCompare(b.streamerName)).map(member => (
+              <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={getWowAvatarSrc(member)} 
+                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} 
+                    alt="avatar" 
+                    className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
+                  />
+                  <span className="font-bold text-white w-20 truncate">{member.streamerName}</span>
+                </div>
+                <div className="flex flex-1 gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={wowImageInputs[member.id] !== undefined ? wowImageInputs[member.id] : (member.imageUrl || "")}
+                    onChange={(e) => setWowImageInputs({...wowImageInputs, [member.id]: e.target.value})}
+                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                  />
+                  <button
+                    onClick={() => handleUpdateWowImage(member.id, wowImageInputs[member.id])}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            ))}
+            {wowRoster.length === 0 && <p className="text-center text-gray-500 py-4">등록된 길드원이 없습니다.</p>}
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+            <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그 참가자 이미지 관리
+          </h2>
+          <p className="text-sm text-gray-400 mb-6">
+            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 종겜 리그 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
           </p>
 
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
@@ -1232,11 +1291,11 @@ export default function App() {
                     placeholder="https://..."
                     value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
                     onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
-                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
                   />
                   <button
                     onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                    className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
                   >
                     저장
                   </button>
@@ -1274,7 +1333,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* ★ 실전용: 초기화 버튼 영역 ★ */}
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
           <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
           <p className="text-sm text-gray-400 mb-4">
@@ -1406,7 +1464,6 @@ export default function App() {
         );
       })()}
 
-      {/* ★ 네비게이션 바: 너비 대폭 확장 (max-w-4xl -> max-w-6xl) 및 스크롤 숨김 처리 ★ */}
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
         <div className="max-w-6xl mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
@@ -1440,7 +1497,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* ★ 메인 컨텐츠 너비도 대폭 확장 (max-w-4xl -> max-w-6xl) ★ */}
       <main className="max-w-6xl mx-auto px-4 py-8 relative">
         {activeTab === "home" && renderHomeView()}
         {activeTab === "matches" && renderMatchesView()}
