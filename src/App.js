@@ -920,8 +920,9 @@ export default function App() {
 
   const renderWowView = () => {
     const WowSortIcon = ({ columnKey }) => {
-      if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-3 h-3 ml-1 opacity-30 group-hover:opacity-100 transition" />;
-      return wowSortConfig.direction === 'asc' ? <ChevronUp className="w-3 h-3 ml-1 text-blue-400" /> : <ChevronDown className="w-3 h-3 ml-1 text-blue-400" />;
+      // 화살표 아이콘 크기 확대 (w-3 -> w-4)
+      if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
+      return wowSortConfig.direction === 'asc' ? <ChevronUp className="w-4 h-4 ml-1 text-blue-400" /> : <ChevronDown className="w-4 h-4 ml-1 text-blue-400" />;
     };
 
     return (
@@ -941,66 +942,71 @@ export default function App() {
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-          <div className="p-4 border-b border-gray-700 bg-gray-800/50">
-            <h3 className="text-lg font-bold text-white flex items-center">
-              <Users className="w-5 h-5 mr-2 text-blue-400" /> 왁타버스 길드 소속 버튜버 명단
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
+          <div className="p-5 border-b border-gray-700 bg-gray-800/50">
+            <h3 className="text-xl font-bold text-white flex items-center">
+              <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
             </h3>
           </div>
           
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-400 bg-gray-900 uppercase">
+            <table className="w-full text-base text-left">
+              <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
                 <tr>
-                  <th scope="col" className="px-6 py-4 rounded-tl-lg">프로필</th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('streamerName')}>
+                  {/* ★ '번호' 열 추가 및 전체 패딩(py-5) 확대 ★ */}
+                  <th scope="col" className="px-6 py-5 rounded-tl-lg text-center">번호</th>
+                  <th scope="col" className="px-6 py-5">프로필</th>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('streamerName')}>
                     <div className="flex items-center">스트리머명 <WowSortIcon columnKey="streamerName" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('wowNickname')}>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('wowNickname')}>
                     <div className="flex items-center">와우 닉네임 <WowSortIcon columnKey="wowNickname" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('jobClass')}>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('jobClass')}>
                     <div className="flex items-center">직업 <WowSortIcon columnKey="jobClass" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-4 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestWowSort('level')}>
+                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestWowSort('level')}>
                     <div className="flex items-center justify-end">현재 레벨 <WowSortIcon columnKey="level" /></div>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {sortedWowRoster.length > 0 ? (
-                  sortedWowRoster.map((member) => {
+                  sortedWowRoster.map((member, idx) => {
                     const isQualified = member.level >= 40;
                     return (
                       <tr 
                         key={member.id} 
                         className={`border-b border-gray-700 transition ${isQualified ? 'bg-yellow-900/10 hover:bg-yellow-900/20' : 'hover:bg-gray-700/50'}`}
                       >
-                        <td className="px-6 py-3">
-                           {/* ★ WOW 전용 아바타 함수 사용 ★ */}
-                           <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-10 h-10 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
+                        {/* ★ '번호' 데이터 추가 및 폰트 크기(text-lg) 확대 ★ */}
+                        <td className="px-6 py-5 text-center font-bold text-gray-400 text-lg">
+                          {idx + 1}
                         </td>
-                        <td className={`px-6 py-4 font-bold ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
+                        <td className="px-6 py-5">
+                           <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-12 h-12 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
+                        </td>
+                        <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
                           {member.streamerName}
                         </td>
-                        <td className="px-6 py-4 text-blue-300 font-medium">
+                        <td className="px-6 py-5 text-blue-300 font-medium text-lg">
                           {member.wowNickname}
                         </td>
-                        <td className="px-6 py-4 text-gray-300">
-                          <span className="bg-gray-700 px-2 py-1 rounded text-xs">{member.jobClass}</span>
+                        <td className="px-6 py-5 text-gray-300">
+                          <span className="bg-gray-700 px-3 py-1.5 rounded text-sm">{member.jobClass}</span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-5 text-right">
                           {isQualified ? (
                             <div className="flex items-center justify-end">
-                              <span className="text-yellow-400 font-black text-lg mr-2">Lv. {member.level}</span>
-                              <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-[10px] font-bold px-2 py-1 rounded shadow-md flex items-center animate-pulse">
-                                <Ticket className="w-3 h-3 mr-1" /> 참가권 획득!
+                              <span className="text-yellow-400 font-black text-2xl mr-3">Lv. {member.level}</span>
+                              <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-bold px-3 py-1.5 rounded shadow-md flex items-center animate-pulse">
+                                <Ticket className="w-4 h-4 mr-1.5" /> 참가권 획득!
                               </span>
                             </div>
                           ) : (
                             <div className="flex items-center justify-end">
-                              <span className="text-gray-300 font-bold text-base mr-2">Lv. {member.level}</span>
-                              <span className="text-[11px] text-gray-500 bg-gray-800 px-2 py-1 rounded border border-gray-700">
+                              <span className="text-gray-300 font-bold text-xl mr-3">Lv. {member.level}</span>
+                              <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded border border-gray-700">
                                 40까지 {40 - member.level}렙 남음
                               </span>
                             </div>
@@ -1011,7 +1017,8 @@ export default function App() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-6 py-16 text-center text-gray-500 flex-col items-center">
+                    {/* ★ colSpan을 5에서 6으로 변경 (번호 열이 추가되었으므로) ★ */}
+                    <td colSpan="6" className="px-6 py-16 text-center text-gray-500 flex-col items-center">
                       <Shield className="w-12 h-12 text-gray-700 mx-auto mb-3" />
                       아직 등록된 왁타버스 길드원이 없습니다.
                     </td>
