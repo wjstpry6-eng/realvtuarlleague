@@ -942,6 +942,21 @@ export default function App() {
           </div>
         </div>
 
+        {/* ★ 참가권 설명 안내 박스 추가 ★ */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-500"></div>
+          <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center">
+            <Ticket className="w-6 h-6 mr-2" /> '종겜 리그 참가권'에 대한 정확한 안내
+          </h3>
+          <div className="space-y-3 text-gray-300 text-lg leading-relaxed">
+            <p><strong className="text-white">✅ 확정 참가가 아닙니다:</strong> 40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가 권리'를 의미하지 않습니다.</p>
+            <p><strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong> 왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className="text-blue-300 font-bold">"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className="text-white font-bold">해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
+            <div className="mt-5 pt-4 border-t border-gray-700">
+              <p className="text-base text-gray-400">단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 관리자가 되겠습니다. </p>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
           <div className="p-5 border-b border-gray-700 bg-gray-800/50">
             <h3 className="text-xl font-bold text-white flex items-center">
