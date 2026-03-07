@@ -455,7 +455,7 @@ export default function App() {
   const handleUpdateWowLevel = async (id, newLevel) => {
     if (!user) return;
     if (newLevel < 1) newLevel = 1;
-    if (newLevel > 60) newLevel = 60;
+    if (newLevel > 70) newLevel = 70; // ★ 만렙 제한 60 -> 70으로 수정
     try {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), {
         level: newLevel
@@ -559,7 +559,7 @@ export default function App() {
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-3xl font-bold text-white mb-2">버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
+          <h2 className="text-3xl font-bold text-white mb-2">우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
           <p className="text-gray-300 mb-6">매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
           <div className="flex flex-wrap gap-4">
             <button onClick={() => navigateTo("tier")} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition">
@@ -1192,7 +1192,8 @@ export default function App() {
               <input type="text" value={wowNickname} onChange={e=>setWowNickname(e.target.value)} placeholder="와우 닉네임" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
               <input type="text" value={wowJobClass} onChange={e=>setWowJobClass(e.target.value)} placeholder="직업 (예: 전사)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
               <div className="flex gap-2">
-                <input type="number" value={wowLevel} onChange={e=>setWowLevel(e.target.value)} placeholder="레벨" min="1" max="60" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                {/* ★ input의 max 속성을 60 -> 70으로 수정 ★ */}
+                <input type="number" value={wowLevel} onChange={e=>setWowLevel(e.target.value)} placeholder="레벨" min="1" max="70" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
                 <button type="submit" disabled={isWowSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap">
                   {isWowSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "등록"}
                 </button>
