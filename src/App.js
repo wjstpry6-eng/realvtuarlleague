@@ -25,7 +25,9 @@ import {
   Shield,
   Ticket,
   Plus,
-  Minus
+  Minus,
+  Search,
+  Filter
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -131,6 +133,10 @@ export default function App() {
   const [wowJobClass, setWowJobClass] = useState("");
   const [wowLevel, setWowLevel] = useState("");
   const [isWowSubmitting, setIsWowSubmitting] = useState(false);
+
+  // ★ 관리자 WOW 길드원 검색 및 정렬 상태 추가 ★
+  const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
+  const [wowAdminSortOption, setWowAdminSortOption] = useState("levelDesc");
 
   const [individualResults, setIndividualResults] = useState([
     { playerName: "", rank: 1, scoreChange: 100 },
@@ -576,22 +582,22 @@ export default function App() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-            <Gamepad2 className="w-5 h-5 mr-2 text-green-400" /> 최근 경기
+          <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
+            <Gamepad2 className="w-6 h-6 mr-2 text-green-400" /> 최근 경기
           </h3>
           {matches.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {matches.slice(0, 3).map((match) => (
-                <div key={match.id} className="bg-gray-700/50 p-3 rounded-lg flex justify-between items-center">
+                <div key={match.id} className="bg-gray-700/50 p-4 rounded-lg flex justify-between items-center">
                   <div>
                     <div className="flex items-center">
-                      {match.matchType === "team" && <Users className="w-3.5 h-3.5 text-indigo-400 mr-1.5" />}
-                      <p className="font-bold text-white">{match.gameName}</p>
+                      {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
+                      <p className="font-bold text-white text-lg">{match.gameName}</p>
                     </div>
-                    <p className="text-xs text-gray-400">{match.date}</p>
+                    <p className="text-sm text-gray-400 mt-1">{match.date}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-yellow-400 font-medium">
+                    <p className="text-base text-yellow-400 font-bold">
                       1위: {match.results?.find((r) => r.rank === 1)?.playerName}
                     </p>
                   </div>
@@ -599,30 +605,30 @@ export default function App() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400">최근 경기가 없습니다.</p>
+            <p className="text-gray-400 text-lg">최근 경기가 없습니다.</p>
           )}
         </div>
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> TOP 5
+          <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
+            <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> TOP 5
           </h3>
           {players.length > 0 ? (
             <div className="space-y-3">
               {[...players].sort((a, b) => b.points - a.points).slice(0, 5).map((player, idx) => (
-                  <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="flex items-center bg-gray-700/30 p-2 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3 ${idx === 0 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]" : "bg-gray-600 text-white"}`}>
+                  <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="flex items-center bg-gray-700/30 p-3 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group">
+                    <div className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${idx === 0 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]" : "bg-gray-600 text-white"}`}>
                       {idx + 1}
                     </div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt="avatar" className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition" />
-                      <span className="font-medium text-white group-hover:text-green-400 transition">{player.name}</span>
+                    <div className="flex-1 flex items-center gap-3">
+                      <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition" />
+                      <span className="font-bold text-lg text-white group-hover:text-green-400 transition">{player.name}</span>
                     </div>
-                    <div className="text-green-400 font-bold">{player.points} pt</div>
+                    <div className="text-green-400 font-black text-lg">{player.points} pt</div>
                   </div>
                 ))}
             </div>
           ) : (
-            <p className="text-gray-400">참가자가 없습니다.</p>
+            <p className="text-gray-400 text-lg">참가자가 없습니다.</p>
           )}
         </div>
       </div>
@@ -1216,8 +1222,50 @@ export default function App() {
             </div>
           </form>
 
+          {/* ★ 길드원 검색 및 정렬 바 추가 ★ */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={wowAdminSearchTerm}
+                onChange={(e) => setWowAdminSearchTerm(e.target.value)}
+                placeholder="스트리머명, 닉네임, 직업으로 검색..."
+                className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-blue-500 outline-none transition"
+              />
+            </div>
+            <div className="relative w-full sm:w-48">
+               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Filter className="h-4 w-4 text-gray-400" />
+              </div>
+              <select
+                value={wowAdminSortOption}
+                onChange={(e) => setWowAdminSortOption(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm appearance-none focus:border-blue-500 outline-none transition"
+              >
+                <option value="levelDesc">레벨 높은 순 ▼</option>
+                <option value="levelAsc">레벨 낮은 순 ▲</option>
+                <option value="nameAsc">이름 가나다순 정렬</option>
+              </select>
+            </div>
+          </div>
+
           <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {wowRoster.sort((a,b) => b.level - a.level).map(member => (
+            {wowRoster
+              .filter(member => 
+                member.streamerName.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
+                member.wowNickname.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
+                member.jobClass.toLowerCase().includes(wowAdminSearchTerm.toLowerCase())
+              )
+              .sort((a,b) => {
+                if (wowAdminSortOption === 'levelDesc') return b.level - a.level;
+                if (wowAdminSortOption === 'levelAsc') return a.level - b.level;
+                if (wowAdminSortOption === 'nameAsc') return a.streamerName.localeCompare(b.streamerName);
+                return 0;
+              })
+              .map(member => (
               <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
                 <div className="flex items-center gap-3">
                   {/* ★ WOW 아바타 호출 함수 적용 ★ */}
