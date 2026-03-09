@@ -517,7 +517,7 @@ export default function App() {
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-3xl font-bold text-white mb-2">버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
+          <h2 className="text-3xl font-bold text-white mb-2">우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
           <p className="text-gray-300 mb-6">매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
           <div className="flex flex-wrap gap-4">
             <button onClick={() => navigateTo("tier")} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition">
@@ -905,9 +905,9 @@ export default function App() {
           </h3>
           <div className="space-y-3 text-gray-300 text-lg leading-relaxed">
             <p><strong className="text-white">✅ 확정 참가가 아닙니다:</strong> 40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가 권리'를 의미하지 않습니다.</p>
-            <p><strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong> 우왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className="text-blue-300 font-bold">"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className="text-white font-bold">해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
+            <p><strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong> 왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className="text-blue-300 font-bold">"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className="text-white font-bold">해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
             <div className="mt-5 pt-4 border-t border-gray-700">
-              <p className="text-base text-gray-400">단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 리그가 되겠습니다. 🙇‍♂️</p>
+              <p className="text-base text-gray-400">단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 관리자가 되겠습니다. </p>
             </div>
           </div>
         </div>
