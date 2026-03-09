@@ -27,7 +27,8 @@ import {
   Plus,
   Minus,
   Search,
-  Filter
+  Filter,
+  Heart // ★ 하트 아이콘 추가
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -420,6 +421,45 @@ export default function App() {
       return { id: m.id, gameName: m.gameName, date: m.date, rank: r.rank, scoreChange: r.scoreChange };
     });
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
+  };
+
+  // ★ 실시간 응원(하트) 로직 (1일 1회 제한 및 취소 기능 적용) ★
+  const handleCheerPlayer = async (playerId, playerName) => {
+    if (!user) return;
+    
+    const today = new Date().toISOString().split('T')[0];
+    const storageKey = 'wak_vleague_hearts_v1';
+    let storedData = JSON.parse(localStorage.getItem(storageKey) || '{"date": "", "votes": []}');
+
+    // 날짜가 바뀌었으면 오늘 누른 기록 완전 초기화
+    if (storedData.date !== today) {
+      storedData = { date: today, votes: [] };
+    }
+
+    const hasVoted = storedData.votes.includes(playerName);
+
+    try {
+      if (hasVoted) {
+        // 이미 응원했다면 -> 응원 취소 로직 (-1)
+        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), {
+          hearts: increment(-1)
+        });
+        storedData.votes = storedData.votes.filter(name => name !== playerName);
+        localStorage.setItem(storageKey, JSON.stringify(storedData));
+        showToast(`${playerName}님에 대한 응원을 취소했습니다. 💔`);
+      } else {
+        // 아직 응원하지 않았다면 -> 응원 추가 로직 (+1)
+        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), {
+          hearts: increment(1)
+        });
+        storedData.votes.push(playerName);
+        localStorage.setItem(storageKey, JSON.stringify(storedData));
+        showToast(`${playerName}님을 성공적으로 응원했습니다! 💖`);
+      }
+    } catch (error) {
+      console.error("Cheer error:", error);
+      showToast("응원 처리 중 오류가 발생했습니다.", "error");
+    }
   };
 
   const handleAddWowMember = async (e) => {
@@ -1013,7 +1053,6 @@ export default function App() {
           <Lock className="w-12 h-12 text-green-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-6">관리자 로그인</h2>
           <form onSubmit={handleAdminLogin} className="space-y-4">
-            {/* ★ 닉네임 입력칸 (로컬 스토리지에 저장된 값 자동 불러옴) ★ */}
             <input
               type="text"
               value={adminNicknameInput}
@@ -1083,7 +1122,6 @@ export default function App() {
     return (
       <div className="max-w-3xl mx-auto space-y-8">
         
-        {/* ★ 관리자 접속 현황판 추가 ★ */}
         <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center">
@@ -1382,7 +1420,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* ★ 실전용: 초기화 버튼 영역 ★ */}
         <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
           <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
           <p className="text-sm text-gray-400 mb-4">
@@ -1458,9 +1495,15 @@ export default function App() {
         const playerInfo = players.find(p => p.name === selectedPlayer);
         if (!playerInfo) return null;
 
+        // ★ 현재 프로필의 주인공에게 오늘 하트를 눌렀는지 검사 ★
+        const todayStr = new Date().toISOString().split('T')[0];
+        const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
+        const hasVotedToday = storageData.date === todayStr && storageData.votes.includes(selectedPlayer);
+
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
             <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+              
               <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
                 <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
                 <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
@@ -1468,7 +1511,26 @@ export default function App() {
                 </div>
                 <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
                 <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
+
+                {/* ★ 하트(응원) 버튼 UI 수정 (취소 가능하도록 변경) ★ */}
+                <div className="flex flex-col items-center mt-5 w-full">
+                  <button
+                    onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
+                    className={`flex items-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+                      hasVotedToday
+                        ? "bg-pink-900 border border-pink-700 text-pink-300 shadow-[0_0_10px_rgba(219,39,119,0.3)] hover:bg-pink-800"
+                        : "bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_15px_rgba(219,39,119,0.5)]"
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 mr-2 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent"}`} />
+                    {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
+                  </button>
+                  <p className="text-xs text-gray-500 mt-3 bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-center break-keep">
+                    💡 스트리머 1명당 <strong className="text-gray-300">하루에 1번만</strong> 응원할 수 있습니다.<br/>(다시 누르면 취소됩니다)
+                  </p>
+                </div>
               </div>
+              
               <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
                 <div className="flex flex-col items-center py-4">
                   <span className="text-xs text-gray-400 font-medium mb-1">총 참가</span>
