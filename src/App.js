@@ -20,6 +20,14 @@ import {
   Clover,
   Gem,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  Ticket,
+  Plus,
+  Minus,
+  Search,
+  Filter,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -64,12 +72,6 @@ const appId =
 // ★ 보안 업그레이드: 비밀번호 난독화 (해싱) 적용 ★
 const ADMIN_HASH = "zITMrF2d";
 
-// ★ 실전용: 참가자 명단 완전 백지화 (0명부터 시작) ★
-const SEED_PLAYERS = [];
-
-// ★ 실전용: 테스트 경기 데이터 제거 ★
-const SEED_MATCHES = [];
-
 // ★ 실전용 상대평가 티어 설정 (비율 기준) ★
 const TIER_SETTINGS = [
   {
@@ -112,16 +114,36 @@ const TIER_SETTINGS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "matches", "stats", "tier", "admin"].includes(hash)
+    return ["home", "matches", "stats", "tier", "wow", "admin"].includes(hash)
       ? hash
       : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
+
+  // ★ WOW 탭 상태 관리 ★
+  const [wowRoster, setWowRoster] = useState([]);
+  const [wowSortConfig, setWowSortConfig] = useState({
+    key: "level",
+    direction: "desc",
+  });
+
   const [isLoading, setIsLoading] = useState(true);
+
+  // ★ 관리자 인증 및 닉네임 상태 관리 ★
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
+  // 로컬 스토리지에서 마지막으로 사용한 닉네임을 불러와 기본값으로 설정
+  const [adminNicknameInput, setAdminNicknameInput] = useState(
+    () => localStorage.getItem("wak_admin_nickname") || ""
+  );
+  const [currentAdminName, setCurrentAdminName] = useState(null);
+
+  // ★ 접속 중인 관리자 목록 및 시간 동기화 ★
+  const [rawAdminPresence, setRawAdminPresence] = useState([]);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
   const [toast, setToast] = useState({
     show: false,
     message: "",
@@ -142,7 +164,18 @@ export default function App() {
   const [matchDate, setMatchDate] = useState("");
   const [matchMode, setMatchMode] = useState("individual");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [imageInputs, setImageInputs] = useState({});
+  const [wowImageInputs, setWowImageInputs] = useState({});
+
+  const [wowStreamerName, setWowStreamerName] = useState("");
+  const [wowNickname, setWowNickname] = useState("");
+  const [wowJobClass, setWowJobClass] = useState("");
+  const [wowLevel, setWowLevel] = useState("");
+  const [isWowSubmitting, setIsWowSubmitting] = useState(false);
+
+  const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
+  const [wowAdminSortOption, setWowAdminSortOption] = useState("levelDesc");
 
   const [individualResults, setIndividualResults] = useState([
     { playerName: "", rank: 1, scoreChange: 100 },
@@ -153,33 +186,74 @@ export default function App() {
     { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
   ]);
 
-  // ★ 통계 계산 로직을 최상단으로 이동 (Hook 에러 완벽 해결) ★
+  const [sortConfig, setSortConfig] = useState({
+    key: "points",
+    direction: "desc",
+  });
+
   const playerStatsMap = useMemo(() => {
-    return players
-      .map((p) => {
-        let matchCount = 0;
-        let winCount = 0;
+    return players.map((p) => {
+      let matchCount = 0;
+      let winCount = 0;
 
-        matches.forEach((m) => {
-          const res = m.results?.find((r) => r.playerName === p.name);
-          if (res) {
-            matchCount++;
-            if (res.rank === 1) winCount++;
-          }
-        });
-
-        // 평균 점수 계산 (소수점 1자리까지)
-        const avgScore = matchCount > 0 ? p.points / matchCount : 0;
-
-        return {
-          ...p,
-          matchCount,
-          winCount,
-          avgScore: Number(avgScore.toFixed(1)),
-        };
-      })
-      .sort((a, b) => b.points - a.points); // 기본 정렬: 총 점수 높은 순
+      matches.forEach((m) => {
+        const res = m.results?.find((r) => r.playerName === p.name);
+        if (res) {
+          matchCount++;
+          if (res.rank === 1) winCount++;
+        }
+      });
+      const avgScore = matchCount > 0 ? p.points / matchCount : 0;
+      return {
+        ...p,
+        matchCount,
+        winCount,
+        avgScore: Number(avgScore.toFixed(1)),
+      };
+    });
   }, [players, matches]);
+
+  const sortedPlayerStats = useMemo(() => {
+    let sortableItems = [...playerStatsMap];
+    sortableItems.sort((a, b) => {
+      if (a[sortConfig.key] < b[sortConfig.key])
+        return sortConfig.direction === "asc" ? -1 : 1;
+      if (a[sortConfig.key] > b[sortConfig.key])
+        return sortConfig.direction === "asc" ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+    return sortableItems;
+  }, [playerStatsMap, sortConfig]);
+
+  const requestSort = (key) => {
+    let direction = "desc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "desc")
+      direction = "asc";
+    setSortConfig({ key, direction });
+  };
+
+  const sortedWowRoster = useMemo(() => {
+    let sortableItems = [...wowRoster];
+    sortableItems.sort((a, b) => {
+      if (a[wowSortConfig.key] < b[wowSortConfig.key])
+        return wowSortConfig.direction === "asc" ? -1 : 1;
+      if (a[wowSortConfig.key] > b[wowSortConfig.key])
+        return wowSortConfig.direction === "asc" ? 1 : -1;
+      return a.streamerName.localeCompare(b.streamerName);
+    });
+    return sortableItems;
+  }, [wowRoster, wowSortConfig]);
+
+  const requestWowSort = (key) => {
+    let direction = "desc";
+    if (
+      wowSortConfig &&
+      wowSortConfig.key === key &&
+      wowSortConfig.direction === "desc"
+    )
+      direction = "asc";
+    setWowSortConfig({ key, direction });
+  };
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -192,7 +266,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "matches", "stats", "tier", "admin"].includes(hash))
+      if (["home", "matches", "stats", "tier", "wow", "admin"].includes(hash))
         setActiveTab(hash);
       else setActiveTab("home");
     };
@@ -277,6 +351,18 @@ export default function App() {
       }
     );
 
+    const wowRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "wow_roster"
+    );
+    const unsubWow = onSnapshot(wowRef, (snapshot) => {
+      setWowRoster(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+
     const metaRef = doc(
       db,
       "artifacts",
@@ -287,9 +373,7 @@ export default function App() {
       "app_info"
     );
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setLastUpdated(docSnap.data().lastUpdated);
-      }
+      if (docSnap.exists()) setLastUpdated(docSnap.data().lastUpdated);
     });
 
     const today = new Date();
@@ -305,20 +389,104 @@ export default function App() {
       "daily_visits",
       todayDocId
     );
-
     const unsubVisit = onSnapshot(visitRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setTodayVisits(docSnap.data().count || 0);
-      }
+      if (docSnap.exists()) setTodayVisits(docSnap.data().count || 0);
+    });
+
+    // ★ 관리자 접속 현황 데이터 리스너 ★
+    const presenceRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "admin_presence"
+    );
+    const unsubPresence = onSnapshot(presenceRef, (snapshot) => {
+      setRawAdminPresence(
+        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
     });
 
     return () => {
       unsubPlayers();
       unsubMatches();
+      unsubWow();
       unsubMeta();
       unsubVisit();
+      unsubPresence();
     };
   }, [user]);
+
+  // ★ 관리자 비활성화 체크용 1분 타이머 (5분 경과한 관리자를 화면에서 숨김) ★
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // ★ 현재 활동 중인 관리자만 필터링 (5분 = 300,000ms) ★
+  const activeAdmins = useMemo(() => {
+    return rawAdminPresence.filter(
+      (admin) => currentTime - admin.lastActive < 300000
+    );
+  }, [rawAdminPresence, currentTime]);
+
+  // ★ 내 활동 상태를 파이어베이스에 실시간으로 업데이트 (마우스 움직임, 클릭 감지) ★
+  useEffect(() => {
+    if (!isAdminAuth || !currentAdminName || !user) return;
+
+    let lastUpdated = Date.now();
+    // 초기 접속 시 즉시 기록
+    setDoc(
+      doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "admin_presence",
+        currentAdminName
+      ),
+      {
+        lastActive: Date.now(),
+        status: "online",
+      }
+    );
+
+    const handleActivity = () => {
+      const now = Date.now();
+      // 너무 잦은 업데이트 방지: 최소 1분에 한 번만 파이어베이스에 기록 (크레딧 최적화)
+      if (now - lastUpdated > 60000) {
+        lastUpdated = now;
+        setDoc(
+          doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "admin_presence",
+            currentAdminName
+          ),
+          {
+            lastActive: now,
+            status: "online",
+          },
+          { merge: true }
+        ).catch((err) => console.error("Presence Error:", err));
+      }
+    };
+
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("click", handleActivity);
+
+    return () => {
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("click", handleActivity);
+    };
+  }, [isAdminAuth, currentAdminName, user]);
 
   useEffect(() => {
     const recordVisit = async () => {
@@ -327,7 +495,6 @@ export default function App() {
         today.getMonth() + 1
       ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
       const storageKey = `wak_visited_${todayDocId}`;
-
       if (!localStorage.getItem(storageKey)) {
         try {
           const visitRef = doc(
@@ -341,15 +508,10 @@ export default function App() {
           );
           await setDoc(visitRef, { count: increment(1) }, { merge: true });
           localStorage.setItem(storageKey, "true");
-        } catch (error) {
-          console.error("Visit record error:", error);
-        }
+        } catch (error) {}
       }
     };
-
-    if (user) {
-      recordVisit();
-    }
+    if (user) recordVisit();
   }, [user]);
 
   useEffect(() => {
@@ -371,6 +533,12 @@ export default function App() {
       : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
   };
 
+  const getWowAvatarSrc = (member) => {
+    return member?.imageUrl?.trim()
+      ? member.imageUrl
+      : `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+  };
+
   const updateLastModifiedTime = async () => {
     try {
       const metaRef = doc(
@@ -387,9 +555,7 @@ export default function App() {
         { lastUpdated: new Date().toISOString() },
         { merge: true }
       );
-    } catch (error) {
-      console.error("Meta update error:", error);
-    }
+    } catch (error) {}
   };
 
   const formatLastUpdated = (isoString) => {
@@ -407,17 +573,13 @@ export default function App() {
       m.results?.some((r) => r.playerName === playerName)
     );
     if (playerMatches.length === 0) return { type: "none", count: 0 };
-
-    let streakType = "none";
-    let count = 0;
-
+    let streakType = "none",
+      count = 0;
     for (const match of playerMatches) {
       const result = match.results.find((r) => r.playerName === playerName);
       if (!result) continue;
-
-      const isWin = result.scoreChange > 0;
-      const isLoss = result.scoreChange < 0;
-
+      const isWin = result.scoreChange > 0,
+        isLoss = result.scoreChange < 0;
       if (count === 0) {
         if (isWin) {
           streakType = "win";
@@ -440,27 +602,24 @@ export default function App() {
       m.results?.some((r) => r.playerName === playerName)
     );
     const totalMatches = playerMatches.length;
-
     const wins = playerMatches.filter((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return r && r.rank === 1;
     }).length;
     const winRate =
       totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
-
     const gameCounts = {};
     playerMatches.forEach((m) => {
       gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1;
     });
-    let mostPlayedGame = "전적 없음";
-    let maxCount = 0;
+    let mostPlayedGame = "전적 없음",
+      maxCount = 0;
     for (const [game, count] of Object.entries(gameCounts)) {
       if (count > maxCount) {
         maxCount = count;
         mostPlayedGame = game;
       }
     }
-
     const recentMatches = playerMatches.slice(0, 5).map((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return {
@@ -471,29 +630,81 @@ export default function App() {
         scoreChange: r.scoreChange,
       };
     });
-
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
+  };
+
+  const handleAddWowMember = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+    if (
+      !wowStreamerName.trim() ||
+      !wowNickname.trim() ||
+      !wowJobClass.trim() ||
+      !wowLevel
+    )
+      return showToast("모든 와우 캐릭터 정보를 입력해주세요.", "error");
+    setIsWowSubmitting(true);
+    try {
+      await addDoc(
+        collection(db, "artifacts", appId, "public", "data", "wow_roster"),
+        {
+          streamerName: wowStreamerName.trim(),
+          wowNickname: wowNickname.trim(),
+          jobClass: wowJobClass.trim(),
+          level: Number(wowLevel),
+          createdAt: new Date().toISOString(),
+        }
+      );
+      setWowStreamerName("");
+      setWowNickname("");
+      setWowJobClass("");
+      setWowLevel("");
+      showToast("와우 길드원이 성공적으로 등록되었습니다!");
+    } catch (error) {
+      showToast("길드원 등록 중 오류 발생", "error");
+    } finally {
+      setIsWowSubmitting(false);
+    }
+  };
+
+  const handleUpdateWowLevel = async (id, newLevel) => {
+    if (!user) return;
+    if (newLevel < 1) newLevel = 1;
+    if (newLevel > 70) newLevel = 70;
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id),
+        { level: newLevel }
+      );
+    } catch (error) {}
+  };
+
+  const handleDeleteWowMember = async (id) => {
+    if (!user || !window.confirm("정말 이 길드원을 삭제하시겠습니까?")) return;
+    try {
+      await deleteDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id)
+      );
+      showToast("길드원이 삭제되었습니다.");
+    } catch (error) {}
   };
 
   const handleResetDatabase = async () => {
     if (!user) return;
     setIsResetting(true);
     try {
-      for (const m of matches) {
+      for (const m of matches)
         await deleteDoc(
           doc(db, "artifacts", appId, "public", "data", "matches", m.id)
         );
-      }
-      for (const p of players) {
+      for (const p of players)
         await deleteDoc(
           doc(db, "artifacts", appId, "public", "data", "players", p.id)
         );
-      }
       await updateLastModifiedTime();
       showToast("데이터가 초기화되고 백지상태로 시작됩니다!", "success");
       setShowResetModal(false);
     } catch (error) {
-      console.error("Reset Error:", error);
       showToast("초기화 중 오류가 발생했습니다.", "error");
     } finally {
       setIsResetting(false);
@@ -501,34 +712,72 @@ export default function App() {
     }
   };
 
+  // ★ 관리자 로그인 로직 수정 (닉네임 + 저장 기능) ★
   const handleAdminLogin = (e) => {
     e.preventDefault();
+    if (!adminNicknameInput.trim()) {
+      showToast("닉네임을 입력해주세요.", "error");
+      return;
+    }
     const hashedInput = btoa(encodeURIComponent(passwordInput))
       .split("")
       .reverse()
       .join("");
     if (hashedInput === ADMIN_HASH) {
+      localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim()); // 닉네임 로컬에 저장
+      setCurrentAdminName(adminNicknameInput.trim()); // 현재 접속자 설정
       setIsAdminAuth(true);
-      showToast("관리자 인증 성공!");
+      showToast(
+        `${adminNicknameInput.trim()}님, 관리자 모드에 접속하셨습니다.`
+      );
       setPasswordInput("");
     } else {
       showToast("비밀번호 오류", "error");
     }
   };
 
+  // ★ 관리자 명시적 로그아웃 로직 ★
+  const handleAdminLogout = async () => {
+    if (currentAdminName) {
+      try {
+        await deleteDoc(
+          doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "admin_presence",
+            currentAdminName
+          )
+        );
+      } catch (error) {}
+    }
+    setIsAdminAuth(false);
+    setCurrentAdminName(null);
+    showToast("성공적으로 로그아웃 되었습니다.");
+  };
+
   const handleUpdateImage = async (playerId, url) => {
     try {
       await updateDoc(
         doc(db, "artifacts", appId, "public", "data", "players", playerId),
-        {
-          imageUrl: url || "",
-        }
+        { imageUrl: url || "" }
       );
       await updateLastModifiedTime();
-      showToast("프로필 이미지가 저장되었습니다.");
-    } catch (error) {
-      showToast("이미지 저장 중 오류 발생", "error");
-    }
+      showToast("종겜 리그 프로필 이미지가 저장되었습니다.");
+    } catch (error) {}
+  };
+
+  const handleUpdateWowImage = async (memberId, url) => {
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        { imageUrl: url || "" }
+      );
+      await updateLastModifiedTime();
+      showToast("와우 길드원 프로필 이미지가 저장되었습니다.");
+    } catch (error) {}
   };
 
   const confirmDeleteMatch = async () => {
@@ -538,18 +787,10 @@ export default function App() {
       for (const result of matchToDelete.results) {
         const player = players.find((p) => p.name === result.playerName);
         if (player) {
-          const playerRef = doc(
-            db,
-            "artifacts",
-            appId,
-            "public",
-            "data",
-            "players",
-            player.id
+          await updateDoc(
+            doc(db, "artifacts", appId, "public", "data", "players", player.id),
+            { points: player.points - result.scoreChange }
           );
-          await updateDoc(playerRef, {
-            points: player.points - result.scoreChange,
-          });
         }
       }
       await deleteDoc(
@@ -567,8 +808,6 @@ export default function App() {
       showToast("경기가 삭제되고 점수가 복원되었습니다.");
       setMatchToDelete(null);
     } catch (error) {
-      console.error("Delete Error:", error);
-      showToast("삭제 중 오류가 발생했습니다.", "error");
     } finally {
       setIsDeleting(false);
     }
@@ -579,12 +818,12 @@ export default function App() {
       <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-3xl font-bold text-white mb-2">
-            버츄얼 종겜 리그에 오신 것을 환영합니다
+            우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다
           </h2>
           <p className="text-gray-300 mb-6">
             매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.
           </p>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <button
               onClick={() => navigateTo("tier")}
               className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition"
@@ -597,32 +836,40 @@ export default function App() {
             >
               <Swords className="w-5 h-5 mr-2" /> 경기 기록
             </button>
+            <button
+              onClick={() => navigateTo("wow")}
+              className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-900 to-purple-900 text-white rounded-lg border border-blue-700/50 shadow-lg hover:from-blue-800 hover:to-purple-800 transition"
+            >
+              <Shield className="w-5 h-5 mr-2" /> 와우 왁타버스 길드
+            </button>
           </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-            <Gamepad2 className="w-5 h-5 mr-2 text-green-400" /> 최근 경기
+          <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
+            <Gamepad2 className="w-6 h-6 mr-2 text-green-400" /> 최근 경기
           </h3>
           {matches.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {matches.slice(0, 3).map((match) => (
                 <div
                   key={match.id}
-                  className="bg-gray-700/50 p-3 rounded-lg flex justify-between items-center"
+                  className="bg-gray-700/50 p-4 rounded-lg flex justify-between items-center"
                 >
                   <div>
                     <div className="flex items-center">
                       {match.matchType === "team" && (
-                        <Users className="w-3.5 h-3.5 text-indigo-400 mr-1.5" />
+                        <Users className="w-4 h-4 text-indigo-400 mr-1.5" />
                       )}
-                      <p className="font-bold text-white">{match.gameName}</p>
+                      <p className="font-bold text-white text-lg">
+                        {match.gameName}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400">{match.date}</p>
+                    <p className="text-sm text-gray-400 mt-1">{match.date}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-yellow-400 font-medium">
+                    <p className="text-base text-yellow-400 font-bold">
                       1위:{" "}
                       {match.results?.find((r) => r.rank === 1)?.playerName}
                     </p>
@@ -631,12 +878,12 @@ export default function App() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400">최근 경기가 없습니다.</p>
+            <p className="text-gray-400 text-lg">최근 경기가 없습니다.</p>
           )}
         </div>
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> TOP 5
+          <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
+            <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> TOP 5
           </h3>
           {players.length > 0 ? (
             <div className="space-y-3">
@@ -647,38 +894,42 @@ export default function App() {
                   <div
                     key={player.id}
                     onClick={() => setSelectedPlayer(player.name)}
-                    className="flex items-center bg-gray-700/30 p-2 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group"
+                    className="flex items-center bg-gray-700/30 p-3 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group"
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3 ${
+                      className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${
                         idx === 0
                           ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]"
+                          : idx === 1
+                          ? "bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.5)]"
+                          : idx === 2
+                          ? "bg-amber-600 text-white shadow-[0_0_10px_rgba(217,119,6,0.5)]"
                           : "bg-gray-600 text-white"
                       }`}
                     >
                       {idx + 1}
                     </div>
-                    <div className="flex-1 flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-3">
                       <img
                         src={getAvatarSrc(player.name)}
                         onError={(e) => {
                           e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
                         }}
                         alt="avatar"
-                        className="w-8 h-8 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition"
+                        className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition"
                       />
-                      <span className="font-medium text-white group-hover:text-green-400 transition">
+                      <span className="font-bold text-lg text-white group-hover:text-green-400 transition">
                         {player.name}
                       </span>
                     </div>
-                    <div className="text-green-400 font-bold">
+                    <div className="text-green-400 font-black text-lg">
                       {player.points} pt
                     </div>
                   </div>
                 ))}
             </div>
           ) : (
-            <p className="text-gray-400">참가자가 없습니다.</p>
+            <p className="text-gray-400 text-lg">참가자가 없습니다.</p>
           )}
         </div>
       </div>
@@ -686,11 +937,12 @@ export default function App() {
   );
 
   const renderMatchesView = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white flex items-center">
-        <Swords className="w-6 h-6 mr-2 text-green-400" /> 경기 기록
+    <div className="space-y-8">
+      {/* 경기 기록 최상단 타이틀 크기 확대 */}
+      <h2 className="text-3xl font-bold text-white flex items-center mb-4">
+        <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
       </h2>
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {matches.map((match) => {
           if (match.matchType === "team") {
             const teamsByRank = {};
@@ -710,32 +962,32 @@ export default function App() {
             return (
               <div
                 key={match.id}
-                className="bg-gray-800 rounded-xl p-5 border border-gray-700"
+                className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md"
               >
-                <div className="flex items-center mb-4">
-                  <h3 className="text-xl font-bold text-white">
+                <div className="flex items-center mb-5">
+                  <h3 className="text-2xl font-bold text-white">
                     {match.gameName}
                   </h3>
-                  <span className="ml-3 bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded text-xs font-bold flex items-center">
-                    <Users className="w-3 h-3 mr-1" /> 팀전
+                  <span className="ml-4 bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-3 py-1 rounded text-sm font-bold flex items-center">
+                    <Users className="w-4 h-4 mr-1.5" /> 팀전
                   </span>
-                  <span className="text-sm text-gray-400 ml-auto">
+                  <span className="text-base text-gray-400 ml-auto">
                     {match.date}
                   </span>
                 </div>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {sortedTeams.map((team, idx) => (
                     <div
                       key={idx}
-                      className={`p-4 rounded-lg border ${
+                      className={`p-5 rounded-lg border ${
                         team.rank === 1
                           ? "bg-yellow-500/10 border-yellow-500/30"
                           : "bg-gray-700/30 border-gray-600"
                       }`}
                     >
-                      <div className="flex justify-between items-center mb-3 border-b border-gray-600/50 pb-2">
+                      <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
                         <span
-                          className={`text-sm font-bold ${
+                          className={`text-lg font-bold ${
                             team.rank === 1
                               ? "text-yellow-400"
                               : "text-gray-300"
@@ -744,7 +996,7 @@ export default function App() {
                           {team.rank}위 팀
                         </span>
                         <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded ${
+                          className={`text-sm font-bold px-3 py-1 rounded ${
                             team.scoreChange >= 0
                               ? "bg-green-500/20 text-green-400"
                               : "bg-red-500/20 text-red-400"
@@ -754,12 +1006,12 @@ export default function App() {
                           {team.scoreChange} pt
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         {team.players.map((p) => (
                           <div
                             key={p}
                             onClick={() => setSelectedPlayer(p)}
-                            className="flex items-center bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group"
+                            className="flex items-center bg-gray-900 px-4 py-2 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group"
                           >
                             <img
                               src={getAvatarSrc(p)}
@@ -767,9 +1019,9 @@ export default function App() {
                                 e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`;
                               }}
                               alt="avatar"
-                              className="w-5 h-5 rounded-full mr-2 bg-gray-800 object-cover"
+                              className="w-8 h-8 rounded-full mr-2.5 bg-gray-800 object-cover border border-gray-600"
                             />
-                            <span className="text-sm font-medium text-white group-hover:text-green-400">
+                            <span className="text-base font-bold text-white group-hover:text-green-400">
                               {p}
                             </span>
                           </div>
@@ -785,38 +1037,39 @@ export default function App() {
           return (
             <div
               key={match.id}
-              className="bg-gray-800 rounded-xl p-5 border border-gray-700"
+              className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md"
             >
-              <div className="flex items-center mb-4">
-                <h3 className="text-xl font-bold text-white">
+              <div className="flex items-center mb-5">
+                <h3 className="text-2xl font-bold text-white">
                   {match.gameName}
                 </h3>
-                <span className="ml-3 bg-gray-700 text-gray-300 border border-gray-600 px-2 py-0.5 rounded text-xs font-bold flex items-center">
-                  <User className="w-3 h-3 mr-1" /> 개인전
+                <span className="ml-4 bg-gray-700 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm font-bold flex items-center">
+                  <User className="w-4 h-4 mr-1.5" /> 개인전
                 </span>
-                <span className="text-sm text-gray-400 ml-auto">
+                <span className="text-base text-gray-400 ml-auto">
                   {match.date}
                 </span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* 그리드 간격과 아이템 패딩 확대 및 무조건 4열 배치(md 기준) */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[...(match.results || [])]
                   .sort((a, b) => a.rank - b.rank)
                   .map((result, idx) => (
                     <div
                       key={idx}
                       onClick={() => setSelectedPlayer(result.playerName)}
-                      className={`p-3 rounded-lg border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${
+                      className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${
                         result.rank === 1
                           ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400"
                           : "bg-gray-700/30 border-gray-600 hover:border-green-400"
                       }`}
                     >
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-gray-300">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-lg font-bold text-gray-300">
                           {result.rank}위
                         </span>
                         <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded ${
+                          className={`text-sm font-bold px-3 py-1 rounded ${
                             result.scoreChange >= 0
                               ? "bg-green-500/20 text-green-400"
                               : "bg-red-500/20 text-red-400"
@@ -826,16 +1079,16 @@ export default function App() {
                           {result.scoreChange} pt
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <img
                           src={getAvatarSrc(result.playerName)}
                           onError={(e) => {
                             e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`;
                           }}
                           alt="avatar"
-                          className="w-7 h-7 rounded-full bg-gray-800 object-cover"
+                          className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600"
                         />
-                        <span className="font-medium text-white truncate text-lg group-hover:text-green-400 transition">
+                        <span className="font-bold text-white truncate text-xl group-hover:text-green-400 transition">
                           {result.playerName}
                         </span>
                       </div>
@@ -846,15 +1099,15 @@ export default function App() {
           );
         })}
         {matches.length === 0 && (
-          <p className="text-gray-400 text-center py-10">기록이 없습니다.</p>
+          <p className="text-gray-400 text-center py-12 text-lg">
+            기록이 없습니다.
+          </p>
         )}
       </div>
     </div>
   );
 
-  // ★ 추가된 통계 탭 컴포넌트 ★
   const renderStatsView = () => {
-    // 각 분야별 1위 찾기 (명예의 전당용)
     const mostWinsPlayer = [...playerStatsMap].sort(
       (a, b) => b.winCount - a.winCount || b.points - a.points
     )[0];
@@ -865,189 +1118,216 @@ export default function App() {
       .filter((p) => p.matchCount > 0)
       .sort((a, b) => b.avgScore - a.avgScore)[0];
 
+    const SortIcon = ({ columnKey }) => {
+      if (sortConfig.key !== columnKey)
+        return (
+          <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />
+        );
+      return sortConfig.direction === "asc" ? (
+        <ChevronUp className="w-4 h-4 ml-1 text-green-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 ml-1 text-green-400" />
+      );
+    };
+
     return (
       <div className="space-y-8">
         <div>
-          <h2 className="text-2xl font-bold text-white flex items-center mb-2">
-            <TrendingUp className="w-6 h-6 mr-2 text-indigo-400" /> 종합 통계
+          <h2 className="text-3xl font-bold text-white flex items-center mb-3">
+            <TrendingUp className="w-8 h-8 mr-3 text-indigo-400" /> 종합 통계
             대시보드
           </h2>
-          <p className="text-sm text-gray-400">
+          <p className="text-base text-gray-400">
             매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적
             기록입니다.
           </p>
         </div>
 
-        {/* 1. 명예의 전당 (The Kings) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* 종합 우승왕 */}
-          <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
             <div className="absolute -right-4 -top-4 opacity-10">
-              <Crown className="w-32 h-32 text-yellow-500" />
+              <Crown className="w-40 h-40 text-yellow-500" />
             </div>
-            <Crown className="w-8 h-8 text-yellow-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">
+            <Crown className="w-10 h-10 text-yellow-400 mb-3" />
+            <h3 className="text-lg font-bold text-gray-300 mb-1">
               👑 종합 우승왕
             </h3>
-            <p className="text-[10px] text-yellow-500/70 mb-3 text-center break-keep">
+            <p className="text-xs md:text-sm text-yellow-500/70 mb-4 text-center break-keep">
               1위를 가장 많이 달성한 유저
             </p>
             {mostWinsPlayer && mostWinsPlayer.winCount > 0 ? (
               <>
                 <div
-                  className="flex items-center gap-2 cursor-pointer group"
+                  className="flex items-center gap-3 cursor-pointer group"
                   onClick={() => setSelectedPlayer(mostWinsPlayer.name)}
                 >
                   <img
                     src={getAvatarSrc(mostWinsPlayer.name)}
                     alt="avatar"
-                    className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-yellow-500/50 group-hover:scale-110 transition"
+                    className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-yellow-500/50 group-hover:scale-110 transition"
                   />
-                  <span className="text-xl font-black text-white group-hover:text-yellow-400 transition">
+                  <span className="text-2xl font-black text-white group-hover:text-yellow-400 transition">
                     {mostWinsPlayer.name}
                   </span>
                 </div>
-                <p className="text-yellow-400 font-bold mt-2 bg-yellow-900/30 px-3 py-1 rounded-full text-sm">
+                <p className="text-yellow-400 font-bold mt-4 bg-yellow-900/30 px-4 py-1.5 rounded-full text-base">
                   총 {mostWinsPlayer.winCount}회 우승
                 </p>
               </>
             ) : (
-              <span className="text-gray-500 mt-2">기록 없음</span>
+              <span className="text-gray-500 mt-2 text-base">기록 없음</span>
             )}
           </div>
 
-          {/* 선택받은 자 */}
-          <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
+          <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
             <div className="absolute -right-4 -top-4 opacity-10">
-              <Clover className="w-32 h-32 text-emerald-500" />
+              <Clover className="w-40 h-40 text-emerald-500" />
             </div>
-            <Clover className="w-8 h-8 text-emerald-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">
+            <Clover className="w-10 h-10 text-emerald-400 mb-3" />
+            <h3 className="text-lg font-bold text-gray-300 mb-1">
               🍀 선택받은 자
             </h3>
-            <p className="text-[10px] text-emerald-500/70 mb-3 text-center break-keep">
+            <p className="text-xs md:text-sm text-emerald-500/70 mb-4 text-center break-keep">
               경기에 가장 많이 참가한 유저
             </p>
             {mostPlayedPlayer && mostPlayedPlayer.matchCount > 0 ? (
               <>
                 <div
-                  className="flex items-center gap-2 cursor-pointer group"
+                  className="flex items-center gap-3 cursor-pointer group"
                   onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}
                 >
                   <img
                     src={getAvatarSrc(mostPlayedPlayer.name)}
                     alt="avatar"
-                    className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-emerald-500/50 group-hover:scale-110 transition"
+                    className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-emerald-500/50 group-hover:scale-110 transition"
                   />
-                  <span className="text-xl font-black text-white group-hover:text-emerald-400 transition">
+                  <span className="text-2xl font-black text-white group-hover:text-emerald-400 transition">
                     {mostPlayedPlayer.name}
                   </span>
                 </div>
-                <p className="text-emerald-400 font-bold mt-2 bg-emerald-900/30 px-3 py-1 rounded-full text-sm">
+                <p className="text-emerald-400 font-bold mt-4 bg-emerald-900/30 px-4 py-1.5 rounded-full text-base">
                   총 {mostPlayedPlayer.matchCount}회 참가
                 </p>
               </>
             ) : (
-              <span className="text-gray-500 mt-2">기록 없음</span>
+              <span className="text-gray-500 mt-2 text-base">기록 없음</span>
             )}
           </div>
 
-          {/* 최고 효율 플레이어 */}
-          <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-5 flex flex-col items-center relative overflow-hidden">
+          <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
             <div className="absolute -right-4 -top-4 opacity-10">
-              <Gem className="w-32 h-32 text-cyan-500" />
+              <Gem className="w-40 h-40 text-cyan-500" />
             </div>
-            <Gem className="w-8 h-8 text-cyan-400 mb-3" />
-            <h3 className="text-sm font-bold text-gray-300 mb-1">
+            <Gem className="w-10 h-10 text-cyan-400 mb-3" />
+            <h3 className="text-lg font-bold text-gray-300 mb-1">
               💎 최고 효율 플레이어
             </h3>
-            <p className="text-[10px] text-cyan-500/70 mb-3 text-center break-keep">
+            <p className="text-xs md:text-sm text-cyan-500/70 mb-4 text-center break-keep">
               경기당 평균 획득 점수가 가장 높은 유저
             </p>
             {bestAvgPlayer && bestAvgPlayer.matchCount > 0 ? (
               <>
                 <div
-                  className="flex items-center gap-2 cursor-pointer group"
+                  className="flex items-center gap-3 cursor-pointer group"
                   onClick={() => setSelectedPlayer(bestAvgPlayer.name)}
                 >
                   <img
                     src={getAvatarSrc(bestAvgPlayer.name)}
                     alt="avatar"
-                    className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-cyan-500/50 group-hover:scale-110 transition"
+                    className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-cyan-500/50 group-hover:scale-110 transition"
                   />
-                  <span className="text-xl font-black text-white group-hover:text-cyan-400 transition">
+                  <span className="text-2xl font-black text-white group-hover:text-cyan-400 transition">
                     {bestAvgPlayer.name}
                   </span>
                 </div>
-                <p className="text-cyan-400 font-bold mt-2 bg-cyan-900/30 px-3 py-1 rounded-full text-sm">
+                <p className="text-cyan-400 font-bold mt-4 bg-cyan-900/30 px-4 py-1.5 rounded-full text-base">
                   평균 {bestAvgPlayer.avgScore} pt
                 </p>
               </>
             ) : (
-              <span className="text-gray-500 mt-2">기록 없음</span>
+              <span className="text-gray-500 mt-2 text-base">기록 없음</span>
             )}
           </div>
         </div>
 
-        {/* 2. 전체 통계 리스트 (Leaderboard) */}
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
-          <div className="p-4 border-b border-gray-700 bg-gray-800/50">
-            <h3 className="text-lg font-bold text-white flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2 text-green-400" /> 참가자 전체
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
+          <div className="p-5 border-b border-gray-700 bg-gray-800/50">
+            <h3 className="text-xl font-bold text-white flex items-center">
+              <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> 참가자 전체
               통계 리스트
             </h3>
           </div>
-
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-gray-400 bg-gray-900 uppercase">
+            <table className="w-full text-base text-left">
+              <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
                 <tr>
-                  <th scope="col" className="px-6 py-4 rounded-tl-lg">
+                  <th scope="col" className="px-6 py-5 rounded-tl-lg">
                     순위
                   </th>
-                  <th scope="col" className="px-6 py-4">
+                  <th scope="col" className="px-6 py-5">
                     선수명
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    참가 횟수
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    1위 횟수
-                  </th>
-                  <th scope="col" className="px-6 py-4 text-center">
-                    평균 획득 점수
                   </th>
                   <th
                     scope="col"
-                    className="px-6 py-4 text-right rounded-tr-lg"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("matchCount")}
                   >
-                    총 획득 점수
+                    <div className="flex items-center justify-center">
+                      참가 횟수 <SortIcon columnKey="matchCount" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("winCount")}
+                  >
+                    <div className="flex items-center justify-center">
+                      1위 횟수 <SortIcon columnKey="winCount" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("avgScore")}
+                  >
+                    <div className="flex items-center justify-center">
+                      평균 획득 점수 <SortIcon columnKey="avgScore" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg"
+                    onClick={() => requestSort("points")}
+                  >
+                    <div className="flex items-center justify-end">
+                      총 획득 점수 <SortIcon columnKey="points" />
+                    </div>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {playerStatsMap.length > 0 ? (
-                  playerStatsMap.map((player, idx) => (
+                {sortedPlayerStats.length > 0 ? (
+                  sortedPlayerStats.map((player, idx) => (
                     <tr
                       key={player.id}
                       className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer"
                       onClick={() => setSelectedPlayer(player.name)}
                     >
-                      <td className="px-6 py-4 font-bold text-gray-400">
+                      <td className="px-6 py-5 font-bold text-gray-400 text-lg">
                         {idx + 1}
                       </td>
-                      <td className="px-6 py-4 font-bold text-white flex items-center gap-3">
+                      <td className="px-6 py-5 font-bold text-white flex items-center gap-4 text-lg">
                         <img
                           src={getAvatarSrc(player.name)}
                           alt={player.name}
-                          className="w-6 h-6 rounded-full bg-gray-900 object-cover"
+                          className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-gray-600"
                         />
                         {player.name}
                       </td>
-                      <td className="px-6 py-4 text-center text-gray-300">
+                      <td className="px-6 py-5 text-center text-gray-300 text-lg">
                         {player.matchCount}회
                       </td>
-                      <td className="px-6 py-4 text-center text-gray-300">
+                      <td className="px-6 py-5 text-center text-gray-300 text-lg">
                         {player.winCount > 0 ? (
                           <span className="text-yellow-400 font-bold">
                             {player.winCount}회
@@ -1056,10 +1336,10 @@ export default function App() {
                           "0회"
                         )}
                       </td>
-                      <td className="px-6 py-4 text-center font-medium text-cyan-400">
+                      <td className="px-6 py-5 text-center font-medium text-cyan-400 text-lg">
                         {player.avgScore} pt
                       </td>
-                      <td className="px-6 py-4 text-right font-black text-green-400">
+                      <td className="px-6 py-5 text-right font-black text-green-400 text-xl">
                         {player.points} pt
                       </td>
                     </tr>
@@ -1068,7 +1348,7 @@ export default function App() {
                   <tr>
                     <td
                       colSpan="6"
-                      className="px-6 py-10 text-center text-gray-500"
+                      className="px-6 py-12 text-center text-gray-500 text-lg"
                     >
                       아직 등록된 참가자 통계가 없습니다.
                     </td>
@@ -1085,7 +1365,6 @@ export default function App() {
   const renderTierListView = () => {
     const sortedPlayers = [...players].sort((a, b) => b.points - a.points);
     const totalPlayers = sortedPlayers.length;
-
     let currentRank = 1;
     const rankedPlayers = sortedPlayers.map((player, index) => {
       if (index > 0 && player.points < sortedPlayers[index - 1].points) {
@@ -1115,14 +1394,12 @@ export default function App() {
       const playersInTier = rankedPlayers.filter(
         (p) => getTierIdByRank(p.rank) === tier.id
       );
-
       let startRank = 1;
       if (index > 0) {
         const prevTierId = TIER_SETTINGS[index - 1].id;
         startRank = cutoffs[prevTierId] + 1;
       }
       const endRank = cutoffs[tier.id];
-
       let rankLabel = "";
       if (totalPlayers > 0) {
         if (startRank > endRank) {
@@ -1135,7 +1412,6 @@ export default function App() {
       } else {
         rankLabel = "(0명)";
       }
-
       return { ...tier, players: playersInTier, rankLabel };
     });
 
@@ -1172,7 +1448,6 @@ export default function App() {
                   {tier.rankLabel}
                 </span>
               </div>
-
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
                 {tier.players.length > 0 ? (
                   tier.players.map((player) => {
@@ -1228,6 +1503,225 @@ export default function App() {
     );
   };
 
+  const renderWowView = () => {
+    const WowSortIcon = ({ columnKey }) => {
+      if (wowSortConfig.key !== columnKey)
+        return (
+          <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />
+        );
+      return wowSortConfig.direction === "asc" ? (
+        <ChevronUp className="w-4 h-4 ml-1 text-blue-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 ml-1 text-blue-400" />
+      );
+    };
+
+    return (
+      <div className="space-y-8">
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 rounded-2xl p-8 shadow-xl border border-blue-500/30 relative overflow-hidden">
+          <div className="absolute top-0 right-0 opacity-10 transform translate-x-1/4 -translate-y-1/4 pointer-events-none">
+            <Shield className="w-64 h-64 text-blue-300" />
+          </div>
+          <div className="relative z-10">
+            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300 mb-3 flex items-center drop-shadow-md">
+              <Shield className="w-8 h-8 mr-3 text-blue-400" /> 월드 오브
+              워크래프트 x 버츄얼 종겜 리그
+            </h2>
+            <p className="text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm">
+              왁타버스 길드에 가입하여 피나는 노력 끝에{" "}
+              <strong className="text-yellow-400 font-black text-xl px-1">
+                레벨 40
+              </strong>
+              을 달성한 자만이
+              <br />
+              종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 합류하게
+              될까요?
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-500"></div>
+          <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center">
+            <Ticket className="w-6 h-6 mr-2" /> '종겜 리그 참가권'에 대한 정확한
+            안내
+          </h3>
+          <div className="space-y-3 text-gray-300 text-lg leading-relaxed">
+            <p>
+              <strong className="text-white">✅ 확정 참가가 아닙니다:</strong>{" "}
+              40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가
+              권리'를 의미하지 않습니다.
+            </p>
+            <p>
+              <strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong>{" "}
+              왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서{" "}
+              <strong className="text-blue-300 font-bold">
+                "와튜버 한 자리 보장"
+              </strong>{" "}
+              룰이 적용되어 참가자를 뽑을 때{" "}
+              <strong className="text-white font-bold">
+                해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격
+              </strong>
+              을 의미합니다.
+            </p>
+            <div className="mt-5 pt-4 border-t border-gray-700">
+              <p className="text-base text-gray-400">
+                단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨
+                점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱
+                정확하게 안내하는 관리자가 되겠습니다.{" "}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
+          <div className="p-5 border-b border-gray-700 bg-gray-800/50">
+            <h3 className="text-xl font-bold text-white flex items-center">
+              <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드
+              소속 여성 버튜버 명단 (점핑권X)
+            </h3>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-base text-left">
+              <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
+                <tr>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 rounded-tl-lg text-center"
+                  >
+                    번호
+                  </th>
+                  <th scope="col" className="px-6 py-5">
+                    프로필
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestWowSort("streamerName")}
+                  >
+                    <div className="flex items-center">
+                      스트리머명 <WowSortIcon columnKey="streamerName" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestWowSort("wowNickname")}
+                  >
+                    <div className="flex items-center">
+                      와우 닉네임 <WowSortIcon columnKey="wowNickname" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestWowSort("jobClass")}
+                  >
+                    <div className="flex items-center">
+                      직업 <WowSortIcon columnKey="jobClass" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg"
+                    onClick={() => requestWowSort("level")}
+                  >
+                    <div className="flex items-center justify-end">
+                      현재 레벨 <WowSortIcon columnKey="level" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedWowRoster.length > 0 ? (
+                  sortedWowRoster.map((member, idx) => {
+                    const isQualified = member.level >= 40;
+                    return (
+                      <tr
+                        key={member.id}
+                        className={`border-b border-gray-700 transition ${
+                          isQualified
+                            ? "bg-yellow-900/10 hover:bg-yellow-900/20"
+                            : "hover:bg-gray-700/50"
+                        }`}
+                      >
+                        <td className="px-6 py-5 text-center font-bold text-gray-400 text-lg">
+                          {idx + 1}
+                        </td>
+                        <td className="px-6 py-5">
+                          <img
+                            src={getWowAvatarSrc(member)}
+                            onError={(e) => {
+                              e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                            }}
+                            alt={member.streamerName}
+                            className={`w-12 h-12 rounded-full object-cover border-2 ${
+                              isQualified
+                                ? "border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]"
+                                : "border-gray-600"
+                            }`}
+                          />
+                        </td>
+                        <td
+                          className={`px-6 py-5 font-bold text-lg ${
+                            isQualified ? "text-yellow-100" : "text-white"
+                          }`}
+                        >
+                          {member.streamerName}
+                        </td>
+                        <td className="px-6 py-5 text-blue-300 font-medium text-lg">
+                          {member.wowNickname}
+                        </td>
+                        <td className="px-6 py-5 text-gray-300">
+                          <span className="bg-gray-700 px-3 py-1.5 rounded text-sm">
+                            {member.jobClass}
+                          </span>
+                        </td>
+                        <td className="px-6 py-5 text-right">
+                          {isQualified ? (
+                            <div className="flex items-center justify-end">
+                              <span className="text-yellow-400 font-black text-2xl mr-3">
+                                Lv. {member.level}
+                              </span>
+                              <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-bold px-3 py-1.5 rounded shadow-md flex items-center animate-pulse">
+                                <Ticket className="w-4 h-4 mr-1.5" /> 참가권
+                                획득!
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end">
+                              <span className="text-gray-300 font-bold text-xl mr-3">
+                                Lv. {member.level}
+                              </span>
+                              <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded border border-gray-700">
+                                40까지 {40 - member.level}렙 남음
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="px-6 py-16 text-center text-gray-500 flex-col items-center"
+                    >
+                      <Shield className="w-12 h-12 text-gray-700 mx-auto mb-3" />
+                      아직 등록된 왁타버스 길드원이 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderAdminView = () => {
     if (!isAdminAuth)
       return (
@@ -1235,6 +1729,15 @@ export default function App() {
           <Lock className="w-12 h-12 text-green-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-6">관리자 로그인</h2>
           <form onSubmit={handleAdminLogin} className="space-y-4">
+            {/* ★ 닉네임 입력칸 (로컬 스토리지에 저장된 값 자동 불러옴) ★ */}
+            <input
+              type="text"
+              value={adminNicknameInput}
+              onChange={(e) => setAdminNicknameInput(e.target.value)}
+              placeholder="관리자 닉네임을 입력하세요 (예: 스태프A)"
+              className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-center border border-gray-600 focus:border-green-500 outline-none"
+              required
+            />
             <input
               type="password"
               value={passwordInput}
@@ -1259,7 +1762,6 @@ export default function App() {
         return showToast("게임 이름을 입력해주세요.", "error");
 
       let finalResults = [];
-
       if (matchMode === "individual") {
         finalResults = individualResults.filter(
           (r) => r.playerName.trim() !== ""
@@ -1325,9 +1827,7 @@ export default function App() {
           { id: 1, rank: 1, scoreChange: 100, players: ["", ""] },
           { id: 2, rank: 2, scoreChange: -50, players: ["", ""] },
         ]);
-
         await updateLastModifiedTime();
-
         showToast("결과 저장 성공!");
         navigateTo("tier");
       } catch (error) {
@@ -1339,18 +1839,46 @@ export default function App() {
 
     return (
       <div className="max-w-3xl mx-auto space-y-8">
+        {/* ★ 관리자 접속 현황판 추가 ★ */}
+        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center">
+              <Activity className="w-4 h-4 mr-1.5 text-green-400" /> 현재 활동
+              중인 관리자 ({activeAdmins.length}명)
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {activeAdmins.map((admin) => (
+                <span
+                  key={admin.id}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${
+                    admin.name === currentAdminName
+                      ? "bg-green-900/50 text-green-400 border border-green-500/50"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-400 mr-2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse"></span>
+                  {admin.name}{" "}
+                  {admin.name === currentAdminName && (
+                    <span className="ml-1 opacity-60 text-xs">(나)</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={handleAdminLogout}
+            className="text-sm font-bold flex items-center text-red-400 hover:text-white bg-red-900/30 hover:bg-red-600 px-4 py-2 rounded-lg transition shrink-0 border border-red-800/50"
+          >
+            <Unlock className="w-4 h-4 mr-1.5" /> 로그아웃
+          </button>
+        </div>
+
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-white flex items-center">
               <PlusCircle className="w-6 h-6 mr-2 text-green-400" /> 새 경기
               결과 등록
             </h2>
-            <button
-              onClick={() => setIsAdminAuth(false)}
-              className="text-xs text-gray-400 hover:text-white bg-gray-700 px-3 py-1.5 rounded-lg"
-            >
-              로그아웃
-            </button>
           </div>
 
           <div className="flex bg-gray-900 p-1 rounded-lg mb-6 border border-gray-700">
@@ -1528,7 +2056,6 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-
                     <div className="grid grid-cols-2 gap-2">
                       {team.players.map((pName, pIdx) => (
                         <div key={pIdx} className="flex gap-1">
@@ -1606,14 +2133,268 @@ export default function App() {
           </form>
         </div>
 
+        <div className="bg-gradient-to-b from-blue-900/20 to-gray-800 rounded-xl p-6 border border-blue-800/40 shadow-lg">
+          <h2 className="text-xl font-bold text-blue-300 mb-2 flex items-center">
+            <Shield className="w-5 h-5 mr-2" /> WOW 왁타버스 길드 관리
+          </h2>
+          <p className="text-sm text-gray-400 mb-6">
+            와우 서버에서 플레이 중인 버튜버 캐릭터를 등록하고, 방송을 보며
+            실시간으로 레벨을 갱신해주세요.
+          </p>
+
+          <form
+            onSubmit={handleAddWowMember}
+            className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input
+                type="text"
+                value={wowStreamerName}
+                onChange={(e) => setWowStreamerName(e.target.value)}
+                placeholder="스트리머명 (예: 단답벌레)"
+                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                required
+              />
+              <input
+                type="text"
+                value={wowNickname}
+                onChange={(e) => setWowNickname(e.target.value)}
+                placeholder="와우 닉네임"
+                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                required
+              />
+              <input
+                type="text"
+                value={wowJobClass}
+                onChange={(e) => setWowJobClass(e.target.value)}
+                placeholder="직업 (예: 전사)"
+                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                required
+              />
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={wowLevel}
+                  onChange={(e) => setWowLevel(e.target.value)}
+                  placeholder="레벨"
+                  min="1"
+                  max="70"
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isWowSubmitting}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap"
+                >
+                  {isWowSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "등록"
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={wowAdminSearchTerm}
+                onChange={(e) => setWowAdminSearchTerm(e.target.value)}
+                placeholder="스트리머명, 닉네임, 직업으로 검색..."
+                className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-blue-500 outline-none transition"
+              />
+            </div>
+            <div className="relative w-full sm:w-48">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Filter className="h-4 w-4 text-gray-400" />
+              </div>
+              <select
+                value={wowAdminSortOption}
+                onChange={(e) => setWowAdminSortOption(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm appearance-none focus:border-blue-500 outline-none transition"
+              >
+                <option value="levelDesc">레벨 높은 순 ▼</option>
+                <option value="levelAsc">레벨 낮은 순 ▲</option>
+                <option value="nameAsc">이름 가나다순 정렬</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {wowRoster
+              .filter(
+                (member) =>
+                  member.streamerName
+                    .toLowerCase()
+                    .includes(wowAdminSearchTerm.toLowerCase()) ||
+                  member.wowNickname
+                    .toLowerCase()
+                    .includes(wowAdminSearchTerm.toLowerCase()) ||
+                  member.jobClass
+                    .toLowerCase()
+                    .includes(wowAdminSearchTerm.toLowerCase())
+              )
+              .sort((a, b) => {
+                if (wowAdminSortOption === "levelDesc")
+                  return b.level - a.level;
+                if (wowAdminSortOption === "levelAsc") return a.level - b.level;
+                if (wowAdminSortOption === "nameAsc")
+                  return a.streamerName.localeCompare(b.streamerName);
+                return 0;
+              })
+              .map((member) => (
+                <div
+                  key={member.id}
+                  className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={getWowAvatarSrc(member)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                      }}
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full bg-gray-900 object-cover border border-gray-600"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">
+                          {member.streamerName}
+                        </span>
+                        <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">
+                          {member.jobClass}
+                        </span>
+                      </div>
+                      <div className="text-xs text-blue-400">
+                        {member.wowNickname}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
+                      <button
+                        onClick={() =>
+                          handleUpdateWowLevel(member.id, member.level - 1)
+                        }
+                        className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-12 text-center font-black text-yellow-400">
+                        Lv {member.level}
+                      </span>
+                      <button
+                        onClick={() =>
+                          handleUpdateWowLevel(member.id, member.level + 1)
+                        }
+                        className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteWowMember(member.id)}
+                      className="text-gray-500 hover:text-red-400 transition p-2"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            {wowRoster.length === 0 && (
+              <p className="text-center text-gray-500 py-6">
+                검색된 길드원이 없습니다.
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-blue-400" /> 참가자 프로필
+            <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원 프로필
             이미지 관리
           </h2>
           <p className="text-sm text-gray-400 mb-6">
-            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 참가자의 사진을
-            변경할 수 있습니다. <br />
+            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 와우 캐릭터 혹은
+            버튜버 사진을 변경할 수 있습니다. <br />
+            (빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+          </p>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {[...wowRoster]
+              .sort((a, b) => a.streamerName.localeCompare(b.streamerName))
+              .map((member) => (
+                <div
+                  key={member.id}
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={getWowAvatarSrc(member)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                      }}
+                      alt="avatar"
+                      className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0"
+                    />
+                    <span className="font-bold text-white w-20 truncate">
+                      {member.streamerName}
+                    </span>
+                  </div>
+                  <div className="flex flex-1 gap-2">
+                    <input
+                      type="text"
+                      placeholder="https://..."
+                      value={
+                        wowImageInputs[member.id] !== undefined
+                          ? wowImageInputs[member.id]
+                          : member.imageUrl || ""
+                      }
+                      onChange={(e) =>
+                        setWowImageInputs({
+                          ...wowImageInputs,
+                          [member.id]: e.target.value,
+                        })
+                      }
+                      className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                    />
+                    <button
+                      onClick={() =>
+                        handleUpdateWowImage(
+                          member.id,
+                          wowImageInputs[member.id]
+                        )
+                      }
+                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                    >
+                      저장
+                    </button>
+                  </div>
+                </div>
+              ))}
+            {wowRoster.length === 0 && (
+              <p className="text-center text-gray-500 py-4">
+                등록된 길드원이 없습니다.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+            <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그 참가자
+            이미지 관리
+          </h2>
+          <p className="text-sm text-gray-400 mb-6">
+            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 종겜 리그 참가자의
+            사진을 변경할 수 있습니다. <br />
             (빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
           </p>
 
@@ -1653,13 +2434,13 @@ export default function App() {
                           [player.id]: e.target.value,
                         })
                       }
-                      className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                      className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
                     />
                     <button
                       onClick={() =>
                         handleUpdateImage(player.id, imageInputs[player.id])
                       }
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
                     >
                       저장
                     </button>
@@ -1754,7 +2535,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 삭제 확인 모달 */}
       {matchToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
@@ -1797,7 +2577,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ★ 실전용: 데이터 초기화 모달 ★ */}
       {showResetModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
@@ -1843,7 +2622,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 개인 프로필 모달 */}
       {selectedPlayer &&
         (() => {
           const stats = getPlayerStats(selectedPlayer);
@@ -1883,7 +2661,6 @@ export default function App() {
                     {playerInfo.points} pt
                   </span>
                 </div>
-
                 <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
                   <div className="flex flex-col items-center py-4">
                     <span className="text-xs text-gray-400 font-medium mb-1">
@@ -1910,7 +2687,6 @@ export default function App() {
                     </span>
                   </div>
                 </div>
-
                 <div className="p-6">
                   <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
                     <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대
@@ -1967,13 +2743,16 @@ export default function App() {
         })()}
 
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
-        <div className="max-w-4xl mx-auto w-full flex justify-between items-center overflow-x-auto hide-scrollbar">
+        <div
+          className="max-w-6xl mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <h1
               className="text-lg md:text-xl font-bold text-white cursor-pointer flex items-center whitespace-nowrap"
               onClick={() => navigateTo("home")}
             >
-              <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" />
+              <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" />{" "}
               버츄얼 종겜 리그
             </h1>
             <a
@@ -1985,23 +2764,21 @@ export default function App() {
             >
               WAK
             </a>
-            {/* ★ 추가된 업데이트 시간 표시 ★ */}
             {lastUpdated && (
               <span className="ml-2 md:ml-3 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
-                <RefreshCw className="w-3 h-3 mr-1 opacity-70" />
-                최근 갱신: {formatLastUpdated(lastUpdated)}
+                <RefreshCw className="w-3 h-3 mr-1 opacity-70" /> 최근 갱신:{" "}
+                {formatLastUpdated(lastUpdated)}
               </span>
             )}
-            {/* ★ 복구된 오늘의 방문자 수 표시 ★ */}
             <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
-              <Users className="w-3 h-3 mr-1 opacity-70" />
-              오늘 방문자: {todayVisits}
+              <Users className="w-3 h-3 mr-1 opacity-70" /> 오늘 방문자:{" "}
+              {todayVisits}
             </span>
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
             <button
               onClick={() => navigateTo("home")}
-              className={`px-3 py-1.5 rounded text-sm font-medium ${
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
                 activeTab === "home"
                   ? "bg-gray-800 text-green-400"
                   : "text-gray-300 hover:text-white"
@@ -2011,7 +2788,7 @@ export default function App() {
             </button>
             <button
               onClick={() => navigateTo("matches")}
-              className={`px-3 py-1.5 rounded text-sm font-medium ${
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
                 activeTab === "matches"
                   ? "bg-gray-800 text-green-400"
                   : "text-gray-300 hover:text-white"
@@ -2019,10 +2796,9 @@ export default function App() {
             >
               경기
             </button>
-            {/* ★ 새로 추가된 통계 탭 버튼 ★ */}
             <button
               onClick={() => navigateTo("stats")}
-              className={`px-3 py-1.5 rounded text-sm font-medium ${
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
                 activeTab === "stats"
                   ? "bg-gray-800 text-green-400"
                   : "text-gray-300 hover:text-white"
@@ -2032,7 +2808,7 @@ export default function App() {
             </button>
             <button
               onClick={() => navigateTo("tier")}
-              className={`px-3 py-1.5 rounded text-sm font-medium ${
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
                 activeTab === "tier"
                   ? "bg-gray-800 text-green-400"
                   : "text-gray-300 hover:text-white"
@@ -2041,11 +2817,21 @@ export default function App() {
               티어
             </button>
             <button
+              onClick={() => navigateTo("wow")}
+              className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${
+                activeTab === "wow"
+                  ? "bg-blue-900/50 text-blue-400 border border-blue-500/50"
+                  : "text-blue-300 hover:text-white hover:bg-gray-800"
+              }`}
+            >
+              <Shield className="w-4 h-4 mr-1" /> WOW
+            </button>
+            <button
               onClick={() => navigateTo("admin")}
-              className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium ${
+              className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${
                 activeTab === "admin"
                   ? "bg-gray-800 text-green-400 border-green-500"
-                  : "text-gray-400"
+                  : "text-gray-400 hover:text-white hover:border-gray-400"
               }`}
             >
               {isAdminAuth ? (
@@ -2059,12 +2845,12 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 relative">
+      <main className="max-w-6xl mx-auto px-4 py-8 relative">
         {activeTab === "home" && renderHomeView()}
         {activeTab === "matches" && renderMatchesView()}
-        {/* ★ 새로 추가된 통계 탭 렌더링 ★ */}
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
+        {activeTab === "wow" && renderWowView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
     </div>
