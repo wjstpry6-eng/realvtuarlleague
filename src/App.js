@@ -568,7 +568,12 @@ export default function App() {
             <div className="space-y-3">
               {[...players].sort((a, b) => b.points - a.points).slice(0, 5).map((player, idx) => (
                   <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="flex items-center bg-gray-700/30 p-3 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group">
-                    <div className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${idx === 0 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]" : "bg-gray-600 text-white"}`}>
+                    <div className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${
+                      idx === 0 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]" : 
+                      idx === 1 ? "bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.5)]" :
+                      idx === 2 ? "bg-amber-600 text-white shadow-[0_0_10px_rgba(217,119,6,0.5)]" :
+                      "bg-gray-600 text-white"
+                    }`}>
                       {idx + 1}
                     </div>
                     <div className="flex-1 flex items-center gap-3">
@@ -588,11 +593,12 @@ export default function App() {
   );
 
   const renderMatchesView = () => (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white flex items-center">
-        <Swords className="w-6 h-6 mr-2 text-green-400" /> 경기 기록
+    <div className="space-y-8">
+      {/* 경기 기록 최상단 타이틀 크기 확대 */}
+      <h2 className="text-3xl font-bold text-white flex items-center mb-4">
+        <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
       </h2>
-      <div className="grid gap-4">
+      <div className="grid gap-6">
         {matches.map((match) => {
           if (match.matchType === "team") {
             const teamsByRank = {};
@@ -603,26 +609,26 @@ export default function App() {
             const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
 
             return (
-              <div key={match.id} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-                <div className="flex items-center mb-4">
-                  <h3 className="text-xl font-bold text-white">{match.gameName}</h3>
-                  <span className="ml-3 bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-2 py-0.5 rounded text-xs font-bold flex items-center"><Users className="w-3 h-3 mr-1" /> 팀전</span>
-                  <span className="text-sm text-gray-400 ml-auto">{match.date}</span>
+              <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
+                <div className="flex items-center mb-5">
+                  <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
+                  <span className="ml-4 bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-3 py-1 rounded text-sm font-bold flex items-center"><Users className="w-4 h-4 mr-1.5" /> 팀전</span>
+                  <span className="text-base text-gray-400 ml-auto">{match.date}</span>
                 </div>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                   {sortedTeams.map((team, idx) => (
-                    <div key={idx} className={`p-4 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
-                      <div className="flex justify-between items-center mb-3 border-b border-gray-600/50 pb-2">
-                        <span className={`text-sm font-bold ${team.rank === 1 ? "text-yellow-400" : "text-gray-300"}`}>{team.rank}위 팀</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${team.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                    <div key={idx} className={`p-5 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
+                      <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
+                        <span className={`text-lg font-bold ${team.rank === 1 ? "text-yellow-400" : "text-gray-300"}`}>{team.rank}위 팀</span>
+                        <span className={`text-sm font-bold px-3 py-1 rounded ${team.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
                           {team.scoreChange > 0 ? "+" : ""}{team.scoreChange} pt
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-3">
                         {team.players.map((p) => (
-                          <div key={p} onClick={() => setSelectedPlayer(p)} className="flex items-center bg-gray-900 px-3 py-1.5 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group">
-                            <img src={getAvatarSrc(p)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }} alt="avatar" className="w-5 h-5 rounded-full mr-2 bg-gray-800 object-cover" />
-                            <span className="text-sm font-medium text-white group-hover:text-green-400">{p}</span>
+                          <div key={p} onClick={() => setSelectedPlayer(p)} className="flex items-center bg-gray-900 px-4 py-2 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group">
+                            <img src={getAvatarSrc(p)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }} alt="avatar" className="w-8 h-8 rounded-full mr-2.5 bg-gray-800 object-cover border border-gray-600" />
+                            <span className="text-base font-bold text-white group-hover:text-green-400">{p}</span>
                           </div>
                         ))}
                       </div>
@@ -634,24 +640,25 @@ export default function App() {
           }
 
           return (
-            <div key={match.id} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-              <div className="flex items-center mb-4">
-                <h3 className="text-xl font-bold text-white">{match.gameName}</h3>
-                <span className="ml-3 bg-gray-700 text-gray-300 border border-gray-600 px-2 py-0.5 rounded text-xs font-bold flex items-center"><User className="w-3 h-3 mr-1" /> 개인전</span>
-                <span className="text-sm text-gray-400 ml-auto">{match.date}</span>
+            <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
+              <div className="flex items-center mb-5">
+                <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
+                <span className="ml-4 bg-gray-700 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm font-bold flex items-center"><User className="w-4 h-4 mr-1.5" /> 개인전</span>
+                <span className="text-base text-gray-400 ml-auto">{match.date}</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* 그리드 간격과 아이템 패딩 확대 및 무조건 4열 배치(md 기준) */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
-                    <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-3 rounded-lg border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-bold text-gray-300">{result.rank}위</span>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded ${result.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                    <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-lg font-bold text-gray-300">{result.rank}위</span>
+                        <span className={`text-sm font-bold px-3 py-1 rounded ${result.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
                           {result.scoreChange > 0 ? "+" : ""}{result.scoreChange} pt
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <img src={getAvatarSrc(result.playerName)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }} alt="avatar" className="w-7 h-7 rounded-full bg-gray-800 object-cover" />
-                        <span className="font-medium text-white truncate text-lg group-hover:text-green-400 transition">{result.playerName}</span>
+                      <div className="flex items-center gap-3">
+                        <img src={getAvatarSrc(result.playerName)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600" />
+                        <span className="font-bold text-white truncate text-xl group-hover:text-green-400 transition">{result.playerName}</span>
                       </div>
                     </div>
                   ))}
@@ -659,7 +666,7 @@ export default function App() {
             </div>
           );
         })}
-        {matches.length === 0 && <p className="text-gray-400 text-center py-10">기록이 없습니다.</p>}
+        {matches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
       </div>
     </div>
   );
