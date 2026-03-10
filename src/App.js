@@ -960,11 +960,22 @@ export default function App() {
       return acc;
     }, {});
     const allClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
-    const classColors = [
-      'bg-amber-600', 'bg-blue-400', 'bg-emerald-400', 'bg-purple-500', 
-      'bg-red-500', 'bg-cyan-400', 'bg-fuchsia-500', 'bg-yellow-400', 
-      'bg-rose-400', 'bg-teal-500', 'bg-orange-500', 'bg-lime-400'
-    ];
+    
+    // ★ 와우 공식 직업 색상 헥스코드 맵핑 ★
+    const WOW_CLASS_COLORS = {
+      "전사": "#C79C6E",
+      "사제": "#FFFFFF",
+      "도적": "#FFF569",
+      "성기사": "#F58CBA",
+      "사냥꾼": "#ABD473",
+      "주술사": "#0070DE",
+      "마법사": "#69CCF0",
+      "흑마": "#9482C9",
+      "흑마법사": "#9482C9", // 풀네임 예외 처리
+      "드루": "#FF7D0A",
+      "드루이드": "#FF7D0A"  // 풀네임 예외 처리
+    };
+    const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b']; // 미지정 직업용 예비 회색톤
 
     const WowSortIcon = ({ columnKey }) => {
       if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
@@ -1055,16 +1066,22 @@ export default function App() {
               <div className="flex h-4 rounded-full overflow-hidden mb-3 border border-gray-700 bg-gray-900">
                 {allClasses.map((cls, i) => {
                   const pct = totalWowMembers === 0 ? 0 : (cls[1] / totalWowMembers) * 100;
-                  return <div key={i} style={{ width: `${pct}%` }} className={`h-full ${classColors[i % classColors.length]}`} title={`${cls[0]}: ${cls[1]}명`}></div>
+                  // ★ 이름에 맞는 색상 찾기 (없으면 회색) ★
+                  const bgColor = WOW_CLASS_COLORS[cls[0]] || fallbackColors[i % fallbackColors.length];
+                  return <div key={i} style={{ width: `${pct}%`, backgroundColor: bgColor }} className="h-full" title={`${cls[0]}: ${cls[1]}명`}></div>
                 })}
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs max-h-[80px] overflow-y-auto custom-scrollbar pr-1">
-                {allClasses.map((cls, i) => (
-                  <div key={i} className="flex items-center text-gray-300 font-medium">
-                    <span className={`w-2.5 h-2.5 rounded-full mr-1.5 ${classColors[i % classColors.length]}`}></span>
-                    {cls[0]} <span className="text-gray-500 ml-1">({cls[1]})</span>
-                  </div>
-                ))}
+                {allClasses.map((cls, i) => {
+                  // ★ 이름에 맞는 색상 찾기 (없으면 회색) ★
+                  const bgColor = WOW_CLASS_COLORS[cls[0]] || fallbackColors[i % fallbackColors.length];
+                  return (
+                    <div key={i} className="flex items-center text-gray-300 font-medium">
+                      <span className="w-2.5 h-2.5 rounded-full mr-1.5 border border-gray-600/50" style={{ backgroundColor: bgColor }}></span>
+                      {cls[0]} <span className="text-gray-500 ml-1">({cls[1]})</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
