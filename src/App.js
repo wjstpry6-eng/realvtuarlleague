@@ -29,7 +29,8 @@ import {
   Search,
   Filter,
   Heart,
-  PieChart
+  PieChart,
+  Tv // ★ 방송국 아이콘 추가
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -86,7 +87,7 @@ const TIER_SETTINGS = [
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "matches", "stats", "tier", "wow", "admin"].includes(hash) ? hash : "home";
+    return ["home", "players", "matches", "stats", "tier", "wow", "admin"].includes(hash) ? hash : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -121,6 +122,9 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageInputs, setImageInputs] = useState({});
   const [wowImageInputs, setWowImageInputs] = useState({});
+  
+  // ★ 방송국 URL 관리를 위한 상태 추가 ★
+  const [broadcastUrlInputs, setBroadcastUrlInputs] = useState({});
 
   const [wowStreamerName, setWowStreamerName] = useState("");
   const [wowNickname, setWowNickname] = useState("");
@@ -197,7 +201,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "matches", "stats", "tier", "wow", "admin"].includes(hash)) setActiveTab(hash);
+      if (["home", "players", "matches", "stats", "tier", "wow", "admin"].includes(hash)) setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -473,6 +477,11 @@ export default function App() {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("종겜 리그 프로필 이미지가 저장되었습니다."); } catch (error) {}
   };
 
+  // ★ 방송국 URL 업데이트 로직 ★
+  const handleUpdateBroadcastUrl = async (playerId, url) => {
+    try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { broadcastUrl: url || "" }); await updateLastModifiedTime(); showToast("방송국 주소가 저장되었습니다."); } catch (error) {}
+  };
+
   const handleUpdateWowImage = async (memberId, url) => {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("와우 길드원 프로필 이미지가 저장되었습니다."); } catch (error) {}
   };
@@ -570,6 +579,85 @@ export default function App() {
       </div>
     </div>
   );
+
+  const renderPlayersView = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
+    const votesToday = storageData.date === todayStr ? storageData.votes : [];
+
+    return (
+      <div className="space-y-8">
+        <div className="bg-gradient-to-r from-pink-900/40 via-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-8 shadow-xl relative overflow-hidden">
+          <div className="absolute -right-4 -top-4 opacity-10">
+            <Users className="w-48 h-48 text-purple-500" />
+          </div>
+          <div className="relative z-10 text-center">
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-3 flex items-center justify-center drop-shadow-md">
+              <Users className="w-8 h-8 mr-3 text-purple-400" /> 참가 선수 갤러리
+            </h2>
+            <p className="text-gray-300 text-base md:text-lg leading-relaxed max-w-2xl mx-auto break-keep">
+              버츄얼 종겜 리그에 참여한 이력이 있는 스트리머들의 프로필을 확인하실 수 있습니다.<br/>
+              <span className="text-purple-200 font-medium text-sm md:text-base mt-4 inline-block bg-white/5 px-6 py-2 rounded-full border border-white/10 shadow-sm backdrop-blur-sm">
+                💡 궁금한 스트리머의 프로필을 클릭해보세요!
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* ★ 한 줄에 5개씩 보이도록 lg:grid-cols-5 로 수정하고 간격(gap) 조절 ★ */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+          {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => {
+            const hasVotedToday = votesToday.includes(player.name);
+            const broadcastLink = player.broadcastUrl?.trim() 
+              ? player.broadcastUrl 
+              : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(player.name)}`;
+
+            return (
+              <div key={player.id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col">
+                {/* 패딩(p-4)과 아바타 크기(w-16, md:w-20)를 알맞게 조정 */}
+                <div className="p-4 flex-1 flex flex-col items-center cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
+                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-700 border-2 border-gray-600 mb-3 overflow-hidden group-hover:scale-110 group-hover:border-purple-400 transition-all duration-300 shadow-md">
+                    <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
+                  </div>
+                  <h3 className="font-bold text-white text-base md:text-lg group-hover:text-purple-400 transition-colors">{player.name}</h3>
+                  <span className="text-xs font-bold text-green-400 bg-green-900/20 px-2.5 py-0.5 rounded mt-1.5 border border-green-800/30">{player.points} pt</span>
+                </div>
+                <div className="px-3 pb-4 space-y-2 mt-auto">
+                    {/* 버튼 텍스트가 줄바꿈 되지 않도록 text-xs 로 고정 */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleCheerPlayer(player.id, player.name); }}
+                      className={`w-full flex items-center justify-center py-2 rounded-lg font-bold text-xs transition-all duration-300 transform active:scale-95 ${
+                        hasVotedToday
+                          ? "bg-pink-900/40 border border-pink-800/50 text-pink-400 cursor-pointer"
+                          : "bg-pink-600 hover:bg-pink-500 text-white shadow-md"
+                      }`}
+                    >
+                      <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent"}`} />
+                      {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
+                    </button>
+                    <a
+                      href={broadcastLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      className="w-full flex items-center justify-center py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"
+                    >
+                      📺 방송국 가기
+                    </a>
+                </div>
+              </div>
+            )
+          })}
+          {players.length === 0 && (
+            <div className="col-span-full py-16 text-center text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>아직 등록된 선수가 없습니다.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const renderMatchesView = () => (
     <div className="space-y-8">
@@ -860,22 +948,18 @@ export default function App() {
   };
 
   const renderWowView = () => {
-    // ★ 대시보드를 위한 데이터 자동 계산 ★
     const totalWowMembers = wowRoster.length;
     const qualifiedCount = wowRoster.filter(m => m.level >= 40).length;
     const qualifyPercent = totalWowMembers === 0 ? 0 : Math.round((qualifiedCount / totalWowMembers) * 100);
     
     const avgLevel = totalWowMembers === 0 ? 0 : (wowRoster.reduce((sum, m) => sum + m.level, 0) / totalWowMembers).toFixed(1);
-    // ★ 최상위 선발대를 3명에서 5명으로 수정 ★
     const top5Wow = [...wowRoster].sort((a, b) => b.level - a.level).slice(0, 5);
     
     const classCounts = wowRoster.reduce((acc, m) => {
       acc[m.jobClass] = (acc[m.jobClass] || 0) + 1;
       return acc;
     }, {});
-    // ★ 직업 분포도: 상위 4개가 아닌 모든 직업을 표시하도록 수정 ★
     const allClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
-    // 직업 수가 많아질 것을 대비해 색상 팔레트 대폭 확장
     const classColors = [
       'bg-amber-600', 'bg-blue-400', 'bg-emerald-400', 'bg-purple-500', 
       'bg-red-500', 'bg-cyan-400', 'bg-fuchsia-500', 'bg-yellow-400', 
@@ -918,9 +1002,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* ★ 새롭게 추가된 WOW 길드 현황 요약 대시보드 (3-Grid) ★ */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          {/* 대시보드 1: 참가권 획득 진척도 */}
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-white mb-1 flex items-center">
@@ -939,7 +1021,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* 대시보드 2: 길드 전투력 요약 */}
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-white mb-1 flex items-center">
@@ -953,7 +1034,6 @@ export default function App() {
                 <span className="text-3xl font-black text-white">Lv. {avgLevel}</span>
               </div>
               <div className="flex -space-x-3 overflow-hidden">
-                {/* ★ 5명의 프로필이 겹쳐서 나오도록 맵핑 변수 수정 ★ */}
                 {top5Wow.map((m, i) => (
                   <div key={i} className="relative z-10 inline-block h-12 w-12 rounded-full ring-2 ring-gray-800" title={`${m.streamerName} (Lv.${m.level})`}>
                     <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} alt={m.streamerName} className="h-full w-full rounded-full object-cover bg-gray-900" />
@@ -964,7 +1044,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* 대시보드 3: 직업 분포도 (모든 직업 표시로 업데이트) */}
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-white mb-1 flex items-center">
@@ -979,7 +1058,6 @@ export default function App() {
                   return <div key={i} style={{ width: `${pct}%` }} className={`h-full ${classColors[i % classColors.length]}`} title={`${cls[0]}: ${cls[1]}명`}></div>
                 })}
               </div>
-              {/* 직업이 많아질 경우를 대비해 스크롤 영역 설정 */}
               <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs max-h-[80px] overflow-y-auto custom-scrollbar pr-1">
                 {allClasses.map((cls, i) => (
                   <div key={i} className="flex items-center text-gray-300 font-medium">
@@ -1426,6 +1504,42 @@ export default function App() {
           </div>
         </div>
 
+        {/* ★ 방송국 주소 관리 탭 신설 ★ */}
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+            <Tv className="w-5 h-5 mr-2 text-indigo-400" /> 종겜 리그 참가자 방송국 주소 관리
+          </h2>
+          <p className="text-sm text-gray-400 mb-6">
+            스트리머의 실제 방송국 주소(유튜브, 치지직, SOOP 등)를 입력해주세요. <br/>(빈칸으로 두시면 선수의 이름으로 자동 검색하여 SOOP으로 연결됩니다.)
+          </p>
+
+          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+              <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                <div className="flex items-center gap-3 w-28 flex-shrink-0">
+                  <span className="font-bold text-white truncate">{player.name}</span>
+                </div>
+                <div className="flex flex-1 gap-2">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={broadcastUrlInputs[player.id] !== undefined ? broadcastUrlInputs[player.id] : (player.broadcastUrl || "")}
+                    onChange={(e) => setBroadcastUrlInputs({...broadcastUrlInputs, [player.id]: e.target.value})}
+                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
+                  />
+                  <button
+                    onClick={() => handleUpdateBroadcastUrl(player.id, broadcastUrlInputs[player.id])}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                  >
+                    저장
+                  </button>
+                </div>
+              </div>
+            ))}
+            {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+          </div>
+        </div>
+
         <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
           <h2 className="text-xl font-bold text-white mb-4 flex items-center">
             <Swords className="w-5 h-5 mr-2 text-red-400" /> 등록된 경기 관리 (삭제)
@@ -1531,6 +1645,11 @@ export default function App() {
         const todayStr = new Date().toISOString().split('T')[0];
         const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
         const hasVotedToday = storageData.date === todayStr && storageData.votes.includes(selectedPlayer);
+        
+        // ★ 팝업: 관리자가 설정한 방송국 링크가 있으면 사용, 없으면 검색 링크 ★
+        const broadcastLink = playerInfo.broadcastUrl?.trim() 
+          ? playerInfo.broadcastUrl 
+          : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(selectedPlayer)}`;
 
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
@@ -1543,10 +1662,10 @@ export default function App() {
                 <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
                 <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
 
-                <div className="flex flex-col items-center mt-5 w-full">
+                <div className="flex flex-col items-center mt-5 w-full gap-2">
                   <button
                     onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
-                    className={`flex items-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+                    className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
                       hasVotedToday
                         ? "bg-pink-900 border border-pink-700 text-pink-300 shadow-[0_0_10px_rgba(219,39,119,0.3)] hover:bg-pink-800"
                         : "bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_15px_rgba(219,39,119,0.5)]"
@@ -1555,7 +1674,17 @@ export default function App() {
                     <Heart className={`w-5 h-5 mr-2 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent"}`} />
                     {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
                   </button>
-                  <p className="text-xs text-gray-500 mt-3 bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-center break-keep">
+                  
+                  <a
+                    href={broadcastLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"
+                  >
+                    <Tv className="w-5 h-5 mr-2" /> 방송국 가기
+                  </a>
+
+                  <p className="text-xs text-gray-500 mt-2 bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-center break-keep w-full">
                     💡 스트리머 1명당 <strong className="text-gray-300">하루에 1번만</strong> 응원할 수 있습니다.<br/>(다시 누르면 취소됩니다)
                   </p>
                 </div>
@@ -1622,6 +1751,7 @@ export default function App() {
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
             <button onClick={() => navigateTo("home")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "home" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>홈</button>
+            <button onClick={() => navigateTo("players")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "players" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>선수</button>
             <button onClick={() => navigateTo("matches")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "matches" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>경기</button>
             <button onClick={() => navigateTo("stats")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "stats" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>통계</button>
             <button onClick={() => navigateTo("tier")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "tier" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>티어</button>
@@ -1637,6 +1767,7 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto px-4 py-8 relative">
         {activeTab === "home" && renderHomeView()}
+        {activeTab === "players" && renderPlayersView()}
         {activeTab === "matches" && renderMatchesView()}
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
