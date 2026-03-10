@@ -628,11 +628,11 @@ export default function App() {
                       onClick={(e) => { e.stopPropagation(); handleCheerPlayer(player.id, player.name); }}
                       className={`w-full flex items-center justify-center py-2 rounded-lg font-bold text-xs transition-all duration-300 transform active:scale-95 ${
                         hasVotedToday
-                          ? "bg-pink-900/40 border border-pink-800/50 text-pink-400 cursor-pointer"
-                          : "bg-pink-600 hover:bg-pink-500 text-white shadow-md"
+                          ? "bg-rose-950/40 border border-rose-800/50 text-rose-400 cursor-pointer hover:bg-rose-900/50"
+                          : "bg-rose-600/80 hover:bg-rose-500 text-white shadow-md border border-rose-500/30"
                       }`}
                     >
-                      <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent"}`} />
+                      <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-rose-400 text-rose-400" : "fill-transparent text-white"}`} />
                       {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
                     </button>
                     <a
@@ -1667,11 +1667,11 @@ export default function App() {
                     onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
                     className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
                       hasVotedToday
-                        ? "bg-pink-900 border border-pink-700 text-pink-300 shadow-[0_0_10px_rgba(219,39,119,0.3)] hover:bg-pink-800"
-                        : "bg-pink-600 hover:bg-pink-500 text-white shadow-[0_0_15px_rgba(219,39,119,0.5)]"
+                        ? "bg-rose-950/50 border border-rose-800/50 text-rose-400 shadow-[0_0_10px_rgba(225,29,72,0.15)] hover:bg-rose-900/60"
+                        : "bg-gradient-to-r from-rose-600/90 to-pink-600/80 hover:from-rose-500 hover:to-pink-500 text-white shadow-[0_0_15px_rgba(225,29,72,0.25)] border border-rose-500/30"
                     }`}
                   >
-                    <Heart className={`w-5 h-5 mr-2 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent"}`} />
+                    <Heart className={`w-5 h-5 mr-2 ${hasVotedToday ? "fill-rose-400 text-rose-400" : "fill-transparent"}`} />
                     {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
                   </button>
                   
