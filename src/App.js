@@ -97,6 +97,13 @@ export default function App() {
   const [wowRoster, setWowRoster] = useState([]);
   const [wowSortConfig, setWowSortConfig] = useState({ key: 'level', direction: 'desc' });
 
+  // ★ WOW 탭 '점프 검색'을 위한 신규 상태 추가 ★
+  const [wowSearchInput, setWowSearchInput] = useState("");
+  const [showWowSearchDropdown, setShowWowSearchDropdown] = useState(false);
+  const [wowSearchResults, setWowSearchResults] = useState([]);
+  const [currentWowSearchIndex, setCurrentWowSearchIndex] = useState(-1);
+  const [highlightedWowMemberId, setHighlightedWowMemberId] = useState(null);
+
   const [isLoading, setIsLoading] = useState(true);
   
   // ★ 관리자 인증 및 닉네임 상태 관리 ★
@@ -191,6 +198,56 @@ export default function App() {
     let direction = 'desc'; 
     if (wowSortConfig && wowSortConfig.key === key && wowSortConfig.direction === 'desc') direction = 'asc'; 
     setWowSortConfig({ key, direction });
+  };
+
+  // ★ WOW 탭 검색어 변경 시 결과 업데이트 (useEffect) ★
+  useEffect(() => {
+    if (!wowSearchInput.trim()) {
+      setWowSearchResults([]);
+      setCurrentWowSearchIndex(-1);
+      return;
+    }
+    const term = wowSearchInput.toLowerCase();
+    const results = sortedWowRoster.filter(m =>
+      m.streamerName.toLowerCase().includes(term) ||
+      m.wowNickname.toLowerCase().includes(term) ||
+      m.jobClass.toLowerCase().includes(term)
+    );
+    setWowSearchResults(results);
+  }, [wowSearchInput, sortedWowRoster]);
+
+  // ★ 대상 위치로 스크롤 및 하이라이트 효과 주는 함수 ★
+  const scrollToWowMember = (memberId) => {
+    const element = document.getElementById(`wow-member-${memberId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedWowMemberId(memberId);
+      // 2초 뒤에 반짝임 효과 해제
+      setTimeout(() => setHighlightedWowMemberId(null), 2000);
+    }
+  };
+
+  const handleWowSearchNext = () => {
+    if (wowSearchResults.length === 0) return;
+    const nextIndex = (currentWowSearchIndex + 1) % wowSearchResults.length;
+    setCurrentWowSearchIndex(nextIndex);
+    scrollToWowMember(wowSearchResults[nextIndex].id);
+    setShowWowSearchDropdown(false);
+  };
+
+  const handleWowSearchPrev = () => {
+    if (wowSearchResults.length === 0) return;
+    const prevIndex = currentWowSearchIndex <= 0 ? wowSearchResults.length - 1 : currentWowSearchIndex - 1;
+    setCurrentWowSearchIndex(prevIndex);
+    scrollToWowMember(wowSearchResults[prevIndex].id);
+    setShowWowSearchDropdown(false);
+  };
+
+  const handleWowSearchSelect = (member) => {
+    setShowWowSearchDropdown(false);
+    const idx = wowSearchResults.findIndex(m => m.id === member.id);
+    if (idx !== -1) setCurrentWowSearchIndex(idx);
+    scrollToWowMember(member.id);
   };
 
   const showToast = (message, type = "success") => {
@@ -1088,10 +1145,65 @@ export default function App() {
         </div>
 
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
-          <div className="p-5 border-b border-gray-700 bg-gray-800/50">
+          {/* ★ 상단 타이틀 우측에 점프 검색창 배치 ★ */}
+          <div className="p-5 border-b border-gray-700 bg-gray-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative">
             <h3 className="text-xl font-bold text-white flex items-center">
               <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
             </h3>
+            
+            <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20">
+              <div className="flex items-center px-2.5">
+                <Search className="w-4 h-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                value={wowSearchInput}
+                onChange={(e) => { setWowSearchInput(e.target.value); setShowWowSearchDropdown(true); }}
+                onFocus={() => { if(wowSearchInput) setShowWowSearchDropdown(true); }}
+                onBlur={() => setTimeout(() => setShowWowSearchDropdown(false), 200)}
+                onKeyDown={(e) => { if(e.key === 'Enter') handleWowSearchNext(); }}
+                placeholder="스트리머, 직업 찾기..."
+                className="w-full md:w-48 bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
+              />
+              {wowSearchResults.length > 0 && wowSearchInput && (
+                <span className="text-[10px] text-gray-500 px-2 font-bold whitespace-nowrap select-none">
+                  {currentWowSearchIndex + 1}/{wowSearchResults.length}
+                </span>
+              )}
+              <div className="flex border-l border-gray-700 pl-1 ml-1 select-none">
+                 <button onClick={handleWowSearchPrev} className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition">
+                   <ChevronUp className="w-4 h-4" />
+                 </button>
+                 <button onClick={handleWowSearchNext} className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition">
+                   <ChevronDown className="w-4 h-4" />
+                 </button>
+              </div>
+
+              {/* 검색 자동완성 드롭다운 */}
+              {showWowSearchDropdown && wowSearchResults.length > 0 && (
+                <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden custom-scrollbar max-h-60">
+                  {wowSearchResults.map((m) => (
+                    <div
+                      key={m.id}
+                      onClick={() => handleWowSearchSelect(m)}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700/50 last:border-0 transition"
+                    >
+                      <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} className="w-8 h-8 rounded-full object-cover bg-gray-900 border border-gray-600" alt="avatar"/>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-white leading-tight">{m.streamerName}</span>
+                        <span className="text-xs text-blue-400 mt-0.5">{m.jobClass} <span className="text-gray-500 mx-1">|</span> {m.wowNickname}</span>
+                      </div>
+                      <span className="ml-auto text-xs font-black text-yellow-500">Lv.{m.level}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showWowSearchDropdown && wowSearchInput && wowSearchResults.length === 0 && (
+                 <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-4 text-center text-sm text-gray-400">
+                   검색 결과가 없습니다.
+                 </div>
+              )}
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -1120,8 +1232,15 @@ export default function App() {
                     const isQualified = member.level >= 40;
                     return (
                       <tr 
+                        id={`wow-member-${member.id}`}
                         key={member.id} 
-                        className={`border-b border-gray-700 transition ${isQualified ? 'bg-yellow-900/10 hover:bg-yellow-900/20' : 'hover:bg-gray-700/50'}`}
+                        className={`border-b transition-all duration-500 ${
+                          highlightedWowMemberId === member.id 
+                            ? 'bg-purple-800/40 border-purple-500 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)]' // ★ 타겟 반짝임 효과
+                            : isQualified 
+                              ? 'bg-yellow-900/10 hover:bg-yellow-900/20 border-gray-700' 
+                              : 'hover:bg-gray-700/50 border-gray-700'
+                        }`}
                       >
                         <td className="px-6 py-5 text-center font-bold text-gray-400 text-lg">
                           {idx + 1}
