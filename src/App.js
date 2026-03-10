@@ -28,7 +28,8 @@ import {
   Minus,
   Search,
   Filter,
-  Heart // ★ 하트 아이콘 추가
+  Heart,
+  PieChart
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -100,31 +101,24 @@ export default function App() {
   // ★ 관리자 인증 및 닉네임 상태 관리 ★
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-  // 로컬 스토리지에서 마지막으로 사용한 닉네임을 불러와 기본값으로 설정
   const [adminNicknameInput, setAdminNicknameInput] = useState(() => localStorage.getItem("wak_admin_nickname") || "");
   const [currentAdminName, setCurrentAdminName] = useState(null);
   
-  // ★ 접속 중인 관리자 목록 및 시간 동기화 ★
   const [rawAdminPresence, setRawAdminPresence] = useState([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-
   const [matchToDelete, setMatchToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [todayVisits, setTodayVisits] = useState(0); 
-
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
   const [matchMode, setMatchMode] = useState("individual");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
   const [imageInputs, setImageInputs] = useState({});
   const [wowImageInputs, setWowImageInputs] = useState({});
 
@@ -133,7 +127,6 @@ export default function App() {
   const [wowJobClass, setWowJobClass] = useState("");
   const [wowLevel, setWowLevel] = useState("");
   const [isWowSubmitting, setIsWowSubmitting] = useState(false);
-
   const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
   const [wowAdminSortOption, setWowAdminSortOption] = useState("levelDesc");
 
@@ -152,7 +145,6 @@ export default function App() {
     return players.map((p) => {
       let matchCount = 0;
       let winCount = 0;
-
       matches.forEach((m) => {
         const res = m.results?.find((r) => r.playerName === p.name);
         if (res) {
@@ -220,18 +212,10 @@ export default function App() {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
-          try {
-            await signInWithCustomToken(auth, __initial_auth_token);
-          } catch (tokenError) {
-            console.warn("Token mismatch fallback:", tokenError);
-            await signInAnonymously(auth);
-          }
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (error) {
-        console.error(error);
-      }
+          try { await signInWithCustomToken(auth, __initial_auth_token); } 
+          catch (tokenError) { await signInAnonymously(auth); }
+        } else { await signInAnonymously(auth); }
+      } catch (error) { console.error(error); }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -276,55 +260,37 @@ export default function App() {
       if (docSnap.exists()) setTodayVisits(docSnap.data().count || 0);
     });
 
-    // ★ 관리자 접속 현황 데이터 리스너 ★
     const presenceRef = collection(db, "artifacts", appId, "public", "data", "admin_presence");
     const unsubPresence = onSnapshot(presenceRef, (snapshot) => {
       setRawAdminPresence(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    return () => {
-      unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence();
-    };
+    return () => { unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence(); };
   }, [user]);
 
-  // ★ 관리자 비활성화 체크용 1분 타이머 (5분 경과한 관리자를 화면에서 숨김) ★
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // ★ 현재 활동 중인 관리자만 필터링 (5분 = 300,000ms) ★
   const activeAdmins = useMemo(() => {
     return rawAdminPresence.filter(admin => (currentTime - admin.lastActive) < 300000);
   }, [rawAdminPresence, currentTime]);
 
-  // ★ 내 활동 상태를 파이어베이스에 실시간으로 업데이트 (마우스 움직임, 클릭 감지) ★
   useEffect(() => {
     if (!isAdminAuth || !currentAdminName || !user) return;
-
     let lastUpdated = Date.now();
-    // 초기 접속 시 즉시 기록
-    setDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName), {
-      lastActive: Date.now(),
-      status: "online"
-    });
-
+    setDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName), { lastActive: Date.now(), status: "online" });
     const handleActivity = () => {
       const now = Date.now();
-      // 너무 잦은 업데이트 방지: 최소 1분에 한 번만 파이어베이스에 기록 (크레딧 최적화)
       if (now - lastUpdated > 60000) {
         lastUpdated = now;
-        setDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName), {
-          lastActive: now,
-          status: "online"
-        }, { merge: true }).catch(err => console.error("Presence Error:", err));
+        setDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName), { lastActive: now, status: "online" }, { merge: true }).catch(err => console.error(err));
       }
     };
-
     window.addEventListener('mousemove', handleActivity);
     window.addEventListener('keydown', handleActivity);
     window.addEventListener('click', handleActivity);
-
     return () => {
       window.removeEventListener('mousemove', handleActivity);
       window.removeEventListener('keydown', handleActivity);
@@ -423,43 +389,27 @@ export default function App() {
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
-  // ★ 실시간 응원(하트) 로직 (1일 1회 제한 및 취소 기능 적용) ★
   const handleCheerPlayer = async (playerId, playerName) => {
     if (!user) return;
-    
     const today = new Date().toISOString().split('T')[0];
     const storageKey = 'wak_vleague_hearts_v1';
     let storedData = JSON.parse(localStorage.getItem(storageKey) || '{"date": "", "votes": []}');
-
-    // 날짜가 바뀌었으면 오늘 누른 기록 완전 초기화
-    if (storedData.date !== today) {
-      storedData = { date: today, votes: [] };
-    }
-
+    if (storedData.date !== today) storedData = { date: today, votes: [] };
     const hasVoted = storedData.votes.includes(playerName);
 
     try {
       if (hasVoted) {
-        // 이미 응원했다면 -> 응원 취소 로직 (-1)
-        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), {
-          hearts: increment(-1)
-        });
+        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { hearts: increment(-1) });
         storedData.votes = storedData.votes.filter(name => name !== playerName);
         localStorage.setItem(storageKey, JSON.stringify(storedData));
         showToast(`${playerName}님에 대한 응원을 취소했습니다. 💔`);
       } else {
-        // 아직 응원하지 않았다면 -> 응원 추가 로직 (+1)
-        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), {
-          hearts: increment(1)
-        });
+        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { hearts: increment(1) });
         storedData.votes.push(playerName);
         localStorage.setItem(storageKey, JSON.stringify(storedData));
         showToast(`${playerName}님을 성공적으로 응원했습니다! 💖`);
       }
-    } catch (error) {
-      console.error("Cheer error:", error);
-      showToast("응원 처리 중 오류가 발생했습니다.", "error");
-    }
+    } catch (error) { showToast("응원 처리 중 오류가 발생했습니다.", "error"); }
   };
 
   const handleAddWowMember = async (e) => {
@@ -499,35 +449,24 @@ export default function App() {
     } catch (error) { showToast("초기화 중 오류가 발생했습니다.", "error"); } finally { setIsResetting(false); navigateTo("tier"); }
   };
 
-  // ★ 관리자 로그인 로직 수정 (닉네임 + 저장 기능) ★
   const handleAdminLogin = (e) => {
     e.preventDefault();
-    if (!adminNicknameInput.trim()) {
-      showToast("닉네임을 입력해주세요.", "error");
-      return;
-    }
+    if (!adminNicknameInput.trim()) { showToast("닉네임을 입력해주세요.", "error"); return; }
     const hashedInput = btoa(encodeURIComponent(passwordInput)).split("").reverse().join("");
     if (hashedInput === ADMIN_HASH) {
-      localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim()); // 닉네임 로컬에 저장
-      setCurrentAdminName(adminNicknameInput.trim()); // 현재 접속자 설정
+      localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim());
+      setCurrentAdminName(adminNicknameInput.trim());
       setIsAdminAuth(true);
       showToast(`${adminNicknameInput.trim()}님, 관리자 모드에 접속하셨습니다.`);
       setPasswordInput("");
-    } else {
-      showToast("비밀번호 오류", "error");
-    }
+    } else { showToast("비밀번호 오류", "error"); }
   };
 
-  // ★ 관리자 명시적 로그아웃 로직 ★
   const handleAdminLogout = async () => {
     if (currentAdminName) {
-      try {
-        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName));
-      } catch (error) {}
+      try { await deleteDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName)); } catch (error) {}
     }
-    setIsAdminAuth(false);
-    setCurrentAdminName(null);
-    showToast("성공적으로 로그아웃 되었습니다.");
+    setIsAdminAuth(false); setCurrentAdminName(null); showToast("성공적으로 로그아웃 되었습니다.");
   };
 
   const handleUpdateImage = async (playerId, url) => {
@@ -634,7 +573,6 @@ export default function App() {
 
   const renderMatchesView = () => (
     <div className="space-y-8">
-      {/* 경기 기록 최상단 타이틀 크기 확대 */}
       <h2 className="text-3xl font-bold text-white flex items-center mb-4">
         <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
       </h2>
@@ -686,7 +624,6 @@ export default function App() {
                 <span className="ml-4 bg-gray-700 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm font-bold flex items-center"><User className="w-4 h-4 mr-1.5" /> 개인전</span>
                 <span className="text-base text-gray-400 ml-auto">{match.date}</span>
               </div>
-              {/* 그리드 간격과 아이템 패딩 확대 및 무조건 4열 배치(md 기준) */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
                     <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
@@ -923,6 +860,28 @@ export default function App() {
   };
 
   const renderWowView = () => {
+    // ★ 대시보드를 위한 데이터 자동 계산 ★
+    const totalWowMembers = wowRoster.length;
+    const qualifiedCount = wowRoster.filter(m => m.level >= 40).length;
+    const qualifyPercent = totalWowMembers === 0 ? 0 : Math.round((qualifiedCount / totalWowMembers) * 100);
+    
+    const avgLevel = totalWowMembers === 0 ? 0 : (wowRoster.reduce((sum, m) => sum + m.level, 0) / totalWowMembers).toFixed(1);
+    // ★ 최상위 선발대를 3명에서 5명으로 수정 ★
+    const top5Wow = [...wowRoster].sort((a, b) => b.level - a.level).slice(0, 5);
+    
+    const classCounts = wowRoster.reduce((acc, m) => {
+      acc[m.jobClass] = (acc[m.jobClass] || 0) + 1;
+      return acc;
+    }, {});
+    // ★ 직업 분포도: 상위 4개가 아닌 모든 직업을 표시하도록 수정 ★
+    const allClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
+    // 직업 수가 많아질 것을 대비해 색상 팔레트 대폭 확장
+    const classColors = [
+      'bg-amber-600', 'bg-blue-400', 'bg-emerald-400', 'bg-purple-500', 
+      'bg-red-500', 'bg-cyan-400', 'bg-fuchsia-500', 'bg-yellow-400', 
+      'bg-rose-400', 'bg-teal-500', 'bg-orange-500', 'bg-lime-400'
+    ];
+
     const WowSortIcon = ({ columnKey }) => {
       if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
       return wowSortConfig.direction === 'asc' ? <ChevronUp className="w-4 h-4 ml-1 text-blue-400" /> : <ChevronDown className="w-4 h-4 ml-1 text-blue-400" />;
@@ -955,6 +914,80 @@ export default function App() {
             <p><strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong> 왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className="text-blue-300 font-bold">"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className="text-white font-bold">해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
             <div className="mt-5 pt-4 border-t border-gray-700">
               <p className="text-base text-gray-400">단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 관리자가 되겠습니다. </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ★ 새롭게 추가된 WOW 길드 현황 요약 대시보드 (3-Grid) ★ */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          {/* 대시보드 1: 참가권 획득 진척도 */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white mb-1 flex items-center">
+                <Ticket className="w-5 h-5 mr-2 text-yellow-400"/> 참가권 획득 진척도
+              </h3>
+              <p className="text-sm text-gray-400 mb-4">레벨 40 이상 달성자 비율</p>
+            </div>
+            <div>
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-3xl font-black text-yellow-400">{qualifiedCount}<span className="text-lg text-gray-500 font-bold"> / {totalWowMembers}명</span></span>
+                <span className="text-lg font-bold text-white">{qualifyPercent}%</span>
+              </div>
+              <div className="w-full bg-gray-900 rounded-full h-4 border border-gray-700 overflow-hidden">
+                <div className="bg-gradient-to-r from-yellow-600 to-yellow-400 h-4 rounded-full transition-all duration-1000" style={{ width: `${qualifyPercent}%` }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* 대시보드 2: 길드 전투력 요약 */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white mb-1 flex items-center">
+                <Swords className="w-5 h-5 mr-2 text-red-400"/> 길드 전투력 요약
+              </h3>
+              <p className="text-sm text-gray-400 mb-4">평균 레벨 및 최상위 선발대</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-xs text-gray-500 font-bold mb-1">길드 평균 레벨</span>
+                <span className="text-3xl font-black text-white">Lv. {avgLevel}</span>
+              </div>
+              <div className="flex -space-x-3 overflow-hidden">
+                {/* ★ 5명의 프로필이 겹쳐서 나오도록 맵핑 변수 수정 ★ */}
+                {top5Wow.map((m, i) => (
+                  <div key={i} className="relative z-10 inline-block h-12 w-12 rounded-full ring-2 ring-gray-800" title={`${m.streamerName} (Lv.${m.level})`}>
+                    <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} alt={m.streamerName} className="h-full w-full rounded-full object-cover bg-gray-900" />
+                    <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-black text-[10px] font-black px-1.5 rounded-full border border-gray-800">{m.level}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* 대시보드 3: 직업 분포도 (모든 직업 표시로 업데이트) */}
+          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white mb-1 flex items-center">
+                <PieChart className="w-5 h-5 mr-2 text-blue-400"/> 직업 분포도
+              </h3>
+              <p className="text-sm text-gray-400 mb-4">길드 내 전체 직업 비율</p>
+            </div>
+            <div>
+              <div className="flex h-4 rounded-full overflow-hidden mb-3 border border-gray-700 bg-gray-900">
+                {allClasses.map((cls, i) => {
+                  const pct = totalWowMembers === 0 ? 0 : (cls[1] / totalWowMembers) * 100;
+                  return <div key={i} style={{ width: `${pct}%` }} className={`h-full ${classColors[i % classColors.length]}`} title={`${cls[0]}: ${cls[1]}명`}></div>
+                })}
+              </div>
+              {/* 직업이 많아질 경우를 대비해 스크롤 영역 설정 */}
+              <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs max-h-[80px] overflow-y-auto custom-scrollbar pr-1">
+                {allClasses.map((cls, i) => (
+                  <div key={i} className="flex items-center text-gray-300 font-medium">
+                    <span className={`w-2.5 h-2.5 rounded-full mr-1.5 ${classColors[i % classColors.length]}`}></span>
+                    {cls[0]} <span className="text-gray-500 ml-1">({cls[1]})</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1495,7 +1528,6 @@ export default function App() {
         const playerInfo = players.find(p => p.name === selectedPlayer);
         if (!playerInfo) return null;
 
-        // ★ 현재 프로필의 주인공에게 오늘 하트를 눌렀는지 검사 ★
         const todayStr = new Date().toISOString().split('T')[0];
         const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
         const hasVotedToday = storageData.date === todayStr && storageData.votes.includes(selectedPlayer);
@@ -1503,7 +1535,6 @@ export default function App() {
         return (
           <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
             <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-              
               <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
                 <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
                 <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
@@ -1512,7 +1543,6 @@ export default function App() {
                 <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
                 <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
 
-                {/* ★ 하트(응원) 버튼 UI 수정 (취소 가능하도록 변경) ★ */}
                 <div className="flex flex-col items-center mt-5 w-full">
                   <button
                     onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
@@ -1530,7 +1560,6 @@ export default function App() {
                   </p>
                 </div>
               </div>
-              
               <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
                 <div className="flex flex-col items-center py-4">
                   <span className="text-xs text-gray-400 font-medium mb-1">총 참가</span>
