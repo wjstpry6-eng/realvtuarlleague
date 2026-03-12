@@ -32,8 +32,8 @@ import {
   PieChart,
   Tv,
   Edit,
-  Coins, // ★ 펀딩 아이콘 추가
-  Star   // ★ 별풍선 강조용 아이콘 추가
+  Coins,
+  Star
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -499,7 +499,12 @@ export default function App() {
     setIsWowSubmitting(true);
     try {
       await addDoc(collection(db, "artifacts", appId, "public", "data", "wow_roster"), {
-        streamerName: wowStreamerName.trim(), wowNickname: wowNickname.trim(), jobClass: wowJobClass.trim(), level: Number(wowLevel), createdAt: new Date().toISOString()
+        streamerName: wowStreamerName.trim(), 
+        wowNickname: wowNickname.trim(), 
+        jobClass: wowJobClass.trim(), 
+        level: Number(wowLevel), 
+        isApplied: false, // ★ 기본 참가 신청 상태는 false
+        createdAt: new Date().toISOString()
       });
       setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
       showToast("와우 길드원이 성공적으로 등록되었습니다!");
@@ -511,9 +516,42 @@ export default function App() {
     if (newLevel < 1) newLevel = 1; if (newLevel > 70) newLevel = 70;
     try { 
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { level: newLevel }); 
-      // ★ 추가된 로직: 레벨이 변경될 때마다 사이트 상단의 '최근 갱신' 시간을 업데이트 합니다.
       await updateLastModifiedTime();
     } catch (error) {}
+  };
+
+  // ★ 와우 참가 신청 토글 함수 ★
+  const handleToggleWowApply = async (id, currentStatus) => {
+    if (!user) return;
+    try { 
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isApplied: !currentStatus }); 
+      await updateLastModifiedTime();
+    } catch (error) {}
+  };
+
+  // ★ 참가 신청 명단 복사 함수 ★
+  const handleCopyApplicantList = () => {
+    const applicants = wowRoster
+      .filter(m => m.level >= 40 && m.isApplied)
+      .map(m => m.streamerName)
+      .join(", ");
+
+    if (!applicants) {
+      showToast("참가 신청 완료한 길드원이 아직 없습니다.", "error");
+      return;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = applicants;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      showToast(`참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
+    } catch (err) {
+      showToast("복사에 실패했습니다.", "error");
+    }
+    document.body.removeChild(textArea);
   };
 
   const handleDeleteWowMember = async (id) => {
@@ -586,7 +624,6 @@ export default function App() {
     setEditMatchDate(match.date);
     setEditMatchMode(match.matchType || "individual");
     
-    // ★ 펀딩 데이터 로드 ★
     setEditHasFunding(match.hasFunding || false);
     setEditTotalFunding(match.totalFunding || "");
 
@@ -644,7 +681,6 @@ export default function App() {
 
     setIsEditingSubmit(true);
     try {
-      // 1. 기존 점수 롤백
       for (const origResult of matchToEdit.originalMatch.results) {
         const p = players.find((p) => p.name === origResult.playerName);
         if (p) {
@@ -654,7 +690,6 @@ export default function App() {
         }
       }
 
-      // 2. 새로운 점수 적용
       for (const r of finalResults) {
         const pName = r.playerName.trim();
         const p = players.find((p) => p.name === pName);
@@ -669,7 +704,6 @@ export default function App() {
         }
       }
 
-      // 3. 경기 데이터 덮어쓰기 (펀딩 내역 포함)
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "matches", matchToEdit.id), {
         gameName: editGameName,
         date: editMatchDate,
@@ -869,7 +903,6 @@ export default function App() {
                       <span className="bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
                         <Users className="w-4 h-4 mr-1.5" /> 팀전
                       </span>
-                      {/* ★ 펀딩 결산 아코디언 버튼 ★ */}
                       {match.hasFunding && (
                         <button 
                           onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
@@ -904,7 +937,6 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* ★ 펀딩 결산 아코디언 내용 (팀전) ★ */}
                 {expandedFundingMatchId === match.id && match.hasFunding && (
                   <div className="mt-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
                      <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
@@ -944,7 +976,6 @@ export default function App() {
             );
           }
 
-          // --- 개인전 렌더링 ---
           return (
             <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
@@ -954,7 +985,6 @@ export default function App() {
                     <span className="bg-gray-700 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
                       <User className="w-4 h-4 mr-1.5" /> 개인전
                     </span>
-                    {/* ★ 펀딩 결산 아코디언 버튼 ★ */}
                     {match.hasFunding && (
                       <button 
                         onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
@@ -985,7 +1015,6 @@ export default function App() {
                   ))}
               </div>
 
-              {/* ★ 펀딩 결산 아코디언 내용 (개인전) ★ */}
               {expandedFundingMatchId === match.id && match.hasFunding && (
                 <div className="mt-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
                    <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
@@ -1231,6 +1260,7 @@ export default function App() {
     );
   };
 
+  // ★ 삭제되었던 renderWowView 함수를 안전하게 복구했습니다! ★
   const renderWowView = () => {
     const totalWowMembers = wowRoster.length;
     const qualifiedCount = wowRoster.filter(m => m.level >= 40).length;
@@ -1246,17 +1276,9 @@ export default function App() {
     const allClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
     
     const WOW_CLASS_COLORS = {
-      "전사": "#C79C6E",
-      "사제": "#FFFFFF",
-      "도적": "#FFF569",
-      "성기사": "#F58CBA",
-      "사냥꾼": "#ABD473",
-      "주술사": "#0070DE",
-      "마법사": "#69CCF0",
-      "흑마": "#9482C9",
-      "흑마법사": "#9482C9", 
-      "드루": "#FF7D0A",
-      "드루이드": "#FF7D0A"  
+      "전사": "#C79C6E", "사제": "#FFFFFF", "도적": "#FFF569", "성기사": "#F58CBA",
+      "사냥꾼": "#ABD473", "주술사": "#0070DE", "마법사": "#69CCF0", "흑마": "#9482C9",
+      "흑마법사": "#9482C9", "드루": "#FF7D0A", "드루이드": "#FF7D0A"  
     };
     const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b']; 
 
@@ -1370,9 +1392,17 @@ export default function App() {
 
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
           <div className="p-5 border-b border-gray-700 bg-gray-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative">
-            <h3 className="text-xl font-bold text-white flex items-center">
-              <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <h3 className="text-xl font-bold text-white flex items-center">
+                <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
+              </h3>
+              <button
+                onClick={handleCopyApplicantList}
+                className="bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+              >
+                📋 참가 신청 명단 복사하기
+              </button>
+            </div>
             
             <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20">
               <div className="flex items-center px-2.5">
@@ -1471,7 +1501,14 @@ export default function App() {
                            <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-12 h-12 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
                         </td>
                         <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
-                          {member.streamerName}
+                          <div className="flex items-center gap-2">
+                            {member.streamerName}
+                            {isQualified && member.isApplied && (
+                              <span className="bg-green-900/60 text-green-400 border border-green-500/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
+                                ✅ 참가 신청 완료
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-5 text-blue-300 font-medium text-lg">
                           {member.wowNickname}
@@ -1581,8 +1618,8 @@ export default function App() {
           gameName, 
           createdAt: new Date().toISOString(), 
           matchType: matchMode,
-          hasFunding, // ★ 펀딩 여부 저장
-          totalFunding: hasFunding ? Number(totalFunding) || 0 : 0, // ★ 총 펀딩 규모 저장
+          hasFunding, 
+          totalFunding: hasFunding ? Number(totalFunding) || 0 : 0,
           results: finalResults,
         });
 
@@ -1648,7 +1685,6 @@ export default function App() {
 
           <form onSubmit={handleSubmitMatch} className="space-y-6">
             
-            {/* ★ 펀딩 결산 추가 토글 UI ★ */}
             <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
               <label className="flex items-center gap-3 cursor-pointer w-fit">
                  <input 
@@ -1694,7 +1730,6 @@ export default function App() {
                       <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
                       <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults(individualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
                     </div>
-                    {/* ★ 개별 참가자 펀딩 입력칸 (자동 계산 지원) ★ */}
                     {hasFunding && (
                       <div className="flex gap-2 items-center sm:pl-[72px]">
                         <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
@@ -1740,7 +1775,6 @@ export default function App() {
                         <button type="button" onClick={() => { if (teamResults.length > 2) setTeamResults(teamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
                       </div>
                     </div>
-                    {/* ★ 팀 펀딩 입력칸 ★ */}
                     {hasFunding && (
                       <div className="flex gap-2 items-center bg-gray-800/50 p-2 rounded-lg border border-gray-700/50 mb-2">
                         <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 팀상금:</span>
@@ -1782,7 +1816,6 @@ export default function App() {
           </form>
         </div>
 
-        {/* ... 와우 길드원 관리 부분은 수정사항 없음 ... */}
         <div className="bg-gradient-to-b from-blue-900/20 to-gray-800 rounded-xl p-6 border border-blue-800/40 shadow-lg">
           <h2 className="text-xl font-bold text-blue-300 mb-2 flex items-center">
             <Shield className="w-5 h-5 mr-2" /> WOW 왁타버스 길드 관리
@@ -1861,6 +1894,19 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                  {member.level >= 40 && (
+                    <button
+                      onClick={() => handleToggleWowApply(member.id, member.isApplied)}
+                      className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center border ${
+                        member.isApplied 
+                          ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
+                          : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                      }`}
+                    >
+                      {member.isApplied ? '✅ 참가 신청 ON' : '📝 참가 신청 OFF'}
+                    </button>
+                  )}
+
                   <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
                     <button onClick={() => handleUpdateWowLevel(member.id, member.level - 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Minus className="w-4 h-4"/></button>
                     <span className="w-12 text-center font-black text-yellow-400">Lv {member.level}</span>
@@ -2053,7 +2099,6 @@ export default function App() {
         </div>
       )}
 
-      {/* ★ 경기 기록 수정 전용 모달 창 ★ */}
       {matchToEdit && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4 py-10 backdrop-blur-sm overflow-y-auto">
           <div className="bg-gray-800 rounded-xl p-6 max-w-3xl w-full border border-blue-500/50 shadow-2xl relative my-auto">
@@ -2073,7 +2118,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* ★ 수정 폼: 펀딩 결산 추가 토글 UI ★ */}
               <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
                 <label className="flex items-center gap-3 cursor-pointer w-fit">
                    <input 
@@ -2263,7 +2307,6 @@ export default function App() {
         const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
         const hasVotedToday = storageData.date === todayStr && storageData.votes.includes(selectedPlayer);
         
-        // ★ 팝업: 관리자가 설정한 방송국 링크가 있으면 사용, 없으면 검색 링크 ★
         const broadcastLink = playerInfo.broadcastUrl?.trim() 
           ? playerInfo.broadcastUrl 
           : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(selectedPlayer)}`;
