@@ -33,7 +33,8 @@ import {
   Tv,
   Edit,
   Coins,
-  Star
+  Star,
+  Target // ★ 배그 느낌을 위한 타겟(크로스헤어) 아이콘 추가
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -503,7 +504,8 @@ export default function App() {
         wowNickname: wowNickname.trim(), 
         jobClass: wowJobClass.trim(), 
         level: Number(wowLevel), 
-        isApplied: false, // ★ 기본 참가 신청 상태는 false
+        isApplied: false, // ★ 버종리 참가 신청 (기본 false)
+        isPubgApplied: false, // ★ 배그 참가 신청 (기본 false)
         createdAt: new Date().toISOString()
       });
       setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
@@ -520,7 +522,7 @@ export default function App() {
     } catch (error) {}
   };
 
-  // ★ 와우 참가 신청 토글 함수 ★
+  // ★ 기존 버종리 참가 신청 토글 ★
   const handleToggleWowApply = async (id, currentStatus) => {
     if (!user) return;
     try { 
@@ -529,15 +531,24 @@ export default function App() {
     } catch (error) {}
   };
 
-  // ★ 참가 신청 명단 복사 함수 ★
-  const handleCopyApplicantList = () => {
+  // ★ 배그 이벤트 참가 신청 토글 ★
+  const handleTogglePubgApply = async (id, currentStatus) => {
+    if (!user) return;
+    try { 
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isPubgApplied: !currentStatus }); 
+      await updateLastModifiedTime();
+    } catch (error) {}
+  };
+
+  // ★ 버종리 참가 신청 명단 복사 (40렙 이상) ★
+  const handleCopyWowApplicantList = () => {
     const applicants = wowRoster
       .filter(m => m.level >= 40 && m.isApplied)
       .map(m => m.streamerName)
       .join(", ");
 
     if (!applicants) {
-      showToast("참가 신청 완료한 길드원이 아직 없습니다.", "error");
+      showToast("버종리 참가 신청 완료한 길드원이 아직 없습니다.", "error");
       return;
     }
 
@@ -547,7 +558,32 @@ export default function App() {
     textArea.select();
     try {
       document.execCommand("copy");
-      showToast(`참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
+      showToast(`버종리 참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
+    } catch (err) {
+      showToast("복사에 실패했습니다.", "error");
+    }
+    document.body.removeChild(textArea);
+  };
+
+  // ★ 배그 이벤트 참가 신청 명단 복사 (20렙 이상) ★
+  const handleCopyPubgApplicantList = () => {
+    const applicants = wowRoster
+      .filter(m => m.level >= 20 && m.isPubgApplied)
+      .map(m => m.streamerName)
+      .join(", ");
+
+    if (!applicants) {
+      showToast("배그 참가 신청 완료한 길드원이 아직 없습니다.", "error");
+      return;
+    }
+
+    const textArea = document.createElement("textarea");
+    textArea.value = applicants;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      showToast(`배그 참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
     } catch (err) {
       showToast("복사에 실패했습니다.", "error");
     }
@@ -1260,7 +1296,6 @@ export default function App() {
     );
   };
 
-  // ★ 삭제되었던 renderWowView 함수를 안전하게 복구했습니다! ★
   const renderWowView = () => {
     const totalWowMembers = wowRoster.length;
     const qualifiedCount = wowRoster.filter(m => m.level >= 40).length;
@@ -1299,7 +1334,7 @@ export default function App() {
             </h2>
             <p className="text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm">
               왁타버스 길드에 가입하여 피나는 노력 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
-              <br/>종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 합류하게 될까요?
+              <br/>종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 가장 먼저 합류할까요?
             </p>
           </div>
         </div>
@@ -1396,12 +1431,21 @@ export default function App() {
               <h3 className="text-xl font-bold text-white flex items-center">
                 <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
               </h3>
-              <button
-                onClick={handleCopyApplicantList}
-                className="bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
-              >
-                📋 참가 신청 명단 복사하기
-              </button>
+              {/* ★ 분리된 복사 버튼 (버종리 & 배그) ★ */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCopyWowApplicantList}
+                  className="bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                >
+                  📋 버종리 신청 명단 복사
+                </button>
+                <button
+                  onClick={handleCopyPubgApplicantList}
+                  className="bg-orange-600/20 text-orange-400 border border-orange-500/50 hover:bg-orange-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                >
+                  🎯 배그 신청 명단 복사
+                </button>
+              </div>
             </div>
             
             <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20">
@@ -1481,7 +1525,9 @@ export default function App() {
               <tbody>
                 {sortedWowRoster.length > 0 ? (
                   sortedWowRoster.map((member, idx) => {
-                    const isQualified = member.level >= 40;
+                    const isQualified = member.level >= 40;     // 버종리 자격
+                    const isPubgQualified = member.level >= 20; // 배그 자격
+
                     return (
                       <tr 
                         id={`wow-member-${member.id}`}
@@ -1491,23 +1537,33 @@ export default function App() {
                             ? 'bg-purple-800/40 border-purple-500 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)]' 
                             : isQualified 
                               ? 'bg-yellow-900/10 hover:bg-yellow-900/20 border-gray-700' 
-                              : 'hover:bg-gray-700/50 border-gray-700'
+                              : isPubgQualified
+                                ? 'bg-orange-900/10 hover:bg-orange-900/20 border-gray-700'
+                                : 'hover:bg-gray-700/50 border-gray-700'
                         }`}
                       >
                         <td className="px-6 py-5 text-center font-bold text-gray-400 text-lg">
                           {idx + 1}
                         </td>
                         <td className="px-6 py-5">
-                           <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-12 h-12 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
+                           <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-12 h-12 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : isPubgQualified ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'border-gray-600'}`} />
                         </td>
-                        <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
-                          <div className="flex items-center gap-2">
-                            {member.streamerName}
-                            {isQualified && member.isApplied && (
-                              <span className="bg-green-900/60 text-green-400 border border-green-500/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
-                                ✅ 참가 신청 완료
-                              </span>
-                            )}
+                        <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : isPubgQualified ? 'text-orange-100' : 'text-white'}`}>
+                          {/* ★ 수정된 로직: 신청 완료 여부에 따라 뱃지 노출 ★ */}
+                          <div className="flex flex-col items-start gap-1">
+                            <span>{member.streamerName}</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {isQualified && member.isApplied && (
+                                <span className="bg-green-900/60 text-green-400 border border-green-500/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
+                                  ✅ 버종리 신청 완료
+                                </span>
+                              )}
+                              {isPubgQualified && member.isPubgApplied && (
+                                <span className="bg-orange-900/60 text-orange-400 border border-orange-500/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
+                                  🎯 배그 신청 완료
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-5 text-blue-300 font-medium text-lg">
@@ -1517,21 +1573,29 @@ export default function App() {
                           <span className="bg-gray-700 px-3 py-1.5 rounded text-sm">{member.jobClass}</span>
                         </td>
                         <td className="px-6 py-5 text-right">
-                          {isQualified ? (
-                            <div className="flex items-center justify-end">
-                              <span className="text-yellow-400 font-black text-2xl mr-3">Lv. {member.level}</span>
-                              <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-xs font-bold px-3 py-1.5 rounded shadow-md flex items-center animate-pulse">
-                                <Ticket className="w-4 h-4 mr-1.5" /> 참가권 획득!
-                              </span>
+                          {/* ★ 수정된 로직: 레벨 달성 여부에 따라 2단으로 쌓이는 뱃지 ★ */}
+                          <div className="flex items-center justify-end">
+                            <span className={`font-black text-2xl mr-3 ${isQualified ? 'text-yellow-400' : isPubgQualified ? 'text-orange-400' : 'text-gray-300'}`}>
+                              Lv. {member.level}
+                            </span>
+                            <div className="flex flex-col gap-1.5 items-end">
+                              {isQualified && (
+                                <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-[11px] font-bold px-2 py-1 rounded shadow-md flex items-center">
+                                  <Ticket className="w-3 h-3 mr-1" /> 버종리 참가권!
+                                </span>
+                              )}
+                              {isPubgQualified && (
+                                <span className="bg-gradient-to-r from-gray-800 to-gray-700 text-orange-400 border border-orange-500/50 text-[11px] font-bold px-2 py-1 rounded shadow-md flex items-center">
+                                  <Target className="w-3 h-3 mr-1" /> 배그 참가 가능
+                                </span>
+                              )}
+                              {!isPubgQualified && !isQualified && (
+                                <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded border border-gray-700">
+                                  배그까지 {20 - member.level}렙 남음
+                                </span>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex items-center justify-end">
-                              <span className="text-gray-300 font-bold text-xl mr-3">Lv. {member.level}</span>
-                              <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded border border-gray-700">
-                                40까지 {40 - member.level}렙 남음
-                              </span>
-                            </div>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1894,18 +1958,33 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {member.level >= 40 && (
-                    <button
-                      onClick={() => handleToggleWowApply(member.id, member.isApplied)}
-                      className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center border ${
-                        member.isApplied 
-                          ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
-                          : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
-                      }`}
-                    >
-                      {member.isApplied ? '✅ 참가 신청 ON' : '📝 참가 신청 OFF'}
-                    </button>
-                  )}
+                  {/* ★ 수정된 로직: 조건부 토글 스위치 2개 표시 (버종리 & 배그) ★ */}
+                  <div className="flex flex-col gap-2 mr-2">
+                    {member.level >= 40 && (
+                      <button
+                        onClick={() => handleToggleWowApply(member.id, member.isApplied)}
+                        className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                          member.isApplied 
+                            ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
+                            : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                        }`}
+                      >
+                        {member.isApplied ? '✅ 버종리 참가 신청 ON' : '📝 버종리 참가 신청 OFF'}
+                      </button>
+                    )}
+                    {member.level >= 20 && (
+                      <button
+                        onClick={() => handleTogglePubgApply(member.id, member.isPubgApplied)}
+                        className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                          member.isPubgApplied 
+                            ? 'bg-orange-900/50 text-orange-400 border-orange-500/50 hover:bg-orange-800' 
+                            : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                        }`}
+                      >
+                        {member.isPubgApplied ? '🎯 배그 참가 신청 ON' : '🪂 배그 참가 신청 OFF'}
+                      </button>
+                    )}
+                  </div>
 
                   <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
                     <button onClick={() => handleUpdateWowLevel(member.id, member.level - 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Minus className="w-4 h-4"/></button>
