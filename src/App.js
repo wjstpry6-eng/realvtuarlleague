@@ -101,6 +101,9 @@ export default function App() {
   const [wowRoster, setWowRoster] = useState([]);
   const [wowSortConfig, setWowSortConfig] = useState({ key: 'level', direction: 'desc' });
 
+  // ★ WOW 탭 FAQ 아코디언 상태 추가 ★
+  const [isWowFaqOpen, setIsWowFaqOpen] = useState(false);
+
   // ★ WOW 탭 '점프 검색'을 위한 신규 상태 추가 ★
   const [wowSearchInput, setWowSearchInput] = useState("");
   const [showWowSearchDropdown, setShowWowSearchDropdown] = useState(false);
@@ -148,6 +151,9 @@ export default function App() {
   const [isWowSubmitting, setIsWowSubmitting] = useState(false);
   const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
   const [wowAdminSortOption, setWowAdminSortOption] = useState("levelDesc");
+
+  // ★ 배그 신청 명단 복사 옵션 토글 상태 추가 ★
+  const [showPubgCopyOptions, setShowPubgCopyOptions] = useState(false);
 
   // ★ 경기 기록 등록용 펀딩 상태 ★
   const [hasFunding, setHasFunding] = useState(false);
@@ -565,11 +571,16 @@ export default function App() {
     document.body.removeChild(textArea);
   };
 
-  // ★ 배그 이벤트 참가 신청 명단 복사 (20렙 이상) ★
-  const handleCopyPubgApplicantList = () => {
+  // ★ 수정된 로직: 배그 이벤트 참가 신청 명단 복사 (레벨 및 직업 포함) ★
+  const handleCopyPubgApplicantList = (formatType) => {
     const applicants = wowRoster
-      .filter(m => m.level >= 20 && m.isPubgApplied)
-      .map(m => m.streamerName)
+      .filter(m => m.isPubgApplied) // 레벨 상관없이 신청한 사람은 모두 포함
+      .sort((a, b) => b.level - a.level) // 레벨 높은 순(우선권)으로 보기 좋게 정렬
+      .map(m => {
+        if (formatType === 'level') return `${m.streamerName}(${m.level}렙)`;
+        if (formatType === 'level_job') return `${m.streamerName}(${m.level}렙/${m.jobClass})`;
+        return m.streamerName;
+      })
       .join(", ");
 
     if (!applicants) {
@@ -583,7 +594,8 @@ export default function App() {
     textArea.select();
     try {
       document.execCommand("copy");
-      showToast(`배그 참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
+      showToast(`배그 참가 신청 명단(${wowRoster.filter(m => m.isPubgApplied).length}명) 복사 완료!`);
+      setShowPubgCopyOptions(false); // 복사 후 하위 메뉴 닫기
     } catch (err) {
       showToast("복사에 실패했습니다.", "error");
     }
@@ -1425,30 +1437,113 @@ export default function App() {
           </div>
         </div>
 
+        {/* ★ 새로 추가된 FAQ 아코디언 박스 (명단 리스트 바로 위) ★ */}
+        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden mt-8 transition-all duration-300">
+          <button
+            onClick={() => setIsWowFaqOpen(!isWowFaqOpen)}
+            className="w-full p-5 flex items-center justify-between bg-gray-800 hover:bg-gray-700/80 transition-colors outline-none"
+          >
+            <div className="flex items-center text-blue-300 font-bold text-lg">
+              <Activity className="w-5 h-5 mr-2" />
+              🕒 캐릭터 레벨은 언제 업데이트되나요?
+            </div>
+            {isWowFaqOpen ? (
+              <ChevronUp className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            )}
+          </button>
+
+          {isWowFaqOpen && (
+            <div className="p-6 pt-2 border-t border-gray-700/50 bg-gray-800/50 animate-in fade-in slide-in-from-top-2">
+              <div className="space-y-6 text-gray-300 leading-relaxed text-sm md:text-base">
+                <div>
+                  <h4 className="font-bold text-white mb-2 flex items-center">
+                    💡 갱신 기준 시간
+                  </h4>
+                  <p className="pl-6 text-gray-400">
+                    캐릭터들의 레벨 최신화 시점은 화면 최상단 네비게이션 바에 표시되는 <strong className="text-blue-300">최근 갱신 시각</strong>을 기준으로 합니다.
+                  </p>
+                </div>
+                
+                <div>
+                  <h4 className="font-bold text-white mb-2 flex items-center">
+                    🛠️ 업데이트 방식 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded ml-2 font-medium">100% 수동 작업</span>
+                  </h4>
+                  <p className="pl-6 text-gray-400 mb-2 break-keep">
+                    현재 레벨 갱신은 게임 시스템과의 자동 연동이 어려워, 부득이하게 아래와 같은 방법으로 관리자가 직접 업데이트하고 있습니다.
+                  </p>
+                  <ul className="pl-8 list-decimal text-gray-400 space-y-1.5 marker:font-bold marker:text-blue-400/50">
+                    <li>관리자가 직접 '월드 오브 워크래프트' 게임 내에 접속하여 길드창 확인</li>
+                    <li>우왁굳님 및 참가 스트리머분들의 생방송 화면을 실시간으로 모니터링하여 확인</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-bold text-white mb-2 flex items-center">
+                    ⏱️ 업데이트 주기
+                  </h4>
+                  <p className="pl-6 text-gray-400 break-keep">
+                    평소에는 관리자가 여유가 생길 때마다 틈틈이 갱신 작업을 진행하고 있습니다. 다만, 중요한 컨텐츠나 이벤트가 시작되기 직전에는 작업의 우선순위를 가장 높여 <strong className="text-white">최대한 실시간에 가깝게 반영</strong>하려 노력 중입니다.
+                  </p>
+                </div>
+
+                <div className="bg-gray-900/60 p-5 rounded-lg border border-gray-700/50 mt-4 relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500"></div>
+                  <h4 className="font-bold text-yellow-400 mb-2 flex items-center text-lg">
+                    🙇‍♂️ 팬 여러분께 드리는 말씀
+                  </h4>
+                  <p className="text-gray-300 text-base break-keep">
+                    모든 분들의 레벨을 완벽한 실시간으로 반영하기에는 물리적인 어려움이 따르는 점, 팬 여러분들의 너른 양해를 부탁드립니다. 조금 느리더라도 확실하게, 더 노력하는 관리자가 되겠습니다! 감사합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
           <div className="p-5 border-b border-gray-700 bg-gray-800/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex flex-col gap-3 w-full md:w-auto">
               <h3 className="text-xl font-bold text-white flex items-center">
                 <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
               </h3>
-              {/* ★ 분리된 복사 버튼 (버종리 & 배그) ★ */}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCopyWowApplicantList}
-                  className="bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
-                >
-                  📋 버종리 신청 명단 복사
-                </button>
-                <button
-                  onClick={handleCopyPubgApplicantList}
-                  className="bg-orange-600/20 text-orange-400 border border-orange-500/50 hover:bg-orange-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
-                >
-                  🎯 배그 신청 명단 복사
-                </button>
+              {/* ★ 수정된 로직: 분리된 복사 버튼 및 배그 하위 옵션 메뉴 ★ */}
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={handleCopyWowApplicantList}
+                    className="bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                  >
+                    📋 버종리 신청 명단 복사
+                  </button>
+                  <button
+                    onClick={() => setShowPubgCopyOptions(!showPubgCopyOptions)}
+                    className={`border px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap ${showPubgCopyOptions ? 'bg-orange-600 text-white border-orange-500' : 'bg-orange-600/20 text-orange-400 border-orange-500/50 hover:bg-orange-600 hover:text-white'}`}
+                  >
+                    🎯 배그 신청 명단 복사 {showPubgCopyOptions ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />}
+                  </button>
+                </div>
+                {showPubgCopyOptions && (
+                  <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1 pl-1 mt-1">
+                    <button
+                      onClick={() => handleCopyPubgApplicantList('level')}
+                      className="bg-gray-800 hover:bg-gray-700 text-orange-300 border border-gray-600 px-3 py-1.5 rounded text-xs font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                    >
+                      ↳ 스트리머명(레벨) 복사
+                    </button>
+                    <button
+                      onClick={() => handleCopyPubgApplicantList('level_job')}
+                      className="bg-gray-800 hover:bg-gray-700 text-orange-300 border border-gray-600 px-3 py-1.5 rounded text-xs font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                    >
+                      ↳ 스트리머명(레벨/직업) 복사
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             
-            <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20">
+            <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20 mt-2 md:mt-0">
               <div className="flex items-center px-2.5">
                 <Search className="w-4 h-4 text-gray-400" />
               </div>
@@ -1549,7 +1644,7 @@ export default function App() {
                            <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-12 h-12 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : isPubgQualified ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'border-gray-600'}`} />
                         </td>
                         <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : isPubgQualified ? 'text-orange-100' : 'text-white'}`}>
-                          {/* ★ 수정된 로직: 신청 완료 여부에 따라 뱃지 노출 ★ */}
+                          {/* ★ 수정된 로직: 20렙 미만도 신청했다면 뱃지 노출 ★ */}
                           <div className="flex flex-col items-start gap-1">
                             <span>{member.streamerName}</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -1558,7 +1653,7 @@ export default function App() {
                                   ✅ 버종리 신청 완료
                                 </span>
                               )}
-                              {isPubgQualified && member.isPubgApplied && (
+                              {member.isPubgApplied && (
                                 <span className="bg-orange-900/60 text-orange-400 border border-orange-500/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
                                   🎯 배그 신청 완료
                                 </span>
@@ -1958,7 +2053,7 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {/* ★ 수정된 로직: 조건부 토글 스위치 2개 표시 (버종리 & 배그) ★ */}
+                  {/* ★ 수정된 로직: 배그 참가 신청은 레벨 상관없이 모두에게 노출 ★ */}
                   <div className="flex flex-col gap-2 mr-2">
                     {member.level >= 40 && (
                       <button
@@ -1972,18 +2067,16 @@ export default function App() {
                         {member.isApplied ? '✅ 버종리 참가 신청 ON' : '📝 버종리 참가 신청 OFF'}
                       </button>
                     )}
-                    {member.level >= 20 && (
-                      <button
-                        onClick={() => handleTogglePubgApply(member.id, member.isPubgApplied)}
-                        className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
-                          member.isPubgApplied 
-                            ? 'bg-orange-900/50 text-orange-400 border-orange-500/50 hover:bg-orange-800' 
-                            : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
-                        }`}
-                      >
-                        {member.isPubgApplied ? '🎯 배그 참가 신청 ON' : '🪂 배그 참가 신청 OFF'}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleTogglePubgApply(member.id, member.isPubgApplied)}
+                      className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                        member.isPubgApplied 
+                          ? 'bg-orange-900/50 text-orange-400 border-orange-500/50 hover:bg-orange-800' 
+                          : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                      }`}
+                    >
+                      {member.isPubgApplied ? '🎯 배그 참가 신청 ON' : '🪂 배그 참가 신청 OFF'}
+                    </button>
                   </div>
 
                   <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
