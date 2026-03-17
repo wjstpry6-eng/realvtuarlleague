@@ -34,7 +34,7 @@ import {
   Edit,
   Coins,
   Star,
-  Target // ★ 배그 느낌을 위한 타겟(크로스헤어) 아이콘 추가
+  Target
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -53,6 +53,7 @@ import {
   deleteDoc,
   setDoc,
   increment,
+  getDoc // ★ 보안 업데이트: DB에서 문서를 직접 읽어오기 위해 추가!
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -76,8 +77,9 @@ const db = getFirestore(app);
 const appId =
   typeof __app_id !== "undefined" ? __app_id : "virtual-league-dev-final";
 
-// ★ 보안 업그레이드: 비밀번호 난독화 (해싱) 적용 ★
-const ADMIN_HASH = "zITMrF2d";
+// ★ 보안 업데이트: 
+// 더 이상 클라이언트 코드(여기에) 비밀번호 해시를 적어두지 않습니다! (제보자 의견 완벽 수용)
+// const ADMIN_HASH = "zITMrF2d"; <- 삭제 완료!
 
 // ★ 실전용 상대평가 티어 설정 (비율 기준) ★
 const TIER_SETTINGS = [
@@ -100,11 +102,8 @@ export default function App() {
   // ★ WOW 탭 상태 관리 ★
   const [wowRoster, setWowRoster] = useState([]);
   const [wowSortConfig, setWowSortConfig] = useState({ key: 'level', direction: 'desc' });
-
-  // ★ WOW 탭 FAQ 아코디언 상태 추가 ★
   const [isWowFaqOpen, setIsWowFaqOpen] = useState(false);
 
-  // ★ WOW 탭 '점프 검색'을 위한 신규 상태 추가 ★
   const [wowSearchInput, setWowSearchInput] = useState("");
   const [showWowSearchDropdown, setShowWowSearchDropdown] = useState(false);
   const [wowSearchResults, setWowSearchResults] = useState([]);
@@ -113,11 +112,12 @@ export default function App() {
 
   const [isLoading, setIsLoading] = useState(true);
   
-  // ★ 관리자 인증 및 닉네임 상태 관리 ★
+  // ★ 관리자 인증 상태 관리 ★
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [adminNicknameInput, setAdminNicknameInput] = useState(() => localStorage.getItem("wak_admin_nickname") || "");
   const [currentAdminName, setCurrentAdminName] = useState(null);
+  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false); // ★ 로그인 로딩 상태 추가
   
   const [rawAdminPresence, setRawAdminPresence] = useState([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -619,17 +619,62 @@ export default function App() {
     } catch (error) { showToast("초기화 중 오류가 발생했습니다.", "error"); } finally { setIsResetting(false); navigateTo("tier"); }
   };
 
-  const handleAdminLogin = (e) => {
+  // ★ 보안 업데이트: 은행 수준의 SHA-256 암호화 함수 추가 ★
+  const hashPassword = async (password) => {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  };
+
+  // ★ 보안 업데이트: 서버(DB)와 통신하여 로그인 검증을 하는 새로운 로직 ★
+  const handleAdminLogin = async (e) => {
     e.preventDefault();
     if (!adminNicknameInput.trim()) { showToast("닉네임을 입력해주세요.", "error"); return; }
-    const hashedInput = btoa(encodeURIComponent(passwordInput)).split("").reverse().join("");
-    if (hashedInput === ADMIN_HASH) {
-      localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim());
-      setCurrentAdminName(adminNicknameInput.trim());
-      setIsAdminAuth(true);
-      showToast(`${adminNicknameInput.trim()}님, 관리자 모드에 접속하셨습니다.`);
-      setPasswordInput("");
-    } else { showToast("비밀번호 오류", "error"); }
+    if (!passwordInput.trim()) { showToast("비밀번호를 입력해주세요.", "error"); return; }
+    if (!user) { showToast("서버와 연결 중입니다. 잠시만 기다려주세요.", "error"); return; }
+
+    setIsAdminLoggingIn(true);
+    try {
+      // 1. 파이어베이스 서버의 가장 깊숙한 관리자 설정(config) 문서를 불러옵니다.
+      const authDocRef = doc(db, "artifacts", appId, "public", "data", "admin_auth", "config");
+      const authDocSnap = await getDoc(authDocRef);
+      
+      // 2. 사용자가 입력한 비밀번호를 해커가 풀 수 없는 코드로 변환합니다.
+      const inputHash = await hashPassword(passwordInput);
+
+      if (!authDocSnap.exists()) {
+        // [최초 접속 시 마법] 서버에 아직 비밀번호가 없다면, 특정 '비밀 키워드'를 닉네임에 썼을 때만 세팅 허용!
+        if (adminNicknameInput.trim() === "딸기세팅") {
+          await setDoc(authDocRef, { hash: inputHash, createdAt: new Date().toISOString() });
+          showToast(`🔒 [최초 등록 완료] 이제부터 이 비밀번호로만 접속 가능합니다! 다시 로그인해주세요.`);
+          setPasswordInput("");
+          setAdminNicknameInput(""); // 닉네임 초기화
+        } else {
+          // 비밀 키워드를 모르는 일반 유저/해커가 시도할 경우 가차없이 차단!
+          showToast("비밀번호가 일치하지 않습니다.", "error");
+        }
+      } else {
+        // [기존 접속 시] 서버에 저장된 진짜 해시코드와 지금 입력한 코드를 비교!
+        const storedHash = authDocSnap.data().hash;
+        
+        if (inputHash === storedHash) {
+          localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim());
+          setCurrentAdminName(adminNicknameInput.trim());
+          setIsAdminAuth(true);
+          showToast(`${adminNicknameInput.trim()}님, 관리자 모드에 접속하셨습니다.`);
+          setPasswordInput("");
+        } else {
+          showToast("비밀번호가 일치하지 않습니다.", "error");
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("로그인 처리 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsAdminLoggingIn(false);
+    }
   };
 
   const handleAdminLogout = async () => {
@@ -1730,11 +1775,13 @@ export default function App() {
               type="password"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              placeholder="비밀번호"
+              placeholder="비밀번호를 입력해주세요"
               className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-center border border-gray-600 focus:border-green-500 outline-none"
               required
             />
-            <button type="submit" className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition">접속하기</button>
+            <button type="submit" disabled={isAdminLoggingIn} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition flex items-center justify-center shadow-lg">
+              {isAdminLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : "안전하게 접속하기"}
+            </button>
           </form>
         </div>
       );
