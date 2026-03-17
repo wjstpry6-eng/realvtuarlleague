@@ -524,6 +524,7 @@ export default function App() {
         level: Number(wowLevel), 
         isApplied: false, // ★ 버종리 참가 신청 (기본 false)
         isPubgApplied: false, // ★ 배그 참가 신청 (기본 false)
+        isWowPartner: false, // ★ 와트너 임명 여부 (기본 false)
         createdAt: new Date().toISOString()
       });
       setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
@@ -554,6 +555,15 @@ export default function App() {
     if (!user) return;
     try { 
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isPubgApplied: !currentStatus }); 
+      await updateLastModifiedTime();
+    } catch (error) {}
+  };
+
+  // ★ 와트너(파트너) 스트리머 지정 토글 ★
+  const handleToggleWowPartner = async (id, currentStatus) => {
+    if (!user) return;
+    try { 
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isWowPartner: !currentStatus }); 
       await updateLastModifiedTime();
     } catch (error) {}
   };
@@ -1707,7 +1717,48 @@ export default function App() {
                           {idx + 1}
                         </td>
                         <td className="px-6 py-5">
-                           <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-12 h-12 rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : isPubgQualified ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'border-gray-600'}`} />
+                          {/* ★ 수정된 로직: 와트너 스트리머일 경우 황금 프레임, 칭호 텍스트, 웅장한 호버 툴팁 부여 ★ */}
+                          <div className="group relative flex flex-col items-center justify-center w-fit mx-auto md:mx-0 cursor-help">
+                            
+                            {/* 1. 프로필 이미지 */}
+                            <div className="relative w-12 h-12 flex-shrink-0">
+                              {member.isWowPartner ? (
+                                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2.5px] shadow-[0_0_15px_rgba(250,204,21,0.5)]">
+                                  <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
+                                </div>
+                              ) : (
+                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-full h-full rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : isPubgQualified ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'border-gray-600'}`} />
+                              )}
+                              {member.isWowPartner && (
+                                <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-1 shadow-xl border border-yellow-500/50 z-10">
+                                  <Crown className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.8)]" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* 2. 와트너 칭호 텍스트 (프로필 밑에 고정) */}
+                            {member.isWowPartner && (
+                              <span className="mt-1.5 text-[11px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest drop-shadow-md select-none whitespace-nowrap">
+                                와트너
+                              </span>
+                            )}
+
+                            {/* 3. ✨ 웅장한 호버(Hover) 툴팁 설명창 */}
+                            {member.isWowPartner && (
+                              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max max-w-[220px] opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[100] transform translate-y-2 group-hover:translate-y-0">
+                                <div className="bg-gradient-to-b from-gray-900 to-black border border-yellow-500/40 rounded-xl p-3.5 shadow-[0_10px_30px_rgba(250,204,21,0.3)] flex flex-col items-center text-center relative overflow-hidden">
+                                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-500/10 via-transparent to-transparent opacity-50"></div>
+                                  <Crown className="w-5 h-5 text-yellow-400 mb-2 relative z-10 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
+                                  <p className="text-xs text-gray-300 leading-relaxed relative z-10 font-medium break-keep">
+                                    와우 컨텐츠를 진행.<br/>길드장 <strong className="text-yellow-400 font-black text-sm">『왁두』</strong>에게<br/>칭호를 하사받다.
+                                  </p>
+                                </div>
+                                {/* 툴팁 말풍선 꼬리 */}
+                                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-yellow-500/40"></div>
+                              </div>
+                            )}
+
+                          </div>
                         </td>
                         <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : isPubgQualified ? 'text-orange-100' : 'text-white'}`}>
                           {/* ★ 수정된 로직: 20렙 미만도 신청했다면 뱃지 노출 ★ */}
@@ -2110,7 +2161,29 @@ export default function App() {
               .map(member => (
               <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
                 <div className="flex items-center gap-3">
-                  <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-900 object-cover border border-gray-600" />
+                  {/* ★ 관리자 화면에도 와트너 프레임 및 텍스트 적용 ★ */}
+                  <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
+                    <div className="relative w-10 h-10 flex-shrink-0">
+                      {member.isWowPartner ? (
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                          <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
+                        </div>
+                      ) : (
+                        <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full bg-gray-900 object-cover border border-gray-600" />
+                      )}
+                      {member.isWowPartner && (
+                        <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-0.5 shadow-lg border border-yellow-500/50 z-10">
+                          <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                        </div>
+                      )}
+                    </div>
+                    {member.isWowPartner && (
+                      <span className="text-[9px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest select-none whitespace-nowrap">
+                        와트너
+                      </span>
+                    )}
+                  </div>
+                  
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-white">{member.streamerName}</span>
@@ -2121,8 +2194,18 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  {/* ★ 수정된 로직: 배그 참가 신청은 레벨 상관없이 모두에게 노출 ★ */}
+                  {/* ★ 수정된 로직: 와트너 임명 버튼 추가 ★ */}
                   <div className="flex flex-col gap-2 mr-2">
+                    <button
+                      onClick={() => handleToggleWowPartner(member.id, member.isWowPartner)}
+                      className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                        member.isWowPartner 
+                          ? 'bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800' 
+                          : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                      }`}
+                    >
+                      {member.isWowPartner ? '👑 와트너 해제' : '🎬 와트너 임명'}
+                    </button>
                     {member.level >= 40 && (
                       <button
                         onClick={() => handleToggleWowApply(member.id, member.isApplied)}
