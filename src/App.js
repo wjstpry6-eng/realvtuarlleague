@@ -134,6 +134,9 @@ export default function App() {
   // ★ 펀딩 결산 아코디언 열림 상태 관리 ★
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
 
+  // ★ 응원하기(하트) 스팸 클릭 방지용 로딩 상태 추가 ★
+  const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
+
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
   const [matchMode, setMatchMode] = useState("individual");
@@ -478,6 +481,11 @@ export default function App() {
 
   const handleCheerPlayer = async (playerId, playerName) => {
     if (!user) return;
+    
+    // ★ 보안 업데이트: 이미 처리 중인 선수라면 스팸 클릭(중복 실행) 원천 차단!
+    if (cheeringPlayerId === playerId) return; 
+
+    setCheeringPlayerId(playerId); // ★ 클릭 즉시 버튼 잠금(로딩 시작)
     const today = new Date().toISOString().split('T')[0];
     const storageKey = 'wak_vleague_hearts_v1';
     let storedData = JSON.parse(localStorage.getItem(storageKey) || '{"date": "", "votes": []}');
@@ -496,7 +504,11 @@ export default function App() {
         localStorage.setItem(storageKey, JSON.stringify(storedData));
         showToast(`${playerName}님을 성공적으로 응원했습니다! 💖`);
       }
-    } catch (error) { showToast("응원 처리 중 오류가 발생했습니다.", "error"); }
+    } catch (error) { 
+      showToast("응원 처리 중 오류가 발생했습니다.", "error"); 
+    } finally {
+      setCheeringPlayerId(null); // ★ 처리가 끝나면 버튼 잠금 해제
+    }
   };
 
   const handleAddWowMember = async (e) => {
@@ -939,14 +951,23 @@ export default function App() {
                 <div className="px-3 pb-4 space-y-2 mt-auto">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleCheerPlayer(player.id, player.name); }}
+                      disabled={cheeringPlayerId === player.id}
                       className={`w-full flex items-center justify-center py-2 rounded-lg font-bold text-xs transition-all duration-300 transform active:scale-95 ${
-                        hasVotedToday
-                          ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
-                          : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
+                        cheeringPlayerId === player.id
+                          ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed" // ★ 처리 중일 때의 디자인
+                          : hasVotedToday
+                            ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
+                            : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
                       }`}
                     >
-                      <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
-                      {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
+                      {cheeringPlayerId === player.id ? (
+                        <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-gray-400" /> 처리 중...</>
+                      ) : (
+                        <>
+                          <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
+                          {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
+                        </>
+                      )}
                     </button>
                     <a
                       href={broadcastLink}
@@ -2544,14 +2565,23 @@ export default function App() {
                 <div className="flex flex-col items-center mt-5 w-full gap-2">
                   <button
                     onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
+                    disabled={cheeringPlayerId === playerInfo.id}
                     className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
-                      hasVotedToday
-                        ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:bg-pink-500/20"
-                        : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]"
+                      cheeringPlayerId === playerInfo.id
+                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100" // ★ 처리 중일 때의 디자인
+                        : hasVotedToday
+                          ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:bg-pink-500/20"
+                          : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]"
                     }`}
                   >
-                    <Heart className={`w-5 h-5 mr-2 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
-                    {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
+                    {cheeringPlayerId === playerInfo.id ? (
+                      <><Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" /> 처리 중...</>
+                    ) : (
+                      <>
+                        <Heart className={`w-5 h-5 mr-2 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
+                        {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
+                      </>
+                    )}
                   </button>
                   
                   <a
