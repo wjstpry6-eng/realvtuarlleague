@@ -53,7 +53,7 @@ import {
   deleteDoc,
   setDoc,
   increment,
-  getDoc // ★ 보안 업데이트: DB에서 문서를 직접 읽어오기 위해 추가!
+  getDoc
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -77,10 +77,6 @@ const db = getFirestore(app);
 const appId =
   typeof __app_id !== "undefined" ? __app_id : "virtual-league-dev-final";
 
-// ★ 보안 업데이트: 
-// 더 이상 클라이언트 코드(여기에) 비밀번호 해시를 적어두지 않습니다! (제보자 의견 완벽 수용)
-// const ADMIN_HASH = "zITMrF2d"; <- 삭제 완료!
-
 // ★ 실전용 상대평가 티어 설정 (비율 기준) ★
 const TIER_SETTINGS = [
   { id: "S", name: "S 티어", color: "bg-red-500", percent: 10, label: "상위 10%" },
@@ -89,6 +85,30 @@ const TIER_SETTINGS = [
   { id: "C", name: "C 티어", color: "bg-green-500", percent: 85, label: "상위 61% ~ 85%" },
   { id: "D", name: "D 티어", color: "bg-blue-500", percent: 100, label: "하위 15%" },
 ];
+
+// ★ WOW 고유 직업 색상 사전 정의 ★
+const WOW_CLASS_COLORS = {
+  "전사": "#C79C6E", "사제": "#FFFFFF", "도적": "#FFF569", "성기사": "#F58CBA",
+  "사냥꾼": "#ABD473", "주술사": "#0070DE", "마법사": "#69CCF0", "흑마": "#9482C9",
+  "흑마법사": "#9482C9", "드루": "#FF7D0A", "드루이드": "#FF7D0A", "죽음의기사": "#C41E3A", "수도사": "#00FF96", "악마사냥꾼": "#A330C9", "기원사": "#33937F"
+};
+const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b']; 
+
+// ★ 직업 뱃지에 파스텔 톤 반투명 효과를 주는 마법의 함수 ★
+const getJobBadgeStyle = (jobClass) => {
+  const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8"; // 색상이 없으면 기본 회색
+  let r = 0, g = 0, b = 0;
+  if (hex.length === 7) {
+    r = parseInt(hex.slice(1, 3), 16);
+    g = parseInt(hex.slice(3, 5), 16);
+    b = parseInt(hex.slice(5, 7), 16);
+  }
+  return {
+    color: hex,
+    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`, // 배경은 15% 투명도
+    borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`       // 테두리는 30% 투명도
+  };
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -104,6 +124,7 @@ export default function App() {
   const [wowSortConfig, setWowSortConfig] = useState({ key: 'level', direction: 'desc' });
   const [isWowFaqOpen, setIsWowFaqOpen] = useState(false);
 
+  // ★ WOW 탭 '점프 검색'을 위한 신규 상태 추가 ★
   const [wowSearchInput, setWowSearchInput] = useState("");
   const [showWowSearchDropdown, setShowWowSearchDropdown] = useState(false);
   const [wowSearchResults, setWowSearchResults] = useState([]);
@@ -117,7 +138,7 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState("");
   const [adminNicknameInput, setAdminNicknameInput] = useState(() => localStorage.getItem("wak_admin_nickname") || "");
   const [currentAdminName, setCurrentAdminName] = useState(null);
-  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false); // ★ 로그인 로딩 상태 추가
+  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false); 
   
   const [rawAdminPresence, setRawAdminPresence] = useState([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -522,9 +543,9 @@ export default function App() {
         wowNickname: wowNickname.trim(), 
         jobClass: wowJobClass.trim(), 
         level: Number(wowLevel), 
-        isApplied: false, // ★ 버종리 참가 신청 (기본 false)
-        isPubgApplied: false, // ★ 배그 참가 신청 (기본 false)
-        isWowPartner: false, // ★ 와트너 임명 여부 (기본 false)
+        isApplied: false, // 버종리 참가 신청 (기본 false)
+        isPubgApplied: false, // 배그 참가 신청 (기본 false)
+        isWowPartner: false, // 와트너 임명 여부 (기본 false)
         createdAt: new Date().toISOString()
       });
       setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
@@ -541,7 +562,6 @@ export default function App() {
     } catch (error) {}
   };
 
-  // ★ 기존 버종리 참가 신청 토글 ★
   const handleToggleWowApply = async (id, currentStatus) => {
     if (!user) return;
     try { 
@@ -550,7 +570,6 @@ export default function App() {
     } catch (error) {}
   };
 
-  // ★ 배그 이벤트 참가 신청 토글 ★
   const handleTogglePubgApply = async (id, currentStatus) => {
     if (!user) return;
     try { 
@@ -559,7 +578,6 @@ export default function App() {
     } catch (error) {}
   };
 
-  // ★ 와트너(파트너) 스트리머 지정 토글 ★
   const handleToggleWowPartner = async (id, currentStatus) => {
     if (!user) return;
     try { 
@@ -568,7 +586,6 @@ export default function App() {
     } catch (error) {}
   };
 
-  // ★ 버종리 참가 신청 명단 복사 (40렙 이상) ★
   const handleCopyWowApplicantList = () => {
     const applicants = wowRoster
       .filter(m => m.level >= 40 && m.isApplied)
@@ -593,7 +610,6 @@ export default function App() {
     document.body.removeChild(textArea);
   };
 
-  // ★ 수정된 로직: 배그 이벤트 참가 신청 명단 복사 (레벨 및 직업 포함) ★
   const handleCopyPubgApplicantList = (formatType) => {
     const applicants = wowRoster
       .filter(m => m.isPubgApplied) // 레벨 상관없이 신청한 사람은 모두 포함
@@ -641,7 +657,6 @@ export default function App() {
     } catch (error) { showToast("초기화 중 오류가 발생했습니다.", "error"); } finally { setIsResetting(false); navigateTo("tier"); }
   };
 
-  // ★ 보안 업데이트: 은행 수준의 SHA-256 암호화 함수 추가 ★
   const hashPassword = async (password) => {
     const msgBuffer = new TextEncoder().encode(password);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -650,7 +665,6 @@ export default function App() {
     return hashHex;
   };
 
-  // ★ 보안 업데이트: 서버(DB)와 통신하여 로그인 검증을 하는 새로운 로직 ★
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     if (!adminNicknameInput.trim()) { showToast("닉네임을 입력해주세요.", "error"); return; }
@@ -659,28 +673,21 @@ export default function App() {
 
     setIsAdminLoggingIn(true);
     try {
-      // 1. 파이어베이스 서버의 가장 깊숙한 관리자 설정(config) 문서를 불러옵니다.
       const authDocRef = doc(db, "artifacts", appId, "public", "data", "admin_auth", "config");
       const authDocSnap = await getDoc(authDocRef);
-      
-      // 2. 사용자가 입력한 비밀번호를 해커가 풀 수 없는 코드로 변환합니다.
       const inputHash = await hashPassword(passwordInput);
 
       if (!authDocSnap.exists()) {
-        // [최초 접속 시 마법] 서버에 아직 비밀번호가 없다면, 특정 '비밀 키워드'를 닉네임에 썼을 때만 세팅 허용!
         if (adminNicknameInput.trim() === "딸기세팅") {
           await setDoc(authDocRef, { hash: inputHash, createdAt: new Date().toISOString() });
           showToast(`🔒 [최초 등록 완료] 이제부터 이 비밀번호로만 접속 가능합니다! 다시 로그인해주세요.`);
           setPasswordInput("");
-          setAdminNicknameInput(""); // 닉네임 초기화
+          setAdminNicknameInput("");
         } else {
-          // 비밀 키워드를 모르는 일반 유저/해커가 시도할 경우 가차없이 차단!
           showToast("비밀번호가 일치하지 않습니다.", "error");
         }
       } else {
-        // [기존 접속 시] 서버에 저장된 진짜 해시코드와 지금 입력한 코드를 비교!
         const storedHash = authDocSnap.data().hash;
-        
         if (inputHash === storedHash) {
           localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim());
           setCurrentAdminName(adminNicknameInput.trim());
@@ -841,10 +848,10 @@ export default function App() {
 
   const renderHomeView = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden">
-        <div className="relative z-10">
-          <h2 className="text-3xl font-bold text-white mb-2">우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
-          <p className="text-gray-300 mb-6">매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
+      <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden flex items-center min-h-[240px]">
+        <div className="relative z-10 w-full md:w-3/4 pr-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 md:whitespace-nowrap tracking-tight">우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
+          <p className="text-gray-300 mb-6 text-sm md:text-base break-keep">매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
           <div className="flex flex-wrap gap-4">
             <button onClick={() => navigateTo("tier")} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition">
               <Trophy className="w-5 h-5 mr-2" /> 티어표 보기
@@ -964,7 +971,7 @@ export default function App() {
                       disabled={cheeringPlayerId === player.id}
                       className={`w-full flex items-center justify-center py-2 rounded-lg font-bold text-xs transition-all duration-300 transform active:scale-95 ${
                         cheeringPlayerId === player.id
-                          ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed" // ★ 처리 중일 때의 디자인
+                          ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed" 
                           : hasVotedToday
                             ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
                             : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
@@ -1397,13 +1404,6 @@ export default function App() {
       return acc;
     }, {});
     const allClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
-    
-    const WOW_CLASS_COLORS = {
-      "전사": "#C79C6E", "사제": "#FFFFFF", "도적": "#FFF569", "성기사": "#F58CBA",
-      "사냥꾼": "#ABD473", "주술사": "#0070DE", "마법사": "#69CCF0", "흑마": "#9482C9",
-      "흑마법사": "#9482C9", "드루": "#FF7D0A", "드루이드": "#FF7D0A"  
-    };
-    const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b']; 
 
     const WowSortIcon = ({ columnKey }) => {
       if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
@@ -1513,7 +1513,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* ★ 새로 추가된 FAQ 아코디언 박스 (명단 리스트 바로 위) ★ */}
+        {/* ★ FAQ 아코디언 박스 ★ */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden mt-8 transition-all duration-300">
           <button
             onClick={() => setIsWowFaqOpen(!isWowFaqOpen)}
@@ -1538,7 +1538,7 @@ export default function App() {
                     💡 갱신 기준 시간
                   </h4>
                   <p className="pl-6 text-gray-400">
-                    캐릭터들의 레벨 최신화 시점은 화면 최상단 네비게이션 바에 표시되는 <strong className="text-blue-300">최근 갱신 시각</strong>을 기준으로 합니다.
+                    캐릭터들의 레벨 최신화 시점은 화면 좌측 최상단 바에 표시되는 <strong className="text-blue-300">최근 갱신 시각</strong>을 기준으로 합니다.
                   </p>
                 </div>
                 
@@ -1547,11 +1547,11 @@ export default function App() {
                     🛠️ 업데이트 방식 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded ml-2 font-medium">100% 수동 작업</span>
                   </h4>
                   <p className="pl-6 text-gray-400 mb-2 break-keep">
-                    현재 레벨 갱신은 게임 시스템과의 자동 연동이 어려워, 부득이하게 아래와 같은 방법으로 관리자가 직접 업데이트하고 있습니다.
+                    현재 레벨 갱신은 게임 시스템과의 자동 연동이 어려워, 부득이하게 아래와 같은 방법으로 관리자가 직접 수동으로 업데이트하고 있습니다.
                   </p>
                   <ul className="pl-8 list-decimal text-gray-400 space-y-1.5 marker:font-bold marker:text-blue-400/50">
                     <li>관리자가 직접 '월드 오브 워크래프트' 게임 내에 접속하여 길드창 확인</li>
-                    <li>우왁굳님 및 참가 스트리머분들의 생방송 화면을 실시간으로 모니터링하여 확인</li>
+                    <li>왁굳님 및 참가 스트리머분들의 생방송 화면을 실시간으로 모니터링하여 확인</li>
                   </ul>
                 </div>
 
@@ -1570,7 +1570,7 @@ export default function App() {
                     🙇‍♂️ 팬 여러분께 드리는 말씀
                   </h4>
                   <p className="text-gray-300 text-base break-keep">
-                    모든 분들의 레벨을 완벽한 실시간으로 반영하기에는 물리적인 어려움이 따르는 점, 팬 여러분들의 너른 양해를 부탁드립니다. 조금 느리더라도 확실하게, 더 노력하는 관리자가 되겠습니다! 감사합니다.
+                    모든 분들의 레벨을 완벽한 실시간으로 반영하기에는 물리적인 어려움이 따르는 점, 팬 여러분들의 너른 양해를 부탁드립니다. 조금 느리더라도 확실하게, 늘 더 노력하는 관리자가 되겠습니다! 감사합니다.
                   </p>
                 </div>
               </div>
@@ -1584,7 +1584,6 @@ export default function App() {
               <h3 className="text-xl font-bold text-white flex items-center">
                 <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 소속 여성 버튜버 명단 (점핑권X)
               </h3>
-              {/* ★ 수정된 로직: 분리된 복사 버튼 및 배그 하위 옵션 메뉴 ★ */}
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -1648,7 +1647,7 @@ export default function App() {
               </div>
 
               {showWowSearchDropdown && wowSearchResults.length > 0 && (
-                <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden custom-scrollbar max-h-60">
+                <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden custom-scrollbar max-h-60 z-50">
                   {wowSearchResults.map((m) => (
                     <div
                       key={m.id}
@@ -1658,7 +1657,12 @@ export default function App() {
                       <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} className="w-8 h-8 rounded-full object-cover bg-gray-900 border border-gray-600" alt="avatar"/>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-white leading-tight">{m.streamerName}</span>
-                        <span className="text-xs text-blue-400 mt-0.5">{m.jobClass} <span className="text-gray-500 mx-1">|</span> {m.wowNickname}</span>
+                        {/* ★ 검색 드롭다운 내 직업 색상 적용 ★ */}
+                        <div className="flex items-center mt-0.5">
+                          <span className="text-xs font-bold" style={{ color: WOW_CLASS_COLORS[m.jobClass] || "#94a3b8" }}>{m.jobClass}</span>
+                          <span className="text-gray-500 mx-1 text-[10px]">|</span> 
+                          <span className="text-xs text-blue-400">{m.wowNickname}</span>
+                        </div>
                       </div>
                       <span className="ml-auto text-xs font-black text-yellow-500">Lv.{m.level}</span>
                     </div>
@@ -1666,14 +1670,14 @@ export default function App() {
                 </div>
               )}
               {showWowSearchDropdown && wowSearchInput && wowSearchResults.length === 0 && (
-                 <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-4 text-center text-sm text-gray-400">
+                 <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-4 text-center text-sm text-gray-400 z-50">
                    검색 결과가 없습니다.
                  </div>
               )}
             </div>
           </div>
           
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[300px]">
             <table className="w-full text-base text-left">
               <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
                 <tr>
@@ -1696,8 +1700,8 @@ export default function App() {
               <tbody>
                 {sortedWowRoster.length > 0 ? (
                   sortedWowRoster.map((member, idx) => {
-                    const isQualified = member.level >= 40;     // 버종리 자격
-                    const isPubgQualified = member.level >= 20; // 배그 자격
+                    const isQualified = member.level >= 40;     
+                    const isPubgQualified = member.level >= 20; 
 
                     return (
                       <tr 
@@ -1717,10 +1721,7 @@ export default function App() {
                           {idx + 1}
                         </td>
                         <td className="px-6 py-5">
-                          {/* ★ 수정된 로직: 와트너 스트리머일 경우 황금 프레임, 칭호 텍스트, 웅장한 호버 툴팁 부여 ★ */}
-                          <div className="group relative flex flex-col items-center justify-center w-fit mx-auto md:mx-0 cursor-help">
-                            
-                            {/* 1. 프로필 이미지 */}
+                          <div className="group relative flex flex-col items-center justify-center w-fit mx-auto md:mx-0 cursor-help z-10">
                             <div className="relative w-12 h-12 flex-shrink-0">
                               {member.isWowPartner ? (
                                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2.5px] shadow-[0_0_15px_rgba(250,204,21,0.5)]">
@@ -1736,14 +1737,12 @@ export default function App() {
                               )}
                             </div>
 
-                            {/* 2. 와트너 칭호 텍스트 (프로필 밑에 고정) */}
                             {member.isWowPartner && (
                               <span className="mt-1.5 text-[11px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest drop-shadow-md select-none whitespace-nowrap">
                                 와트너
                               </span>
                             )}
 
-                            {/* 3. ✨ 웅장한 호버(Hover) 툴팁 설명창 */}
                             {member.isWowPartner && (
                               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max max-w-[220px] opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[100] transform translate-y-2 group-hover:translate-y-0">
                                 <div className="bg-gradient-to-b from-gray-900 to-black border border-yellow-500/40 rounded-xl p-3.5 shadow-[0_10px_30px_rgba(250,204,21,0.3)] flex flex-col items-center text-center relative overflow-hidden">
@@ -1753,7 +1752,6 @@ export default function App() {
                                     와우 컨텐츠를 진행.<br/>길드장 <strong className="text-yellow-400 font-black text-sm">『왁두』</strong>에게<br/>칭호를 하사받다.
                                   </p>
                                 </div>
-                                {/* 툴팁 말풍선 꼬리 */}
                                 <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-yellow-500/40"></div>
                               </div>
                             )}
@@ -1761,7 +1759,6 @@ export default function App() {
                           </div>
                         </td>
                         <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : isPubgQualified ? 'text-orange-100' : 'text-white'}`}>
-                          {/* ★ 수정된 로직: 20렙 미만도 신청했다면 뱃지 노출 ★ */}
                           <div className="flex flex-col items-start gap-1">
                             <span>{member.streamerName}</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -1781,11 +1778,16 @@ export default function App() {
                         <td className="px-6 py-5 text-blue-300 font-medium text-lg">
                           {member.wowNickname}
                         </td>
-                        <td className="px-6 py-5 text-gray-300">
-                          <span className="bg-gray-700 px-3 py-1.5 rounded text-sm">{member.jobClass}</span>
+                        <td className="px-6 py-5">
+                          {/* ★ 수정된 로직: 직업별 고유 색상 파스텔 반투명 뱃지 적용 ★ */}
+                          <span 
+                            style={getJobBadgeStyle(member.jobClass)} 
+                            className="px-3 py-1.5 rounded-md text-sm font-bold border whitespace-nowrap inline-block"
+                          >
+                            {member.jobClass}
+                          </span>
                         </td>
                         <td className="px-6 py-5 text-right">
-                          {/* ★ 수정된 로직: 레벨 달성 여부에 따라 2단으로 쌓이는 뱃지 ★ */}
                           <div className="flex items-center justify-end">
                             <span className={`font-black text-2xl mr-3 ${isQualified ? 'text-yellow-400' : isPubgQualified ? 'text-orange-400' : 'text-gray-300'}`}>
                               Lv. {member.level}
@@ -2161,7 +2163,6 @@ export default function App() {
               .map(member => (
               <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
                 <div className="flex items-center gap-3">
-                  {/* ★ 관리자 화면에도 와트너 프레임 및 텍스트 적용 ★ */}
                   <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
                     <div className="relative w-10 h-10 flex-shrink-0">
                       {member.isWowPartner ? (
@@ -2187,7 +2188,10 @@ export default function App() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-white">{member.streamerName}</span>
-                      <span className="text-[10px] bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded">{member.jobClass}</span>
+                      {/* ★ 관리자 리스트 직업 뱃지에도 색상 적용 ★ */}
+                      <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                        {member.jobClass}
+                      </span>
                     </div>
                     <div className="text-xs text-blue-400">{member.wowNickname}</div>
                   </div>
