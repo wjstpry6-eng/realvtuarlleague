@@ -34,7 +34,11 @@ import {
   Edit,
   Coins,
   Star,
-  Target
+  Target,
+  Settings,
+  Layers,
+  Megaphone,
+  CheckSquare
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -96,7 +100,7 @@ const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b'];
 
 // ★ 직업 뱃지에 파스텔 톤 반투명 효과를 주는 마법의 함수 ★
 const getJobBadgeStyle = (jobClass) => {
-  const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8"; // 색상이 없으면 기본 회색
+  const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8"; 
   let r = 0, g = 0, b = 0;
   if (hex.length === 7) {
     r = parseInt(hex.slice(1, 3), 16);
@@ -105,8 +109,8 @@ const getJobBadgeStyle = (jobClass) => {
   }
   return {
     color: hex,
-    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`, // 배경은 15% 투명도
-    borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`       // 테두리는 30% 투명도
+    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`,
+    borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`
   };
 };
 
@@ -124,7 +128,6 @@ export default function App() {
   const [wowSortConfig, setWowSortConfig] = useState({ key: 'level', direction: 'desc' });
   const [isWowFaqOpen, setIsWowFaqOpen] = useState(false);
 
-  // ★ WOW 탭 '점프 검색'을 위한 신규 상태 추가 ★
   const [wowSearchInput, setWowSearchInput] = useState("");
   const [showWowSearchDropdown, setShowWowSearchDropdown] = useState(false);
   const [wowSearchResults, setWowSearchResults] = useState([]);
@@ -139,6 +142,9 @@ export default function App() {
   const [adminNicknameInput, setAdminNicknameInput] = useState(() => localStorage.getItem("wak_admin_nickname") || "");
   const [currentAdminName, setCurrentAdminName] = useState(null);
   const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false); 
+
+  // ★ 관리자 화면 내부 탭 관리 (main: 메인 설정, etc: 기타 설정) ★
+  const [adminInnerTab, setAdminInnerTab] = useState("main");
   
   const [rawAdminPresence, setRawAdminPresence] = useState([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -152,10 +158,13 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [todayVisits, setTodayVisits] = useState(0); 
   
-  // ★ 펀딩 결산 아코디언 열림 상태 관리 ★
-  const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
+  // ★ 사이트 전체 팝업 관리 상태 ★
+  const [sitePopup, setSitePopup] = useState(null);
+  const [showSitePopup, setShowSitePopup] = useState(false);
+  const [popupTitleInput, setPopupTitleInput] = useState("");
+  const [popupContentInput, setPopupContentInput] = useState("");
 
-  // ★ 응원하기(하트) 스팸 클릭 방지용 로딩 상태 추가 ★
+  const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
 
   const [gameName, setGameName] = useState("");
@@ -164,8 +173,6 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageInputs, setImageInputs] = useState({});
   const [wowImageInputs, setWowImageInputs] = useState({});
-  
-  // ★ 방송국 URL 관리를 위한 상태 추가 ★
   const [broadcastUrlInputs, setBroadcastUrlInputs] = useState({});
 
   const [wowStreamerName, setWowStreamerName] = useState("");
@@ -176,7 +183,6 @@ export default function App() {
   const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
   const [wowAdminSortOption, setWowAdminSortOption] = useState("levelDesc");
 
-  // ★ 경기 기록 등록용 펀딩 상태 ★
   const [hasFunding, setHasFunding] = useState(false);
   const [totalFunding, setTotalFunding] = useState("");
 
@@ -190,8 +196,6 @@ export default function App() {
   ]);
 
   const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
-
-  // ★ 경기 기록 수정을 위한 신규 상태 추가 ★
   const [matchToEdit, setMatchToEdit] = useState(null);
   const [editGameName, setEditGameName] = useState("");
   const [editMatchDate, setEditMatchDate] = useState("");
@@ -373,8 +377,37 @@ export default function App() {
       setRawAdminPresence(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    return () => { unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence(); };
+    // ★ 팝업 상태 실시간 동기화 및 렌더링 검사 ★
+    const popupRef = doc(db, "artifacts", appId, "public", "data", "settings", "popup");
+    const unsubPopup = onSnapshot(popupRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSitePopup(data);
+        if (data.isActive) {
+          // 로컬 스토리지에 오늘 날짜+수정시간이 기록되어 있으면 안 띄움
+          const hideToken = localStorage.getItem('wak_popup_hidden_today');
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (hideToken !== `${todayStr}_${data.updatedAt}`) {
+            setShowSitePopup(true);
+          } else {
+            setShowSitePopup(false);
+          }
+        } else {
+          setShowSitePopup(false);
+        }
+      }
+    });
+
+    return () => { unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
   }, [user]);
+
+  // ★ 관리자 팝업 폼 텍스트 자동 채우기 ★
+  useEffect(() => {
+    if (sitePopup) {
+      setPopupTitleInput(sitePopup.title || "");
+      setPopupContentInput(sitePopup.content || "");
+    }
+  }, [sitePopup]);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 60000);
@@ -405,29 +438,6 @@ export default function App() {
       window.removeEventListener('click', handleActivity);
     };
   }, [isAdminAuth, currentAdminName, user]);
-
-  useEffect(() => {
-    const recordVisit = async () => {
-      const today = new Date();
-      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const storageKey = `wak_visited_${todayDocId}`;
-      if (!localStorage.getItem(storageKey)) {
-        try {
-          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
-          await setDoc(visitRef, { count: increment(1) }, { merge: true });
-          localStorage.setItem(storageKey, "true"); 
-        } catch (error) {}
-      }
-    };
-    if (user) recordVisit();
-  }, [user]);
-
-  useEffect(() => {
-    if (!matchDate) {
-      const today = new Date();
-      setMatchDate(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2,"0")}-${String(today.getDate()).padStart(2, "0")}`);
-    }
-  }, [matchDate]);
 
   const getAvatarSrc = (playerName) => {
     const p = players.find((p) => p.name === playerName);
@@ -499,11 +509,9 @@ export default function App() {
 
   const handleCheerPlayer = async (playerId, playerName) => {
     if (!user) return;
-    
-    // ★ 보안 업데이트: 이미 처리 중인 선수라면 스팸 클릭(중복 실행) 원천 차단!
     if (cheeringPlayerId === playerId) return; 
 
-    setCheeringPlayerId(playerId); // ★ 클릭 즉시 버튼 잠금(로딩 시작)
+    setCheeringPlayerId(playerId); 
     const today = new Date().toISOString().split('T')[0];
     const storageKey = 'wak_vleague_hearts_v1';
     let storedData = JSON.parse(localStorage.getItem(storageKey) || '{"date": "", "votes": []}');
@@ -525,7 +533,7 @@ export default function App() {
     } catch (error) { 
       showToast("응원 처리 중 오류가 발생했습니다.", "error"); 
     } finally {
-      setCheeringPlayerId(null); // ★ 처리가 끝나면 버튼 잠금 해제
+      setCheeringPlayerId(null); 
     }
   };
 
@@ -540,8 +548,8 @@ export default function App() {
         wowNickname: wowNickname.trim(), 
         jobClass: wowJobClass.trim(), 
         level: Number(wowLevel), 
-        isApplied: false, // 참가 신청 (기본 false)
-        isWowPartner: false, // 와트너 임명 여부 (기본 false)
+        isApplied: false, 
+        isWowPartner: false, 
         createdAt: new Date().toISOString()
       });
       setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
@@ -669,6 +677,37 @@ export default function App() {
       try { await deleteDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName)); } catch (error) {}
     }
     setIsAdminAuth(false); setCurrentAdminName(null); showToast("성공적으로 로그아웃 되었습니다.");
+  };
+
+  // ★ 팝업 저장 및 삭제 핸들러 ★
+  const handleSavePopup = async (e) => {
+    e.preventDefault();
+    if (!popupTitleInput.trim() || !popupContentInput.trim()) {
+      return showToast("팝업 제목과 내용을 모두 입력해주세요.", "error");
+    }
+    try {
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "popup"), {
+        title: popupTitleInput.trim(),
+        content: popupContentInput.trim(),
+        isActive: true,
+        updatedAt: Date.now()
+      });
+      showToast("팝업 공지가 유저들에게 띄워집니다!");
+    } catch (error) {
+      showToast("팝업 저장 중 오류가 발생했습니다.", "error");
+    }
+  };
+
+  const handleDeletePopup = async () => {
+    try {
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "popup"), {
+        isActive: false,
+        updatedAt: Date.now()
+      }, { merge: true });
+      showToast("팝업 공지가 사이트에서 즉시 내려갔습니다.");
+    } catch (error) {
+      showToast("팝업 삭제 중 오류가 발생했습니다.", "error");
+    }
   };
 
   const handleUpdateImage = async (playerId, url) => {
@@ -1471,7 +1510,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* ★ FAQ 아코디언 박스 ★ */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden mt-8 transition-all duration-300">
           <button
             onClick={() => setIsWowFaqOpen(!isWowFaqOpen)}
@@ -1593,7 +1631,6 @@ export default function App() {
                       <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} className="w-8 h-8 rounded-full object-cover bg-gray-900 border border-gray-600" alt="avatar"/>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-white leading-tight">{m.streamerName}</span>
-                        {/* ★ 검색 드롭다운 내 직업 색상 적용 ★ */}
                         <div className="flex items-center mt-0.5">
                           <span className="text-xs font-bold" style={{ color: WOW_CLASS_COLORS[m.jobClass] || "#94a3b8" }}>{m.jobClass}</span>
                           <span className="text-gray-500 mx-1 text-[10px]">|</span> 
@@ -1850,6 +1887,7 @@ export default function App() {
     return (
       <div className="max-w-3xl mx-auto space-y-8">
         
+        {/* 상단 관리자 접속 현황 */}
         <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center">
@@ -1869,454 +1907,548 @@ export default function App() {
           </button>
         </div>
 
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-white flex items-center">
-              <PlusCircle className="w-6 h-6 mr-2 text-green-400" /> 새 경기 결과 등록
-            </h2>
-          </div>
-
-          <div className="flex bg-gray-900 p-1 rounded-lg mb-6 border border-gray-700">
-            <button type="button" onClick={() => setMatchMode("individual")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${matchMode === "individual" ? "bg-gray-700 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
-              <User className="w-4 h-4 mr-2" /> 개인전
-            </button>
-            <button type="button" onClick={() => setMatchMode("team")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${matchMode === "team" ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
-              <Users className="w-4 h-4 mr-2" /> 팀전
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmitMatch} className="space-y-6">
-            
-            <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
-              <label className="flex items-center gap-3 cursor-pointer w-fit">
-                 <input 
-                   type="checkbox" 
-                   checked={hasFunding} 
-                   onChange={(e) => setHasFunding(e.target.checked)} 
-                   className="w-5 h-5 accent-yellow-500 rounded bg-gray-800 border-gray-600 cursor-pointer" 
-                 />
-                 <span className="text-yellow-400 font-bold flex items-center text-base select-none">
-                   <Coins className="w-5 h-5 mr-2" /> 펀딩/상금 결산 추가하기
-                 </span>
-              </label>
-              {hasFunding && (
-                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-800 p-4 rounded-lg border border-gray-700">
-                    <span className="text-sm text-gray-300 font-bold whitespace-nowrap">총 모인 별풍선 개수:</span>
-                    <div className="flex items-center w-full sm:w-auto">
-                      <input 
-                        type="number" 
-                        placeholder="예: 100000" 
-                        value={totalFunding} 
-                        onChange={(e) => setTotalFunding(e.target.value)} 
-                        className="w-full sm:w-48 bg-gray-900 border border-gray-600 text-yellow-400 font-black rounded-l-lg px-4 py-2 focus:border-yellow-500 outline-none text-right" 
-                      />
-                      <span className="bg-gray-700 border border-l-0 border-gray-600 text-gray-300 px-4 py-2 rounded-r-lg font-bold">개</span>
-                    </div>
-                 </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <input type="text" value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder="게임 이름" className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
-              <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
-            </div>
-
-            {matchMode === "individual" && (
-              <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3">
-                <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 입력합니다.</p>
-                {individualResults.map((r, idx) => (
-                  <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
-                    <div className="flex gap-2">
-                      <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                      <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                      <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                      <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults(individualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
-                    </div>
-                    {hasFunding && (
-                      <div className="flex gap-2 items-center sm:pl-[72px]">
-                        <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                        <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                          const val = e.target.value;
-                          const n = [...individualResults];
-                          n[idx].fundingRatio = val;
-                          n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
-                          setIndividualResults(n);
-                        }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                        <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                        <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                          const n = [...individualResults];
-                          n[idx].fundingAmount = e.target.value;
-                          n[idx].fundingRatio = "";
-                          setIndividualResults(n);
-                        }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                        <span className="text-gray-500 text-xs font-bold mr-8">개</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <button type="button" onClick={() => setIndividualResults([...individualResults, { playerName: "", rank: individualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
-              </div>
-            )}
-
-            {matchMode === "team" && (
-              <div className="space-y-4">
-                <p className="text-xs font-bold text-indigo-400 mb-2">팀 단위로 순위와 점수를 한 번만 입력하고, 팀원 이름을 추가하세요.</p>
-                {teamResults.map((team, tIdx) => (
-                  <div key={team.id} className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 relative overflow-hidden flex flex-col">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
-                    <div className="flex gap-2 mb-3 pb-3 border-b border-gray-800">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 mb-1">순위</span>
-                        <input type="number" value={team.rank} onChange={(e) => { const n = [...teamResults]; n[tIdx].rank = Number(e.target.value); setTeamResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
-                      </div>
-                      <div className="flex flex-col flex-1">
-                        <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
-                        <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...teamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
-                      </div>
-                      <div className="flex flex-col justify-end">
-                        <button type="button" onClick={() => { if (teamResults.length > 2) setTeamResults(teamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
-                      </div>
-                    </div>
-                    {hasFunding && (
-                      <div className="flex gap-2 items-center bg-gray-800/50 p-2 rounded-lg border border-gray-700/50 mb-2">
-                        <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 팀상금:</span>
-                        <input type="number" placeholder="비율(%)" value={team.fundingRatio || ""} onChange={(e) => {
-                          const val = e.target.value;
-                          const n = [...teamResults];
-                          n[tIdx].fundingRatio = val;
-                          n[tIdx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
-                          setTeamResults(n);
-                        }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                        <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                        <input type="number" placeholder="팀에 분배될 별풍선(수동수정 가능)" value={team.fundingAmount || ""} onChange={(e) => {
-                          const n = [...teamResults];
-                          n[tIdx].fundingAmount = e.target.value;
-                          n[tIdx].fundingRatio = "";
-                          setTeamResults(n);
-                        }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                        <span className="text-gray-500 text-xs font-bold">개</span>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2">
-                      {team.players.map((pName, pIdx) => (
-                        <div key={pIdx} className="flex gap-1">
-                          <input type="text" value={pName} onChange={(e) => { const n = [...teamResults]; n[tIdx].players[pIdx] = e.target.value; setTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
-                          <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...teamResults]; n[tIdx].players.splice(pIdx, 1); setTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="button" onClick={() => { const n = [...teamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
-              </div>
-            )}
-
-            <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
-              {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "결과 DB에 저장 및 갱신"}
-            </button>
-          </form>
-        </div>
-
-        <div className="bg-gradient-to-b from-blue-900/20 to-gray-800 rounded-xl p-6 border border-blue-800/40 shadow-lg">
-          <h2 className="text-xl font-bold text-blue-300 mb-2 flex items-center">
-            <Shield className="w-5 h-5 mr-2" /> WOW 왁타버스 길드 관리
-          </h2>
-          <p className="text-sm text-gray-400 mb-6">
-            와우 서버에서 플레이 중인 버튜버 캐릭터를 등록하고, 방송을 보며 실시간으로 레벨을 갱신해주세요.
-          </p>
-
-          <form onSubmit={handleAddWowMember} className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <input type="text" value={wowStreamerName} onChange={e=>setWowStreamerName(e.target.value)} placeholder="스트리머명 (예: 단답벌레)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-              <input type="text" value={wowNickname} onChange={e=>setWowNickname(e.target.value)} placeholder="와우 닉네임" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-              <input type="text" value={wowJobClass} onChange={e=>setWowJobClass(e.target.value)} placeholder="직업 (예: 전사)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-              <div className="flex gap-2">
-                <input type="number" value={wowLevel} onChange={e=>setWowLevel(e.target.value)} placeholder="레벨" min="1" max="70" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-                <button type="submit" disabled={isWowSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap">
-                  {isWowSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "등록"}
-                </button>
-              </div>
-            </div>
-          </form>
-
-          <div className="flex flex-col sm:flex-row gap-3 mb-4">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={wowAdminSearchTerm}
-                onChange={(e) => setWowAdminSearchTerm(e.target.value)}
-                placeholder="스트리머명, 닉네임, 직업으로 검색..."
-                className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-blue-500 outline-none transition"
-              />
-            </div>
-            <div className="relative w-full sm:w-48">
-               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Filter className="h-4 w-4 text-gray-400" />
-              </div>
-              <select
-                value={wowAdminSortOption}
-                onChange={(e) => setWowAdminSortOption(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm appearance-none focus:border-blue-500 outline-none transition"
-              >
-                <option value="levelDesc">레벨 높은 순 ▼</option>
-                <option value="levelAsc">레벨 낮은 순 ▲</option>
-                <option value="nameAsc">이름 가나다순 정렬</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {wowRoster
-              .filter(member => 
-                member.streamerName.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
-                member.wowNickname.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
-                member.jobClass.toLowerCase().includes(wowAdminSearchTerm.toLowerCase())
-              )
-              .sort((a,b) => {
-                if (wowAdminSortOption === 'levelDesc') return b.level - a.level;
-                if (wowAdminSortOption === 'levelAsc') return a.level - b.level;
-                if (wowAdminSortOption === 'nameAsc') return a.streamerName.localeCompare(b.streamerName);
-                return 0;
-              })
-              .map(member => (
-              <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
-                    <div className="relative w-10 h-10 flex-shrink-0">
-                      {member.isWowPartner ? (
-                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
-                          <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
-                        </div>
-                      ) : (
-                        <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full bg-gray-900 object-cover border border-gray-600" />
-                      )}
-                      {member.isWowPartner && (
-                        <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-0.5 shadow-lg border border-yellow-500/50 z-10">
-                          <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                        </div>
-                      )}
-                    </div>
-                    {member.isWowPartner && (
-                      <span className="text-[9px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest select-none whitespace-nowrap">
-                        와트너
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">{member.streamerName}</span>
-                      <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
-                        {member.jobClass}
-                      </span>
-                    </div>
-                    <div className="text-xs text-blue-400">{member.wowNickname}</div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col gap-2 mr-2">
-                    <button
-                      onClick={() => handleToggleWowPartner(member.id, member.isWowPartner)}
-                      className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
-                        member.isWowPartner 
-                          ? 'bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800' 
-                          : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
-                      }`}
-                    >
-                      {member.isWowPartner ? '👑 와트너 해제' : '🎬 와트너 임명'}
-                    </button>
-                    {member.level >= 40 && (
-                      <button
-                        onClick={() => handleToggleWowApply(member.id, member.isApplied)}
-                        className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
-                          member.isApplied 
-                            ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
-                            : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
-                        }`}
-                      >
-                        {member.isApplied ? '✅ 참가 신청 ON' : '📝 참가 신청 OFF'}
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
-                    <button onClick={() => handleUpdateWowLevel(member.id, member.level - 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Minus className="w-4 h-4"/></button>
-                    <span className="w-12 text-center font-black text-yellow-400">Lv {member.level}</span>
-                    <button onClick={() => handleUpdateWowLevel(member.id, member.level + 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Plus className="w-4 h-4"/></button>
-                  </div>
-                  <button onClick={() => handleDeleteWowMember(member.id)} className="text-gray-500 hover:text-red-400 transition p-2">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {wowRoster.length === 0 && <p className="text-center text-gray-500 py-6">검색된 길드원이 없습니다.</p>}
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원 프로필 이미지 관리
-          </h2>
-          <p className="text-sm text-gray-400 mb-6">
-            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 와우 캐릭터 혹은 버튜버 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
-          </p>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {[...wowRoster].sort((a,b) => a.streamerName.localeCompare(b.streamerName)).map(member => (
-              <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={getWowAvatarSrc(member)} 
-                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} 
-                    alt="avatar" 
-                    className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
-                  />
-                  <span className="font-bold text-white w-20 truncate">{member.streamerName}</span>
-                </div>
-                <div className="flex flex-1 gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={wowImageInputs[member.id] !== undefined ? wowImageInputs[member.id] : (member.imageUrl || "")}
-                    onChange={(e) => setWowImageInputs({...wowImageInputs, [member.id]: e.target.value})}
-                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
-                  />
-                  <button
-                    onClick={() => handleUpdateWowImage(member.id, wowImageInputs[member.id])}
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                  >
-                    저장
-                  </button>
-                </div>
-              </div>
-            ))}
-            {wowRoster.length === 0 && <p className="text-center text-gray-500 py-4">등록된 길드원이 없습니다.</p>}
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그 참가자 이미지 관리
-          </h2>
-          <p className="text-sm text-gray-400 mb-6">
-            인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 종겜 리그 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
-          </p>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
-              <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={getAvatarSrc(player.name)} 
-                    onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
-                    alt="avatar" 
-                    className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
-                  />
-                  <span className="font-bold text-white w-20 truncate">{player.name}</span>
-                </div>
-                <div className="flex flex-1 gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
-                    onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
-                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
-                  />
-                  <button
-                    onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
-                    className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                  >
-                    저장
-                  </button>
-                </div>
-              </div>
-            ))}
-            {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-            <Tv className="w-5 h-5 mr-2 text-indigo-400" /> 종겜 리그 참가자 방송국 주소 관리
-          </h2>
-          <p className="text-sm text-gray-400 mb-6">
-            스트리머의 실제 방송국 주소(유튜브, 치지직, SOOP 등)를 입력해주세요. <br/>(빈칸으로 두시면 선수의 이름으로 자동 검색하여 SOOP으로 연결됩니다.)
-          </p>
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-            {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
-              <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                <div className="flex items-center gap-3 w-28 flex-shrink-0">
-                  <span className="font-bold text-white truncate">{player.name}</span>
-                </div>
-                <div className="flex flex-1 gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={broadcastUrlInputs[player.id] !== undefined ? broadcastUrlInputs[player.id] : (player.broadcastUrl || "")}
-                    onChange={(e) => setBroadcastUrlInputs({...broadcastUrlInputs, [player.id]: e.target.value})}
-                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
-                  />
-                  <button
-                    onClick={() => handleUpdateBroadcastUrl(player.id, broadcastUrlInputs[player.id])}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                  >
-                    저장
-                  </button>
-                </div>
-              </div>
-            ))}
-            {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center">
-            <Swords className="w-5 h-5 mr-2 text-red-400" /> 등록된 경기 관리 (수정 및 삭제)
-          </h2>
-          <p className="text-sm text-gray-400 mb-4">
-            경기를 수정하거나 삭제하면 해당 경기로 증감된 참가자들의 점수가 자동으로 재계산/복구됩니다.
-          </p>
-
-          <div className="space-y-3">
-            {matches.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">등록된 경기가 없습니다.</p>
-            ) : (
-              matches.map((match) => (
-                <div key={match.id} className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                  <div>
-                    <span className="font-bold text-white mr-3">{match.gameName}</span>
-                    <span className="text-xs text-gray-400">{match.date}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleOpenEditMatch(match)} className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition">
-                      <Edit className="w-4 h-4 mr-1" /> 수정
-                    </button>
-                    <button onClick={() => setMatchToDelete(match)} className="flex items-center text-sm bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded transition">
-                      <Trash2 className="w-4 h-4 mr-1" /> 삭제
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
-          <p className="text-sm text-gray-400 mb-4">
-            기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className="text-white">0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
-          </p>
-          <button onClick={() => setShowResetModal(true)} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
-            <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로 시작하기
+        {/* ★ 관리자 탭 분리 메뉴 ★ */}
+        <div className="flex gap-2 bg-gray-900 p-1.5 rounded-xl border border-gray-700">
+          <button 
+            onClick={() => setAdminInnerTab("main")} 
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "main" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+          >
+            <Settings className="w-4 h-4 mr-2" /> 메인 설정
+          </button>
+          <button 
+            onClick={() => setAdminInnerTab("etc")} 
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "etc" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+          >
+            <Layers className="w-4 h-4 mr-2" /> 기타 설정 (공지 등)
           </button>
         </div>
+
+        {/* =========================================================
+            [메인 설정] 탭 컨텐츠
+            ========================================================= */}
+        {adminInnerTab === "main" && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center">
+                  <PlusCircle className="w-6 h-6 mr-2 text-green-400" /> 새 경기 결과 등록
+                </h2>
+              </div>
+
+              <div className="flex bg-gray-900 p-1 rounded-lg mb-6 border border-gray-700">
+                <button type="button" onClick={() => setMatchMode("individual")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${matchMode === "individual" ? "bg-gray-700 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
+                  <User className="w-4 h-4 mr-2" /> 개인전
+                </button>
+                <button type="button" onClick={() => setMatchMode("team")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${matchMode === "team" ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
+                  <Users className="w-4 h-4 mr-2" /> 팀전
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitMatch} className="space-y-6">
+                <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
+                  <label className="flex items-center gap-3 cursor-pointer w-fit">
+                    <input 
+                      type="checkbox" 
+                      checked={hasFunding} 
+                      onChange={(e) => setHasFunding(e.target.checked)} 
+                      className="w-5 h-5 accent-yellow-500 rounded bg-gray-800 border-gray-600 cursor-pointer" 
+                    />
+                    <span className="text-yellow-400 font-bold flex items-center text-base select-none">
+                      <Coins className="w-5 h-5 mr-2" /> 펀딩/상금 결산 추가하기
+                    </span>
+                  </label>
+                  {hasFunding && (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <span className="text-sm text-gray-300 font-bold whitespace-nowrap">총 모인 별풍선 개수:</span>
+                        <div className="flex items-center w-full sm:w-auto">
+                          <input 
+                            type="number" 
+                            placeholder="예: 100000" 
+                            value={totalFunding} 
+                            onChange={(e) => setTotalFunding(e.target.value)} 
+                            className="w-full sm:w-48 bg-gray-900 border border-gray-600 text-yellow-400 font-black rounded-l-lg px-4 py-2 focus:border-yellow-500 outline-none text-right" 
+                          />
+                          <span className="bg-gray-700 border border-l-0 border-gray-600 text-gray-300 px-4 py-2 rounded-r-lg font-bold">개</span>
+                        </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder="게임 이름" className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+                </div>
+
+                {matchMode === "individual" && (
+                  <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3">
+                    <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 입력합니다.</p>
+                    {individualResults.map((r, idx) => (
+                      <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
+                        <div className="flex gap-2">
+                          <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                          <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
+                          <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                          <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults(individualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
+                        </div>
+                        {hasFunding && (
+                          <div className="flex gap-2 items-center sm:pl-[72px]">
+                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
+                            <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
+                              const val = e.target.value;
+                              const n = [...individualResults];
+                              n[idx].fundingRatio = val;
+                              n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
+                              setIndividualResults(n);
+                            }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
+                            <span className="text-gray-500 text-xs font-bold">% ➔</span>
+                            <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
+                              const n = [...individualResults];
+                              n[idx].fundingAmount = e.target.value;
+                              n[idx].fundingRatio = "";
+                              setIndividualResults(n);
+                            }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
+                            <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setIndividualResults([...individualResults, { playerName: "", rank: individualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                  </div>
+                )}
+
+                {matchMode === "team" && (
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold text-indigo-400 mb-2">팀 단위로 순위와 점수를 한 번만 입력하고, 팀원 이름을 추가하세요.</p>
+                    {teamResults.map((team, tIdx) => (
+                      <div key={team.id} className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 relative overflow-hidden flex flex-col">
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
+                        <div className="flex gap-2 mb-3 pb-3 border-b border-gray-800">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 mb-1">순위</span>
+                            <input type="number" value={team.rank} onChange={(e) => { const n = [...teamResults]; n[tIdx].rank = Number(e.target.value); setTeamResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
+                          </div>
+                          <div className="flex flex-col flex-1">
+                            <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
+                            <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...teamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
+                          </div>
+                          <div className="flex flex-col justify-end">
+                            <button type="button" onClick={() => { if (teamResults.length > 2) setTeamResults(teamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
+                          </div>
+                        </div>
+                        {hasFunding && (
+                          <div className="flex gap-2 items-center bg-gray-800/50 p-2 rounded-lg border border-gray-700/50 mb-2">
+                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 팀상금:</span>
+                            <input type="number" placeholder="비율(%)" value={team.fundingRatio || ""} onChange={(e) => {
+                              const val = e.target.value;
+                              const n = [...teamResults];
+                              n[tIdx].fundingRatio = val;
+                              n[tIdx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
+                              setTeamResults(n);
+                            }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
+                            <span className="text-gray-500 text-xs font-bold">% ➔</span>
+                            <input type="number" placeholder="팀에 분배될 별풍선(수동수정 가능)" value={team.fundingAmount || ""} onChange={(e) => {
+                              const n = [...teamResults];
+                              n[tIdx].fundingAmount = e.target.value;
+                              n[tIdx].fundingRatio = "";
+                              setTeamResults(n);
+                            }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
+                            <span className="text-gray-500 text-xs font-bold">개</span>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-2">
+                          {team.players.map((pName, pIdx) => (
+                            <div key={pIdx} className="flex gap-1">
+                              <input type="text" value={pName} onChange={(e) => { const n = [...teamResults]; n[tIdx].players[pIdx] = e.target.value; setTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
+                              <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...teamResults]; n[tIdx].players.splice(pIdx, 1); setTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          ))}
+                        </div>
+                        <button type="button" onClick={() => { const n = [...teamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                  </div>
+                )}
+
+                <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
+                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "결과 DB에 저장 및 갱신"}
+                </button>
+              </form>
+            </div>
+
+            <div className="bg-gradient-to-b from-blue-900/20 to-gray-800 rounded-xl p-6 border border-blue-800/40 shadow-lg">
+              <h2 className="text-xl font-bold text-blue-300 mb-2 flex items-center">
+                <Shield className="w-5 h-5 mr-2" /> WOW 왁타버스 길드 관리
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                와우 서버에서 플레이 중인 버튜버 캐릭터를 등록하고, 방송을 보며 실시간으로 레벨을 갱신해주세요.
+              </p>
+
+              <form onSubmit={handleAddWowMember} className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <input type="text" value={wowStreamerName} onChange={e=>setWowStreamerName(e.target.value)} placeholder="스트리머명 (예: 단답벌레)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                  <input type="text" value={wowNickname} onChange={e=>setWowNickname(e.target.value)} placeholder="와우 닉네임" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                  <input type="text" value={wowJobClass} onChange={e=>setWowJobClass(e.target.value)} placeholder="직업 (예: 전사)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                  <div className="flex gap-2">
+                    <input type="number" value={wowLevel} onChange={e=>setWowLevel(e.target.value)} placeholder="레벨" min="1" max="70" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                    <button type="submit" disabled={isWowSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap">
+                      {isWowSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "등록"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={wowAdminSearchTerm}
+                    onChange={(e) => setWowAdminSearchTerm(e.target.value)}
+                    placeholder="스트리머명, 닉네임, 직업으로 검색..."
+                    className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm focus:border-blue-500 outline-none transition"
+                  />
+                </div>
+                <div className="relative w-full sm:w-48">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Filter className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <select
+                    value={wowAdminSortOption}
+                    onChange={(e) => setWowAdminSortOption(e.target.value)}
+                    className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg pl-10 pr-4 py-2.5 text-sm appearance-none focus:border-blue-500 outline-none transition"
+                  >
+                    <option value="levelDesc">레벨 높은 순 ▼</option>
+                    <option value="levelAsc">레벨 낮은 순 ▲</option>
+                    <option value="nameAsc">이름 가나다순 정렬</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {wowRoster
+                  .filter(member => 
+                    member.streamerName.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
+                    member.wowNickname.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
+                    member.jobClass.toLowerCase().includes(wowAdminSearchTerm.toLowerCase())
+                  )
+                  .sort((a,b) => {
+                    if (wowAdminSortOption === 'levelDesc') return b.level - a.level;
+                    if (wowAdminSortOption === 'levelAsc') return a.level - b.level;
+                    if (wowAdminSortOption === 'nameAsc') return a.streamerName.localeCompare(b.streamerName);
+                    return 0;
+                  })
+                  .map(member => (
+                  <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
+                        <div className="relative w-10 h-10 flex-shrink-0">
+                          {member.isWowPartner ? (
+                            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                              <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
+                            </div>
+                          ) : (
+                            <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full bg-gray-900 object-cover border border-gray-600" />
+                          )}
+                          {member.isWowPartner && (
+                            <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-0.5 shadow-lg border border-yellow-500/50 z-10">
+                              <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                            </div>
+                          )}
+                        </div>
+                        {member.isWowPartner && (
+                          <span className="text-[9px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest select-none whitespace-nowrap">
+                            와트너
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white">{member.streamerName}</span>
+                          <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                            {member.jobClass}
+                          </span>
+                        </div>
+                        <div className="text-xs text-blue-400">{member.wowNickname}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col gap-2 mr-2">
+                        <button
+                          onClick={() => handleToggleWowPartner(member.id, member.isWowPartner)}
+                          className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                            member.isWowPartner 
+                              ? 'bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800' 
+                              : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                          }`}
+                        >
+                          {member.isWowPartner ? '👑 와트너 해제' : '🎬 와트너 임명'}
+                        </button>
+                        {member.level >= 40 && (
+                          <button
+                            onClick={() => handleToggleWowApply(member.id, member.isApplied)}
+                            className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                              member.isApplied 
+                                ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
+                                : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                            }`}
+                          >
+                            {member.isApplied ? '✅ 참가 신청 ON' : '📝 참가 신청 OFF'}
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
+                        <button onClick={() => handleUpdateWowLevel(member.id, member.level - 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Minus className="w-4 h-4"/></button>
+                        <span className="w-12 text-center font-black text-yellow-400">Lv {member.level}</span>
+                        <button onClick={() => handleUpdateWowLevel(member.id, member.level + 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Plus className="w-4 h-4"/></button>
+                      </div>
+                      <button onClick={() => handleDeleteWowMember(member.id)} className="text-gray-500 hover:text-red-400 transition p-2">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {wowRoster.length === 0 && <p className="text-center text-gray-500 py-6">검색된 길드원이 없습니다.</p>}
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+                <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원 프로필 이미지 관리
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 와우 캐릭터 혹은 버튜버 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+              </p>
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {[...wowRoster].sort((a,b) => a.streamerName.localeCompare(b.streamerName)).map(member => (
+                  <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={getWowAvatarSrc(member)} 
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} 
+                        alt="avatar" 
+                        className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
+                      />
+                      <span className="font-bold text-white w-20 truncate">{member.streamerName}</span>
+                    </div>
+                    <div className="flex flex-1 gap-2">
+                      <input
+                        type="text"
+                        placeholder="https://..."
+                        value={wowImageInputs[member.id] !== undefined ? wowImageInputs[member.id] : (member.imageUrl || "")}
+                        onChange={(e) => setWowImageInputs({...wowImageInputs, [member.id]: e.target.value})}
+                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                      />
+                      <button
+                        onClick={() => handleUpdateWowImage(member.id, wowImageInputs[member.id])}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {wowRoster.length === 0 && <p className="text-center text-gray-500 py-4">등록된 길드원이 없습니다.</p>}
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+                <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그 참가자 이미지 관리
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 종겜 리그 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+              </p>
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+                  <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <img 
+                        src={getAvatarSrc(player.name)} 
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
+                        alt="avatar" 
+                        className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
+                      />
+                      <span className="font-bold text-white w-20 truncate">{player.name}</span>
+                    </div>
+                    <div className="flex flex-1 gap-2">
+                      <input
+                        type="text"
+                        placeholder="https://..."
+                        value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
+                        onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
+                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
+                      />
+                      <button
+                        onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+                <Tv className="w-5 h-5 mr-2 text-indigo-400" /> 종겜 리그 참가자 방송국 주소 관리
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                스트리머의 실제 방송국 주소(유튜브, 치지직, SOOP 등)를 입력해주세요. <br/>(빈칸으로 두시면 선수의 이름으로 자동 검색하여 SOOP으로 연결됩니다.)
+              </p>
+
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+                  <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div className="flex items-center gap-3 w-28 flex-shrink-0">
+                      <span className="font-bold text-white truncate">{player.name}</span>
+                    </div>
+                    <div className="flex flex-1 gap-2">
+                      <input
+                        type="text"
+                        placeholder="https://..."
+                        value={broadcastUrlInputs[player.id] !== undefined ? broadcastUrlInputs[player.id] : (player.broadcastUrl || "")}
+                        onChange={(e) => setBroadcastUrlInputs({...broadcastUrlInputs, [player.id]: e.target.value})}
+                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
+                      />
+                      <button
+                        onClick={() => handleUpdateBroadcastUrl(player.id, broadcastUrlInputs[player.id])}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Swords className="w-5 h-5 mr-2 text-red-400" /> 등록된 경기 관리 (수정 및 삭제)
+              </h2>
+              <p className="text-sm text-gray-400 mb-4">
+                경기를 수정하거나 삭제하면 해당 경기로 증감된 참가자들의 점수가 자동으로 재계산/복구됩니다.
+              </p>
+
+              <div className="space-y-3">
+                {matches.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">등록된 경기가 없습니다.</p>
+                ) : (
+                  matches.map((match) => (
+                    <div key={match.id} className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                      <div>
+                        <span className="font-bold text-white mr-3">{match.gameName}</span>
+                        <span className="text-xs text-gray-400">{match.date}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleOpenEditMatch(match)} className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition">
+                          <Edit className="w-4 h-4 mr-1" /> 수정
+                        </button>
+                        <button onClick={() => setMatchToDelete(match)} className="flex items-center text-sm bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded transition">
+                          <Trash2 className="w-4 h-4 mr-1" /> 삭제
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className="text-white">0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
+              </p>
+              <button onClick={() => setShowResetModal(true)} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
+                <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로 시작하기
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================
+            [기타 설정] 탭 컨텐츠 (팝업 관리)
+            ========================================================= */}
+        {adminInnerTab === "etc" && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <h2 className="text-2xl font-bold text-white mb-2 flex items-center">
+                <Megaphone className="w-6 h-6 mr-2 text-indigo-400" /> 사이트 팝업(공지사항) 띄우기
+              </h2>
+              <p className="text-sm text-gray-400 mb-6 break-keep">
+                사이트 방문자들이 접속했을 때 가운데에 나타나는 팝업창을 작성합니다.<br/>
+                유저가 <strong className="text-white">[오늘 하루 보지 않기]</strong>를 누르더라도, 여기서 내용을 새로 수정하여 저장하면 다시 유저들에게 나타납니다!
+              </p>
+
+              <form onSubmit={handleSavePopup} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-300 ml-1">팝업 제목</label>
+                  <input
+                    type="text"
+                    value={popupTitleInput}
+                    onChange={(e) => setPopupTitleInput(e.target.value)}
+                    placeholder="예: 📢 왁타버스 새로운 내전 이벤트 안내!"
+                    className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-indigo-500 outline-none"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-300 ml-1">팝업 상세 내용</label>
+                  <textarea
+                    value={popupContentInput}
+                    onChange={(e) => setPopupContentInput(e.target.value)}
+                    placeholder="공지하실 내용을 입력해주세요. (엔터키를 치면 줄바꿈이 그대로 적용됩니다.)"
+                    className="w-full h-48 bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-indigo-500 outline-none resize-none custom-scrollbar"
+                    required
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
+                    <Megaphone className="w-5 h-5 mr-2" /> 새 내용으로 팝업 띄우기
+                  </button>
+                  <button type="button" onClick={handleDeletePopup} className="flex-1 py-3 bg-red-900/40 hover:bg-red-600 text-red-400 hover:text-white font-bold rounded-lg flex justify-center items-center border border-red-800/50 transition">
+                    <Trash2 className="w-5 h-5 mr-2" /> 팝업 내리기
+                  </button>
+                </div>
+              </form>
+
+              {/* 팝업 미리보기 상태창 */}
+              <div className="mt-8 pt-6 border-t border-gray-700">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center">
+                  <Activity className="w-5 h-5 mr-2 text-gray-400" /> 현재 팝업 송출 상태
+                </h3>
+                {sitePopup && sitePopup.isActive ? (
+                  <div className="bg-gradient-to-b from-gray-900 to-gray-800 p-5 rounded-lg border border-indigo-500/30 shadow-inner">
+                    <div className="flex justify-between items-start mb-3">
+                      <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded font-black tracking-wider">송출 중 (ON)</span>
+                      <span className="text-xs text-gray-500">최종 수정: {new Date(sitePopup.updatedAt).toLocaleString()}</span>
+                    </div>
+                    <h4 className="text-xl font-bold text-white mb-3">{sitePopup.title}</h4>
+                    <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{sitePopup.content}</p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-900 p-5 rounded-lg border border-gray-700 flex flex-col items-center justify-center py-10">
+                    <CheckSquare className="w-10 h-10 text-gray-600 mb-3" />
+                    <p className="text-gray-400 font-medium">현재 유저들에게 노출 중인 팝업이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   };
@@ -2330,6 +2462,63 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] font-sans pb-20">
+      
+      {/* =========================================================
+          ★ 유저 친화적인 사이트 공지사항(팝업) 모달 ★
+          ========================================================= */}
+      {showSitePopup && sitePopup && sitePopup.isActive && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden flex flex-col">
+            {/* 팝업 헤더 */}
+            <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800/80">
+              <h3 className="text-lg font-black text-white flex items-center">
+                <Megaphone className="w-5 h-5 mr-2 text-indigo-400" /> 공지사항
+              </h3>
+              <button 
+                onClick={() => setShowSitePopup(false)} 
+                className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* 팝업 내용 */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-gray-900/50">
+              <h2 className="text-xl font-bold text-white mb-4 leading-tight">{sitePopup.title}</h2>
+              <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap break-keep">
+                {sitePopup.content}
+              </p>
+            </div>
+            
+            {/* 팝업 하단 (오늘 하루 보지 않기 + 닫기) */}
+            <div className="p-3 border-t border-gray-700 bg-gray-800 flex justify-between items-center">
+              <label className="flex items-center gap-2 cursor-pointer group px-2">
+                <input 
+                  type="checkbox" 
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      const todayStr = new Date().toISOString().split('T')[0];
+                      localStorage.setItem('wak_popup_hidden_today', `${todayStr}_${sitePopup.updatedAt}`);
+                      setShowSitePopup(false);
+                    }
+                  }}
+                  className="w-4 h-4 accent-indigo-500 rounded bg-gray-700 border-gray-600 cursor-pointer" 
+                />
+                <span className="text-xs font-medium text-gray-400 group-hover:text-gray-200 select-none transition-colors">
+                  오늘 하루 보지 않기
+                </span>
+              </label>
+              <button 
+                onClick={() => setShowSitePopup(false)} 
+                className="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast.show && (
         <div className={`fixed bottom-6 right-6 z-[300] px-6 py-3 rounded-lg shadow-2xl text-white ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}>
           {toast.message}
@@ -2565,7 +2754,7 @@ export default function App() {
                     disabled={cheeringPlayerId === playerInfo.id}
                     className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
                       cheeringPlayerId === playerInfo.id
-                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100" // ★ 처리 중일 때의 디자인
+                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100" 
                         : hasVotedToday
                           ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:bg-pink-500/20"
                           : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]"
