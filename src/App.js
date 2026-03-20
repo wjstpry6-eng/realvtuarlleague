@@ -38,7 +38,8 @@ import {
   Settings,
   Layers,
   Megaphone,
-  CheckSquare
+  CheckSquare,
+  Menu
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -163,6 +164,9 @@ export default function App() {
   const [showSitePopup, setShowSitePopup] = useState(false);
   const [popupTitleInput, setPopupTitleInput] = useState("");
   const [popupContentInput, setPopupContentInput] = useState("");
+
+  // ★ 모바일 퀵 메뉴 플로팅 버튼 상태 ★
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
@@ -2891,6 +2895,67 @@ export default function App() {
         {activeTab === "wow" && renderWowView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
+
+      {/* =========================================================
+          ★ 모바일 전용 퀵 메뉴 플로팅 버튼 (FAB) ★
+          ========================================================= */}
+      {/* 바탕 어두워지는 레이어 (메뉴 밖을 클릭하면 닫히게 함) */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-[390] bg-black/40 backdrop-blur-sm md:hidden transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
+        ></div>
+      )}
+
+      {/* 플로팅 메뉴 컨테이너 */}
+      <div className="fixed bottom-6 left-6 z-[400] md:hidden flex flex-col items-start">
+        
+        {/* 촤라락 펼쳐지는 세로 탭 리스트 */}
+        <div
+          className={`flex flex-col gap-2 mb-4 origin-bottom-left transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+            isMobileMenuOpen ? "scale-100 opacity-100 translate-y-0" : "scale-0 opacity-0 translate-y-10 pointer-events-none"
+          }`}
+        >
+          {[
+            { id: "home", label: "홈", icon: Gamepad2 },
+            { id: "players", label: "선수", icon: User },
+            { id: "matches", label: "경기", icon: Swords },
+            { id: "stats", label: "통계", icon: BarChart3 },
+            { id: "tier", label: "티어", icon: Trophy },
+            { id: "wow", label: "WOW", icon: Shield },
+            { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                navigateTo(item.id);
+                setIsMobileMenuOpen(false); // 탭 이동 후 메뉴 자동 닫기
+              }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${
+                activeTab === item.id
+                  ? "bg-gray-800 border-green-500/50 text-green-400 font-black shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                  : "bg-gray-800/90 border-gray-700/50 text-white font-bold hover:bg-gray-700"
+              }`}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="text-sm">{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 동그란 메인 토글 버튼 */}
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] transition-all duration-300 transform active:scale-95 ${
+            isMobileMenuOpen 
+              ? "bg-gray-800 border border-gray-600 rotate-90 shadow-none text-gray-400" 
+              : "bg-green-600 hover:bg-green-500 rotate-0"
+          }`}
+        >
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
     </div>
   );
 }
