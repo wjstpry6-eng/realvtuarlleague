@@ -439,6 +439,28 @@ export default function App() {
     };
   }, [isAdminAuth, currentAdminName, user]);
 
+  // ★ 방문자 수 카운트 로직 수정 ★
+  useEffect(() => {
+    const recordVisit = async () => {
+      const today = new Date();
+      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const storageKey = `wak_visited_${todayDocId}`;
+      
+      // 수정된 부분: localStorage(영구) 대신 sessionStorage(일회용 탭 전용) 사용
+      // -> F5 새로고침은 방어하되, 새 탭이나 새 창을 열면 즉시 방문자가 오르도록 변경!
+      if (!sessionStorage.getItem(storageKey)) {
+        try {
+          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+          await setDoc(visitRef, { count: increment(1) }, { merge: true });
+          sessionStorage.setItem(storageKey, "true"); 
+        } catch (error) {
+          console.error("방문자 카운트 업데이트 에러:", error);
+        }
+      }
+    };
+    if (user) recordVisit();
+  }, [user]);
+
   const getAvatarSrc = (playerName) => {
     const p = players.find((p) => p.name === playerName);
     return p?.imageUrl?.trim() ? p.imageUrl : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
