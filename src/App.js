@@ -82,12 +82,14 @@ const db = getFirestore(app);
 const appId =
   typeof __app_id !== "undefined" ? __app_id : "virtual-league-dev-final";
 
-// ★ 실전용 상대평가 티어 설정 (비율 기준) ★
+// ★ 실전용 상대평가 티어 설정 (S+ ~ D 총 7단계로 세분화) ★
 const TIER_SETTINGS = [
-  { id: "S", name: "S 티어", color: "bg-red-500", percent: 10, label: "상위 10%" },
-  { id: "A", name: "A 티어", color: "bg-orange-500", percent: 30, label: "상위 11% ~ 30%" },
-  { id: "B", name: "B 티어", color: "bg-yellow-500", percent: 60, label: "상위 31% ~ 60%" },
-  { id: "C", name: "C 티어", color: "bg-green-500", percent: 85, label: "상위 61% ~ 85%" },
+  { id: "S+", name: "S+ 티어", color: "bg-red-800", percent: 5, label: "상위 5%" },
+  { id: "S", name: "S 티어", color: "bg-red-500", percent: 15, label: "상위 6% ~ 15%" },
+  { id: "A+", name: "A+ 티어", color: "bg-orange-600", percent: 30, label: "상위 16% ~ 30%" },
+  { id: "A", name: "A 티어", color: "bg-orange-400", percent: 45, label: "상위 31% ~ 45%" },
+  { id: "B", name: "B 티어", color: "bg-yellow-500", percent: 65, label: "상위 46% ~ 65%" },
+  { id: "C", name: "C 티어", color: "bg-green-500", percent: 85, label: "상위 66% ~ 85%" },
   { id: "D", name: "D 티어", color: "bg-blue-500", percent: 100, label: "하위 15%" },
 ];
 
@@ -1338,14 +1340,24 @@ export default function App() {
     });
 
     const cutoffs = {
-      S: Math.ceil(totalPlayers * 0.10), A: Math.ceil(totalPlayers * 0.30),
-      B: Math.ceil(totalPlayers * 0.60), C: Math.ceil(totalPlayers * 0.85), D: totalPlayers
+      "S+": Math.ceil(totalPlayers * 0.05),
+      "S": Math.ceil(totalPlayers * 0.15),
+      "A+": Math.ceil(totalPlayers * 0.30),
+      "A": Math.ceil(totalPlayers * 0.45),
+      "B": Math.ceil(totalPlayers * 0.65),
+      "C": Math.ceil(totalPlayers * 0.85),
+      "D": totalPlayers
     };
 
     const getTierIdByRank = (rank) => {
       if (totalPlayers === 0) return "D";
-      if (rank <= cutoffs.S) return "S"; if (rank <= cutoffs.A) return "A";
-      if (rank <= cutoffs.B) return "B"; if (rank <= cutoffs.C) return "C"; return "D";
+      if (rank <= cutoffs["S+"]) return "S+";
+      if (rank <= cutoffs["S"]) return "S";
+      if (rank <= cutoffs["A+"]) return "A+";
+      if (rank <= cutoffs["A"]) return "A";
+      if (rank <= cutoffs["B"]) return "B";
+      if (rank <= cutoffs["C"]) return "C";
+      return "D";
     };
 
     const categorizedPlayers = TIER_SETTINGS.map((tier, index) => {
@@ -1377,13 +1389,36 @@ export default function App() {
         </div>
 
         <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden flex flex-col gap-1 p-1">
-          {categorizedPlayers.map((tier) => (
-            <div key={tier.id} className="flex flex-col md:flex-row bg-gray-800 rounded-lg overflow-hidden min-h-[100px]">
-              <div className={`${tier.color} md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-gray-900 shadow-inner`}>
-                <span className="text-2xl font-extrabold text-white text-shadow">{tier.id}</span>
-                <span className="text-xs font-bold text-white/90 mt-1 text-center">{tier.label}</span>
-                <span className="text-[10px] text-white/70 mt-0.5 text-center">{tier.rankLabel}</span>
+          {categorizedPlayers.map((tier) => {
+            const isEmperor = tier.id === "S+";
+            return (
+            <div key={tier.id} className="flex flex-col md:flex-row bg-gray-800 rounded-lg overflow-hidden min-h-[100px] relative border border-gray-700">
+              
+              {/* ★ S+ 티어가 들어간 왼쪽 박스에만 황금빛 오라 적용 (오른쪽 테두리는 깔끔하게 회색으로 통일) ★ */}
+              <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-gray-900 shadow-inner relative z-10 overflow-hidden ${
+                isEmperor 
+                  ? 'bg-gradient-to-br from-gray-900 via-black to-yellow-900/40 shadow-[0_0_20px_rgba(250,204,21,0.4)]' 
+                  : tier.color
+              }`}>
+                {/* 어둠 속에서 뿜어져 나오는 네온 빛반사 효과 */}
+                {isEmperor && (
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-yellow-500/30 via-transparent to-transparent pointer-events-none"></div>
+                )}
+                {/* 은은하게 빛나는 왕관 */}
+                {isEmperor && <Crown className="absolute top-2 right-2 w-4 h-4 text-yellow-400 opacity-90 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />}
+                
+                {/* S+ 텍스트 자체의 황금빛 그라데이션과 그림자 */}
+                <span className={`text-2xl font-extrabold text-shadow relative z-10 ${
+                  isEmperor 
+                    ? 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]' 
+                    : 'text-white'
+                }`}>
+                  {tier.id}
+                </span>
+                <span className={`text-xs font-bold mt-1 text-center relative z-10 ${isEmperor ? 'text-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.5)]' : 'text-white/90'}`}>{tier.label}</span>
+                <span className={`text-[10px] mt-0.5 text-center relative z-10 ${isEmperor ? 'text-yellow-500/80' : 'text-white/70'}`}>{tier.rankLabel}</span>
               </div>
+              
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
                 {tier.players.length > 0 ? (
                   tier.players.map((player) => {
@@ -1408,7 +1443,8 @@ export default function App() {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -1536,7 +1572,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg overflow-hidden mt-8 transition-all duration-300">
+        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8 transition-all duration-300">
           <button
             onClick={() => setIsWowFaqOpen(!isWowFaqOpen)}
             className="w-full p-5 flex items-center justify-between bg-gray-800 hover:bg-gray-700/80 transition-colors outline-none"
@@ -2612,7 +2648,7 @@ export default function App() {
                       <div className="flex gap-2">
                         <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
                         <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
                         <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
                       </div>
                       {editHasFunding && (
@@ -2654,7 +2690,7 @@ export default function App() {
                         </div>
                         <div className="flex flex-col flex-1">
                           <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
-                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setEditTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
+                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
                         </div>
                         <div className="flex flex-col justify-end">
                           <button type="button" onClick={() => { if (editTeamResults.length > 1) setEditTeamResults(editTeamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
