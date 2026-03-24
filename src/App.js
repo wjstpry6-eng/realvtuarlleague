@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Trophy,
   Gamepad2,
@@ -219,6 +219,8 @@ export default function App() {
   const [raidSelectedJobFilter, setRaidSelectedJobFilter] = useState("전체");
   const [raidDragMemberId, setRaidDragMemberId] = useState(null);
   const [raidDragOverSlot, setRaidDragOverSlot] = useState(null);
+  const [isRaidCapturing, setIsRaidCapturing] = useState(false);
+  const raidScreenshotRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(true);
   
@@ -937,6 +939,91 @@ export default function App() {
     });
 
     copyTextToClipboard(lines.join("\n"), "레이드 편성표를 복사했습니다.");
+  };
+
+  const loadHtml2Canvas = async () => {
+    if (typeof window === "undefined") {
+      throw new Error("스크린샷 기능은 브라우저에서만 사용할 수 있습니다.");
+    }
+
+    if (window.html2canvas) return window.html2canvas;
+
+    if (!window.__raidHtml2CanvasPromise) {
+      window.__raidHtml2CanvasPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-raid-html2canvas="true"]');
+
+        const handleResolve = () => {
+          if (window.html2canvas) {
+            resolve(window.html2canvas);
+          } else {
+            reject(new Error("html2canvas를 불러오지 못했습니다."));
+          }
+        };
+
+        const handleError = () => reject(new Error("스크린샷 라이브러리를 불러오지 못했습니다."));
+
+        if (existingScript) {
+          existingScript.addEventListener("load", handleResolve, { once: true });
+          existingScript.addEventListener("error", handleError, { once: true });
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+        script.async = true;
+        script.dataset.raidHtml2canvas = "true";
+        script.onload = handleResolve;
+        script.onerror = handleError;
+        document.body.appendChild(script);
+      }).catch((error) => {
+        window.__raidHtml2CanvasPromise = null;
+        throw error;
+      });
+    }
+
+    return window.__raidHtml2CanvasPromise;
+  };
+
+  const handleCaptureRaidScreenshot = async () => {
+    const target = raidScreenshotRef.current;
+    if (!target) {
+      showToast("캡처할 레이드 편성 영역을 찾지 못했습니다.", "error");
+      return;
+    }
+
+    setIsRaidCapturing(true);
+    try {
+      const html2canvas = await loadHtml2Canvas();
+      const canvas = await html2canvas(target, {
+        backgroundColor: "#020617",
+        scale: Math.min(window.devicePixelRatio || 1.5, 2),
+        useCORS: true,
+        logging: false,
+        imageTimeout: 12000,
+        onclone: (clonedDocument) => {
+          clonedDocument.querySelectorAll('[data-no-screenshot="true"]').forEach((element) => {
+            element.style.display = "none";
+          });
+
+          const captureRoot = clonedDocument.querySelector('[data-raid-screenshot-root="true"]');
+          if (captureRoot) {
+            captureRoot.style.boxShadow = "none";
+            captureRoot.style.borderColor = "rgba(148, 163, 184, 0.28)";
+          }
+        },
+      });
+
+      const downloadLink = document.createElement("a");
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+      downloadLink.href = canvas.toDataURL("image/png");
+      downloadLink.download = `wow-raid-${raidType}raid-${timestamp}.png`;
+      downloadLink.click();
+      showToast("레이드 스크린샷 저장이 시작되었습니다.");
+    } catch (error) {
+      showToast("스크린샷 저장에 실패했습니다. 잠시 후 다시 시도해주세요.", "error");
+    } finally {
+      setIsRaidCapturing(false);
+    }
   };
 
   const handleRaidDragStart = (event, memberId) => {
@@ -2302,16 +2389,49 @@ export default function App() {
       acc[member.jobClass] = (acc[member.jobClass] || 0) + 1;
       return acc;
     }, {});
+
     const raidPartyGridClass = raidType === "40"
-      ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+      ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-4"
       : raidType === "25"
         ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3"
-        : "grid-cols-1 md:grid-cols-2";
-    const isDenseRaidLayout = raidType === "25" || raidType === "40";
+        : raidType === "20"
+          ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+          : "grid-cols-1 md:grid-cols-2";
+
+    const isDenseRaidLayout = raidType === "20" || raidType === "25" || raidType === "40";
     const isUltraDenseRaidLayout = raidType === "40";
+    const raidSlotMinHeightClass = isUltraDenseRaidLayout
+      ? "min-h-[58px]"
+      : raidType === "25"
+        ? "min-h-[64px]"
+        : raidType === "20"
+          ? "min-h-[70px]"
+          : "min-h-[78px]";
+    const raidSlotPaddingClass = isUltraDenseRaidLayout
+      ? "p-2"
+      : isDenseRaidLayout
+        ? "p-2.5"
+        : "p-3";
+    const raidSlotAvatarClass = isUltraDenseRaidLayout
+      ? "w-7 h-7"
+      : isDenseRaidLayout
+        ? "w-8 h-8"
+        : "w-10 h-10";
+    const raidSlotNameClass = isUltraDenseRaidLayout
+      ? "text-[12px]"
+      : isDenseRaidLayout
+        ? "text-[13px]"
+        : "text-sm";
+    const raidSlotInfoClass = isUltraDenseRaidLayout ? "text-[10px]" : "text-[11px]";
+    const raidSlotMetaClass = isUltraDenseRaidLayout ? "text-[9px]" : "text-[10px]";
+    const raidGroupInnerClass = isUltraDenseRaidLayout
+      ? "p-2 space-y-1.5"
+      : isDenseRaidLayout
+        ? "p-2.5 space-y-2"
+        : "p-3 space-y-2.5";
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <button
             onClick={() => navigateTo("wow")}
@@ -2334,6 +2454,17 @@ export default function App() {
               <Copy className="w-4 h-4 mr-2" /> 편성표 복사
             </button>
             <button
+              onClick={handleCaptureRaidScreenshot}
+              disabled={isRaidCapturing}
+              className={`inline-flex items-center px-3.5 py-2 rounded-xl border transition ${
+                isRaidCapturing
+                  ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100 cursor-wait'
+                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
+              }`}
+            >
+              {isRaidCapturing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Camera className="w-4 h-4 mr-2" />} 스크린샷 저장
+            </button>
+            <button
               onClick={handleResetRaid}
               className="inline-flex items-center px-3.5 py-2 rounded-xl border border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
             >
@@ -2342,11 +2473,11 @@ export default function App() {
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl border border-fuchsia-500/20 bg-gradient-to-r from-[#1b1331] via-[#141a33] to-[#10203a] p-8 shadow-[0_20px_60px_rgba(76,29,149,0.18)]">
+        <div className="relative overflow-hidden rounded-3xl border border-fuchsia-500/20 bg-gradient-to-r from-[#1b1331] via-[#141a33] to-[#10203a] p-6 shadow-[0_20px_60px_rgba(76,29,149,0.18)]">
           <div className="absolute -top-12 -right-10 w-44 h-44 rounded-full bg-fuchsia-500/10 blur-3xl"></div>
           <div className="absolute -bottom-12 left-16 w-40 h-40 rounded-full bg-blue-500/10 blur-3xl"></div>
 
-          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+          <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
               <h2 className="text-3xl md:text-4xl font-black text-white flex items-center">
                 <span className="mr-3 text-3xl md:text-4xl">⚔️</span> 레이드 구성하기
@@ -2374,8 +2505,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-700 bg-gray-800/85 p-4 md:p-5 shadow-xl">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="text-sm font-black text-white">레이드 종류 선택</div>
               <div className="text-xs text-gray-400 mt-1">규모를 바꾸면 가능한 파티 수가 즉시 바뀌고, 기존 배치는 앞쪽부터 최대한 유지됩니다.</div>
@@ -2401,17 +2532,16 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(280px,30%)_minmax(0,70%)] gap-6 items-start">
-          <div className="space-y-6 xl:sticky xl:top-24">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)] gap-5 items-start">
+          <div className="space-y-5 xl:sticky xl:top-24">
             <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-              <div className="p-5 border-b border-gray-700 bg-gray-900/60">
+              <div className="p-4 border-b border-gray-700 bg-gray-900/60">
                 <h3 className="text-lg font-black text-white flex items-center">
-                  <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 참가 명단
+                  <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
                 </h3>
-                <p className="text-sm text-gray-400 mt-1">왼쪽 참가자를 끌어다가 오른쪽 원하는 슬롯에 놓아 주세요. 클릭 배치도 그대로 지원합니다.</p>
               </div>
 
-              <div className="p-5 space-y-4">
+              <div className="p-4 space-y-3.5">
                 <div className="relative flex items-center w-full bg-gray-900 rounded-xl border border-gray-700 p-1.5 shadow-inner">
                   <div className="flex items-center px-2.5">
                     <Search className="w-4 h-4 text-gray-400" />
@@ -2425,7 +2555,7 @@ export default function App() {
                   />
                 </div>
 
-                <div className="flex overflow-x-auto gap-2 pb-1 custom-scrollbar">
+                <div className="flex flex-wrap gap-2">
                   {wowJobStats.sortedJobs.map((job) => {
                     const count = wowJobStats.stats[job];
                     if (count === 0) return null;
@@ -2438,8 +2568,8 @@ export default function App() {
                       <button
                         key={job}
                         onClick={() => setRaidSelectedJobFilter(job)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-all whitespace-nowrap flex-shrink-0 ${
-                          isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-70 hover:opacity-100'
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
+                          isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-75 hover:opacity-100'
                         }`}
                         style={{
                           ...baseStyle,
@@ -2456,71 +2586,72 @@ export default function App() {
                     );
                   })}
                 </div>
+
                 {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
-                  <div className="rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/5 p-4">
-                    <div className="text-sm font-black text-white mb-2">현재 클릭 선택된 멤버</div>
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={getWowAvatarSrc(raidSelectedMember)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${raidSelectedMember.streamerName}`; }}
-                        alt={raidSelectedMember.streamerName}
-                        className="w-12 h-12 rounded-full object-cover border border-fuchsia-400/40 bg-gray-950"
-                      />
-                      <div className="min-w-0">
-                        <div className="font-black text-white truncate">{raidSelectedMember.streamerName}</div>
-                        <div className="text-xs text-blue-300 truncate">{raidSelectedMember.wowNickname}</div>
-                      </div>
+                  <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2.5 flex items-center gap-3">
+                    <img
+                      src={getWowAvatarSrc(raidSelectedMember)}
+                      onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${raidSelectedMember.streamerName}`; }}
+                      alt={raidSelectedMember.streamerName}
+                      className="w-9 h-9 rounded-full object-cover border border-fuchsia-400/40 bg-gray-950 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] text-fuchsia-200 font-black">클릭 선택됨</div>
+                      <div className="text-sm font-black text-white truncate">{raidSelectedMember.streamerName}</div>
                     </div>
                   </div>
                 )}
 
-                <div className="max-h-[720px] overflow-y-auto custom-scrollbar pr-1 space-y-2.5">
-                  {raidAvailableMembers.map((member) => {
-                    const isSelected = selectedRaidMemberId === member.id;
-                    return (
-                      <div
-                        key={member.id}
-                        draggable
-                        onDragStart={(event) => handleRaidDragStart(event, member.id)}
-                        onDragEnd={clearRaidDragState}
-                        onClick={() => setSelectedRaidMemberId((prev) => prev === member.id ? null : member.id)}
-                        className={`rounded-xl border p-3 transition cursor-grab active:cursor-grabbing ${
-                          isSelected ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_20px_rgba(168,85,247,0.12)]' : 'border-gray-700 bg-gray-900/60 hover:border-gray-500 hover:bg-gray-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={getWowAvatarSrc(member)}
-                            onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                            alt={member.streamerName}
-                            className="w-11 h-11 rounded-full object-cover border border-gray-700 bg-gray-950"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="font-black text-white truncate">{member.streamerName}</div>
-                            <div className="text-xs text-blue-300 truncate">{member.wowNickname}</div>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
-                                {member.jobClass}
-                              </span>
-                              <span className="text-xs font-black text-gray-300">Lv. {member.level}</span>
+                <div className="max-h-[calc(100vh-355px)] min-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-2">
+                    {raidAvailableMembers.map((member) => {
+                      const isSelected = selectedRaidMemberId === member.id;
+                      return (
+                        <div
+                          key={member.id}
+                          draggable
+                          onDragStart={(event) => handleRaidDragStart(event, member.id)}
+                          onDragEnd={clearRaidDragState}
+                          onClick={() => setSelectedRaidMemberId((prev) => prev === member.id ? null : member.id)}
+                          className={`rounded-xl border p-2.5 transition cursor-grab active:cursor-grabbing ${
+                            isSelected ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_20px_rgba(168,85,247,0.12)]' : 'border-gray-700 bg-gray-900/60 hover:border-gray-500 hover:bg-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={getWowAvatarSrc(member)}
+                              onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                              alt={member.streamerName}
+                              className="w-9 h-9 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-black text-white truncate">{member.streamerName}</div>
+                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                                  {member.jobClass}
+                                </span>
+                                <span className="text-[11px] font-black text-gray-300">Lv. {member.level}</span>
+                              </div>
                             </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickAddRaidMember(member.id);
+                              }}
+                              className="shrink-0 w-8 h-8 rounded-lg bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-500/30 hover:bg-fuchsia-500/25 transition flex items-center justify-center"
+                              aria-label="다음 빈칸에 추가"
+                              title="다음 빈칸에 추가"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleQuickAddRaidMember(member.id);
-                            }}
-                            className="shrink-0 px-3 py-2 rounded-lg bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-500/30 hover:bg-fuchsia-500/25 transition text-xs font-black"
-                          >
-                            다음 빈칸
-                          </button>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
 
                   {raidAvailableMembers.length === 0 && (
-                    <div className="rounded-2xl border border-gray-700 bg-gray-900/50 px-6 py-10 text-center text-gray-500">
+                    <div className="rounded-2xl border border-gray-700 bg-gray-900/50 px-6 py-10 text-center text-gray-500 mt-2">
                       조건에 맞는 대기 인원이 없습니다.
                     </div>
                   )}
@@ -2529,19 +2660,16 @@ export default function App() {
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5" ref={raidScreenshotRef} data-raid-screenshot-root="true">
             <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-              <div className="p-5 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-white flex items-center">
-                    <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
-                  </h3>
-                  <p className="text-sm text-gray-400 mt-1">명단에서 끌어다 놓거나, 클릭으로 멤버를 고른 뒤 슬롯을 눌러서도 배치할 수 있습니다.</p>
-                </div>
+              <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <h3 className="text-lg font-black text-white flex items-center">
+                  <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
+                </h3>
 
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(assignedClassStats).length > 0 ? Object.entries(assignedClassStats).sort((a, b) => b[1] - a[1]).map(([job, count]) => (
-                    <span key={job} style={getJobBadgeStyle(job)} className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black border">
+                    <span key={job} style={getJobBadgeStyle(job)} className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border">
                       {job} <span className="ml-1 opacity-80">{count}</span>
                     </span>
                   )) : (
@@ -2550,19 +2678,19 @@ export default function App() {
                 </div>
               </div>
 
-              <div className={`p-4 grid gap-4 ${raidPartyGridClass}`}>
+              <div className={`p-3 grid gap-3 ${raidPartyGridClass}`}>
                 {Array.from({ length: raidConfig.groupCount }).map((_, groupIndex) => {
                   const groupMembers = raidAssignments[groupIndex] || [];
                   const filledCount = groupMembers.filter(Boolean).length;
 
                   return (
                     <div key={groupIndex} className="rounded-2xl border border-gray-700 bg-gray-900/55 overflow-hidden">
-                      <div className="px-4 py-3 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-between">
-                        <div className="font-black text-white">파티 {groupIndex + 1}</div>
-                        <div className="text-xs text-gray-400">{filledCount} / {RAID_SLOT_SIZE}</div>
+                      <div className={`px-3 ${isUltraDenseRaidLayout ? 'py-2' : 'py-2.5'} border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-between`}>
+                        <div className={`${isUltraDenseRaidLayout ? 'text-sm' : 'text-base'} font-black text-white`}>파티 {groupIndex + 1}</div>
+                        <div className={`${raidSlotInfoClass} text-gray-400`}>{filledCount} / {RAID_SLOT_SIZE}</div>
                       </div>
 
-                      <div className={`${isUltraDenseRaidLayout ? "p-2.5 space-y-2" : isDenseRaidLayout ? "p-3 space-y-2.5" : "p-3 space-y-3"}`}>
+                      <div className={raidGroupInnerClass}>
                         {groupMembers.map((memberId, slotIndex) => {
                           const member = memberId ? raidMemberMap[memberId] : null;
                           const isLocked = isLockedRaidSlot(groupIndex, slotIndex);
@@ -2587,7 +2715,7 @@ export default function App() {
                               draggable={Boolean(member && !isLocked)}
                               onDragStart={(event) => handleRaidDragStart(event, memberId)}
                               onDragEnd={clearRaidDragState}
-                              className={`w-full rounded-2xl border text-left transition overflow-hidden ${
+                              className={`w-full rounded-xl border text-left transition overflow-hidden ${
                                 isDropTarget
                                   ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_22px_rgba(168,85,247,0.18)]'
                                   : isSelected
@@ -2597,60 +2725,54 @@ export default function App() {
                                       : 'border-dashed border-gray-700 bg-gray-900/60 hover:border-fuchsia-500/40 hover:bg-gray-900'
                               } ${member && !isLocked ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                             >
-                              <div className={`flex items-stretch ${isUltraDenseRaidLayout ? "min-h-[70px]" : isDenseRaidLayout ? "min-h-[78px]" : "min-h-[88px]"}`}>
-                                <div className={`w-1.5 ${isLocked ? 'bg-yellow-400' : member ? 'bg-blue-500/70' : 'bg-transparent'}`}></div>
-                                <div className={`flex-1 ${isUltraDenseRaidLayout ? "p-2.5" : isDenseRaidLayout ? "p-3" : "p-4"}`}>
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className={`font-black tracking-[0.18em] text-gray-500 mb-1 ${isUltraDenseRaidLayout ? "text-[10px]" : "text-xs"}`}>PARTY {groupIndex + 1} · SLOT {slotIndex + 1}</div>
-                                      {member ? (
-                                        <div className={`flex items-center min-w-0 ${isUltraDenseRaidLayout ? "gap-2" : "gap-3"}`}>
-                                          {member.isGuildMaster ? (
-                                            <div className={`${isUltraDenseRaidLayout ? "w-9 h-9 text-lg" : isDenseRaidLayout ? "w-10 h-10 text-xl" : "w-12 h-12 text-2xl"} rounded-full bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 border border-yellow-400 shadow-[0_0_16px_rgba(250,204,21,0.28)] flex items-center justify-center shrink-0`}>
-                                              👑
-                                            </div>
-                                          ) : (
-                                            <img
-                                              src={getWowAvatarSrc(member)}
-                                              onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                                              alt={member.streamerName}
-                                              className={`${isUltraDenseRaidLayout ? "w-9 h-9" : isDenseRaidLayout ? "w-10 h-10" : "w-12 h-12"} rounded-full object-cover border ${isLocked ? 'border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.35)]' : 'border-gray-700'} bg-gray-950 shrink-0`}
-                                            />
-                                          )}
-                                          <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <span className={`${isUltraDenseRaidLayout ? "text-sm" : "text-base"} font-black text-white truncate`}>{member.streamerName}</span>                                            </div>
-                                            <div className={`${isUltraDenseRaidLayout ? "text-[11px]" : "text-xs"} text-blue-300 truncate mt-0.5`}>{member.wowNickname}</div>
-                                            <div className={`flex items-center gap-2 flex-wrap ${isUltraDenseRaidLayout ? "mt-1" : "mt-2"}`}>
-                                              <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
-                                                {member.jobClass}
-                                              </span>
-                                              <span className={`${isUltraDenseRaidLayout ? "text-[11px]" : "text-xs"} font-black text-gray-300`}>Lv. {member.level}</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          <div className={`${isUltraDenseRaidLayout ? "text-sm" : "text-base"} font-black text-gray-300`}>빈 슬롯</div>
-                                        </div>
-                                      )}
-                                    </div>
+                              <div className={`flex items-center gap-2 ${raidSlotPaddingClass} ${raidSlotMinHeightClass}`}>
+                                <div className={`w-6 shrink-0 ${raidSlotMetaClass} font-black text-center ${isLocked ? 'text-yellow-300' : 'text-gray-500'}`}>{slotIndex + 1}</div>
 
-                                    {member && !isLocked && (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRemoveRaidMember(groupIndex, slotIndex);
-                                        }}
-                                        className={`${isUltraDenseRaidLayout ? "w-7 h-7" : "w-8 h-8"} rounded-full border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-red-400/40 hover:bg-red-500/10 flex items-center justify-center transition shrink-0`}
-                                        aria-label="슬롯에서 제거"
-                                      >
-                                        <X className={`${isUltraDenseRaidLayout ? "w-3.5 h-3.5" : "w-4 h-4"}`} />
-                                      </button>
+                                {member ? (
+                                  <>
+                                    {member.isGuildMaster ? (
+                                      <div className={`${raidSlotAvatarClass} rounded-full bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 border border-yellow-400 shadow-[0_0_16px_rgba(250,204,21,0.28)] flex items-center justify-center shrink-0 ${isUltraDenseRaidLayout ? 'text-sm' : 'text-base'}`}>
+                                        👑
+                                      </div>
+                                    ) : (
+                                      <img
+                                        src={getWowAvatarSrc(member)}
+                                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                                        alt={member.streamerName}
+                                        className={`${raidSlotAvatarClass} rounded-full object-cover border ${isLocked ? 'border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.35)]' : 'border-gray-700'} bg-gray-950 shrink-0`}
+                                      />
                                     )}
+
+                                    <div className="min-w-0 flex-1">
+                                      <div className={`${raidSlotNameClass} font-black text-white truncate`}>{member.streamerName}</div>
+                                      <div className={`flex items-center gap-1.5 mt-1 flex-wrap ${raidSlotInfoClass}`}>
+                                        <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                                          {member.jobClass}
+                                        </span>
+                                        <span className="font-black text-gray-300 whitespace-nowrap">Lv. {member.level}</span>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="min-w-0 flex-1">
+                                    <div className={`${raidSlotNameClass} font-black text-gray-400`}>빈 슬롯</div>
                                   </div>
-                                </div>
+                                )}
+
+                                {member && !isLocked && (
+                                  <button
+                                    type="button"
+                                    data-no-screenshot="true"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveRaidMember(groupIndex, slotIndex);
+                                    }}
+                                    className={`${isUltraDenseRaidLayout ? 'w-6 h-6' : 'w-7 h-7'} rounded-full border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-red-400/40 hover:bg-red-500/10 flex items-center justify-center transition shrink-0`}
+                                    aria-label="슬롯에서 제거"
+                                  >
+                                    <X className={`${isUltraDenseRaidLayout ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           );
