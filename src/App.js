@@ -2456,19 +2456,6 @@ export default function App() {
                     );
                   })}
                 </div>
-
-                <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl border border-yellow-400/30 bg-gradient-to-br from-yellow-300/20 via-amber-300/10 to-yellow-500/20 flex items-center justify-center text-2xl shadow-[0_0_18px_rgba(250,204,21,0.16)] shrink-0">
-                      👑
-                    </div>
-                    <div>
-                      <div className="font-black text-white">길드장 우왁굳 고정 배치</div>
-                      <div className="text-xs text-yellow-200/90 mt-1">모든 레이드에서 1번 파티 1번 슬롯에 자동으로 배치됩니다. 직업은 성기사입니다.</div>
-                    </div>
-                  </div>
-                </div>
-
                 {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
                   <div className="rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/5 p-4">
                     <div className="text-sm font-black text-white mb-2">현재 클릭 선택된 멤버</div>
@@ -2632,13 +2619,7 @@ export default function App() {
                                           )}
                                           <div className="min-w-0 flex-1">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                              <span className={`${isUltraDenseRaidLayout ? "text-sm" : "text-base"} font-black text-white truncate`}>{member.streamerName}</span>
-                                              {isLocked && (
-                                                <span className={`inline-flex items-center rounded-full bg-yellow-500/15 text-yellow-300 border border-yellow-500/30 font-black ${isUltraDenseRaidLayout ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]"}`}>
-                                                  👑 고정 길드장
-                                                </span>
-                                              )}
-                                            </div>
+                                              <span className={`${isUltraDenseRaidLayout ? "text-sm" : "text-base"} font-black text-white truncate`}>{member.streamerName}</span>                                            </div>
                                             <div className={`${isUltraDenseRaidLayout ? "text-[11px]" : "text-xs"} text-blue-300 truncate mt-0.5`}>{member.wowNickname}</div>
                                             <div className={`flex items-center gap-2 flex-wrap ${isUltraDenseRaidLayout ? "mt-1" : "mt-2"}`}>
                                               <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
@@ -2651,7 +2632,6 @@ export default function App() {
                                       ) : (
                                         <div>
                                           <div className={`${isUltraDenseRaidLayout ? "text-sm" : "text-base"} font-black text-gray-300`}>빈 슬롯</div>
-                                          <div className={`${isUltraDenseRaidLayout ? "text-[11px]" : "text-xs"} text-gray-500 mt-1`}>왼쪽 명단에서 멤버를 드래그해 이 자리에 놓으세요.</div>
                                         </div>
                                       )}
                                     </div>
