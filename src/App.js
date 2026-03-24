@@ -62,7 +62,12 @@ import {
   deleteDoc,
   setDoc,
   increment,
-  getDoc
+  getDoc,
+  getDocs,
+  query,
+  where,
+  runTransaction,
+  writeBatch
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -140,6 +145,11 @@ const GUILD_MASTER_MEMBER = {
 };
 
 const BUSKING_VOTE_STORAGE_KEY = "wak_wow_busking_votes_v1";
+const BUSKING_CLIENT_ID_STORAGE_KEY = "wak_wow_busking_client_v1";
+const BUSKING_PUBLIC_REFRESH_MS = 12000;
+const BUSKING_PUBLIC_SUMMARY_DOC_ID = "busking_public";
+const BUSKING_PUBLIC_SHARD_COUNT = 12;
+const BUSKING_PUBLIC_SHARDS_COLLECTION = "public_shards";
 
 const getRaidConfig = (raidType = DEFAULT_RAID_TYPE) => (
   RAID_TYPE_OPTIONS.find((option) => option.id === raidType) || RAID_TYPE_OPTIONS[RAID_TYPE_OPTIONS.length - 1]
@@ -191,6 +201,83 @@ const findNextEmptyRaidSlot = (layout, { skipLockedSlot = false } = {}) => {
   return null;
 };
 
+const sortBuskingParticipants = (participants) => (
+  [...participants].sort((a, b) => {
+    const voteGap = (b.buskingVoteCount || 0) - (a.buskingVoteCount || 0);
+    if (voteGap !== 0) return voteGap;
+    const levelGap = (Number(b.level) || 0) - (Number(a.level) || 0);
+    if (levelGap !== 0) return levelGap;
+    return (a.streamerName || "").localeCompare(b.streamerName || "", "ko");
+  })
+);
+
+const computeBuskingVoteSnapshot = (voteCounts = {}) => {
+  const normalized = Object.entries(voteCounts || {}).reduce((acc, [memberId, count]) => {
+    const safeCount = Number(count) || 0;
+    if (safeCount > 0) acc[memberId] = safeCount;
+    return acc;
+  }, {});
+
+  return {
+    voteCounts: normalized,
+    totalVotes: Object.values(normalized).reduce((sum, count) => sum + (Number(count) || 0), 0),
+  };
+};
+
+const applyBuskingVoteCounts = (roster = [], voteCounts = {}) => (
+  roster.map((member) => ({
+    ...member,
+    buskingVoteCount: Number(voteCounts?.[member.id]) || 0,
+  }))
+);
+
+const getBuskingVoteShardIndex = (seed, shardCount = BUSKING_PUBLIC_SHARD_COUNT) => {
+  const normalizedSeed = `${seed || "busking"}`;
+  let hash = 0;
+  for (let index = 0; index < normalizedSeed.length; index += 1) {
+    hash = ((hash << 5) - hash) + normalizedSeed.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash) % shardCount;
+};
+
+const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) => {
+  const normalizedSettings = {
+    isVotingOpen: false,
+    roundId: "wow-busking-default",
+    startedAt: null,
+    endedAt: null,
+    ...settings,
+  };
+
+  const participants = sortBuskingParticipants(
+    roster
+      .filter((member) => member?.isBuskingParticipant && Number(member?.level) >= 40)
+      .map((member) => ({
+        id: member.id,
+        streamerName: member.streamerName || "",
+        wowNickname: member.wowNickname || "",
+        jobClass: member.jobClass || "",
+        level: Number(member.level) || 0,
+        imageUrl: member.imageUrl || "",
+        broadcastUrl: member.broadcastUrl || "",
+        buskingVoteCount: Number(member.buskingVoteCount) || 0,
+      }))
+  );
+
+  return {
+    roundId: normalizedSettings.roundId || "wow-busking-default",
+    isVotingOpen: !!normalizedSettings.isVotingOpen,
+    startedAt: normalizedSettings.startedAt || null,
+    endedAt: normalizedSettings.endedAt || null,
+    participants,
+    participantCount: participants.length,
+    totalVotes: participants.reduce((sum, member) => sum + (member.buskingVoteCount || 0), 0),
+    leaderId: participants[0]?.id || null,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
@@ -225,8 +312,63 @@ export default function App() {
   const [buskingSettings, setBuskingSettings] = useState({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null });
   const [pendingBuskingVoteId, setPendingBuskingVoteId] = useState(null);
   const [buskingLocalVotes, setBuskingLocalVotes] = useState([]);
+  const [buskingPublicRoster, setBuskingPublicRoster] = useState([]);
+  const [buskingPublicMeta, setBuskingPublicMeta] = useState({ totalVotes: 0, participantCount: 0, updatedAt: null, leaderId: null });
+  const [buskingShardCounts, setBuskingShardCounts] = useState({});
   const [isBuskingAdminSaving, setIsBuskingAdminSaving] = useState(false);
+  const [buskingClientId] = useState(() => {
+    try {
+      const existing = localStorage.getItem(BUSKING_CLIENT_ID_STORAGE_KEY);
+      if (existing) return existing;
+      const generated = `busking-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      localStorage.setItem(BUSKING_CLIENT_ID_STORAGE_KEY, generated);
+      return generated;
+    } catch (error) {
+      return `busking-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+  });
   const raidScreenshotRef = useRef(null);
+
+  const fetchBuskingShardSnapshot = async (roundId) => {
+    const resolvedRoundId = roundId || "wow-busking-default";
+    const shardsRef = collection(db, "artifacts", appId, "public", "data", "busking_rounds", resolvedRoundId, BUSKING_PUBLIC_SHARDS_COLLECTION);
+    const shardsSnap = await getDocs(shardsRef);
+
+    const voteCounts = {};
+    let totalVotes = 0;
+    let latestUpdatedAt = null;
+
+    shardsSnap.forEach((shardDoc) => {
+      const shardData = shardDoc.data() || {};
+      totalVotes += Number(shardData.totalVotes) || 0;
+      if (shardData.updatedAt && (!latestUpdatedAt || new Date(shardData.updatedAt).getTime() > new Date(latestUpdatedAt).getTime())) {
+        latestUpdatedAt = shardData.updatedAt;
+      }
+      const shardCounts = shardData.counts || {};
+      Object.entries(shardCounts).forEach(([memberId, count]) => {
+        voteCounts[memberId] = (voteCounts[memberId] || 0) + (Number(count) || 0);
+      });
+    });
+
+    return { voteCounts, totalVotes, updatedAt: latestUpdatedAt };
+  };
+
+  const persistBuskingPublicSummary = async ({ rosterOverride = null, settingsOverride = null, voteCountsOverride = null } = {}) => {
+    const resolvedRoster = Array.isArray(rosterOverride) ? rosterOverride : wowRoster;
+    let resolvedSettings = settingsOverride;
+
+    if (!resolvedSettings) {
+      const settingsSnap = await getDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"));
+      resolvedSettings = settingsSnap.exists()
+        ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, ...settingsSnap.data() }
+        : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null };
+    }
+
+    const resolvedVoteCounts = voteCountsOverride ?? buskingShardCounts;
+    const summary = buildBuskingPublicSummary(resolvedRoster, resolvedSettings, resolvedVoteCounts);
+    await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID), summary);
+    return summary;
+  };
 
   const [isLoading, setIsLoading] = useState(true);
   
@@ -433,19 +575,23 @@ export default function App() {
       })
   ), [wowRoster]);
 
+  const buskingSourceRoster = useMemo(() => (
+    activeTab === "busking" ? buskingPublicRoster : wowRoster
+  ), [activeTab, buskingPublicRoster, wowRoster]);
+
   const buskingParticipants = useMemo(() => (
-    [...wowRoster]
-      .filter((member) => Number(member.level) >= 40 && member.isBuskingParticipant)
-      .sort((a, b) => {
-        const voteGap = (b.buskingVoteCount || 0) - (a.buskingVoteCount || 0);
-        if (voteGap !== 0) return voteGap;
-        if (b.level !== a.level) return b.level - a.level;
-        return a.streamerName.localeCompare(b.streamerName, "ko");
-      })
-  ), [wowRoster]);
+    sortBuskingParticipants(
+      applyBuskingVoteCounts(
+        [...buskingSourceRoster].filter((member) => Number(member.level) >= 40 && member.isBuskingParticipant),
+        buskingShardCounts
+      )
+    )
+  ), [buskingSourceRoster, buskingShardCounts]);
 
   const buskingTopMembers = useMemo(() => buskingParticipants.slice(0, 3), [buskingParticipants]);
-  const buskingTotalVotes = useMemo(() => buskingParticipants.reduce((sum, member) => sum + (member.buskingVoteCount || 0), 0), [buskingParticipants]);
+  const buskingTotalVotes = useMemo(() => (
+    Object.values(buskingShardCounts).reduce((sum, count) => sum + (Number(count) || 0), 0)
+  ), [buskingShardCounts]);
   const buskingLeader = buskingParticipants[0] || null;
 
   useEffect(() => {
@@ -617,11 +763,6 @@ export default function App() {
       (error) => { console.error(error); setIsLoading(false); }
     );
 
-    const wowRef = collection(db, "artifacts", appId, "public", "data", "wow_roster");
-    const unsubWow = onSnapshot(wowRef, (snapshot) => {
-      setWowRoster(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-    });
-
     const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) setLastUpdated(docSnap.data().lastUpdated);
@@ -658,6 +799,26 @@ export default function App() {
       }
     });
 
+    return () => { unsubPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
+  }, [user]);
+
+
+  useEffect(() => {
+    if (!user) return;
+    if (!["wow", "raid", "admin"].includes(activeTab)) return;
+
+    const wowRef = collection(db, "artifacts", appId, "public", "data", "wow_roster");
+    const unsubWow = onSnapshot(wowRef, (snapshot) => {
+      setWowRoster(snapshot.docs.map((wowDoc) => ({ id: wowDoc.id, ...wowDoc.data() })));
+    });
+
+    return () => unsubWow();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (activeTab !== "admin") return;
+
     const buskingRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
     const unsubBusking = onSnapshot(buskingRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -673,8 +834,122 @@ export default function App() {
       }
     });
 
-    return () => { unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); unsubBusking(); };
-  }, [user]);
+    return () => unsubBusking();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (activeTab !== "busking") return;
+
+    let isCancelled = false;
+    let intervalId = null;
+
+    const fetchBuskingData = async () => {
+      try {
+        const summaryRef = doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID);
+        const summarySnap = await getDoc(summaryRef);
+
+        if (isCancelled) return;
+
+        if (summarySnap.exists()) {
+          const summaryData = summarySnap.data();
+          const resolvedSettings = {
+            isVotingOpen: !!summaryData.isVotingOpen,
+            roundId: summaryData.roundId || "wow-busking-default",
+            startedAt: summaryData.startedAt || null,
+            endedAt: summaryData.endedAt || null,
+          };
+          const shardSnapshot = await fetchBuskingShardSnapshot(resolvedSettings.roundId);
+          if (isCancelled) return;
+
+          const rosterWithVotes = sortBuskingParticipants(applyBuskingVoteCounts(summaryData.participants || [], shardSnapshot.voteCounts));
+          setBuskingSettings(resolvedSettings);
+          setBuskingShardCounts(shardSnapshot.voteCounts);
+          setBuskingPublicRoster(rosterWithVotes.map((member) => ({ ...member, isBuskingParticipant: true })));
+          setBuskingPublicMeta({
+            totalVotes: shardSnapshot.totalVotes,
+            participantCount: Number(summaryData.participantCount) || rosterWithVotes.length,
+            updatedAt: shardSnapshot.updatedAt || summaryData.updatedAt || null,
+            leaderId: rosterWithVotes[0]?.id || null,
+          });
+          return;
+        }
+
+        const settingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
+        const participantsQuery = query(
+          collection(db, "artifacts", appId, "public", "data", "wow_roster"),
+          where("isBuskingParticipant", "==", true)
+        );
+
+        const [settingsSnap, participantsSnap] = await Promise.all([
+          getDoc(settingsRef),
+          getDocs(participantsQuery),
+        ]);
+
+        if (isCancelled) return;
+
+        const fallbackSettings = settingsSnap.exists()
+          ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, ...settingsSnap.data() }
+          : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null };
+        const shardSnapshot = await fetchBuskingShardSnapshot(fallbackSettings.roundId);
+        if (isCancelled) return;
+
+        const fallbackRoster = participantsSnap.docs.map((wowDoc) => ({ id: wowDoc.id, ...wowDoc.data() }));
+        const fallbackSummary = buildBuskingPublicSummary(fallbackRoster, fallbackSettings, shardSnapshot.voteCounts);
+
+        setBuskingSettings(fallbackSettings);
+        setBuskingShardCounts(shardSnapshot.voteCounts);
+        setBuskingPublicRoster(fallbackSummary.participants.map((member) => ({ ...member, isBuskingParticipant: true })));
+        setBuskingPublicMeta({
+          totalVotes: shardSnapshot.totalVotes,
+          participantCount: fallbackSummary.participantCount,
+          updatedAt: shardSnapshot.updatedAt || fallbackSummary.updatedAt,
+          leaderId: fallbackSummary.leaderId,
+        });
+      } catch (error) {
+        console.error("Failed to refresh busking data:", error);
+      }
+    };
+
+    fetchBuskingData();
+    intervalId = window.setInterval(fetchBuskingData, BUSKING_PUBLIC_REFRESH_MS);
+
+    return () => {
+      isCancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (activeTab !== "admin") return;
+
+    let isCancelled = false;
+    let intervalId = null;
+
+    const refreshShardCounts = async () => {
+      try {
+        const shardSnapshot = await fetchBuskingShardSnapshot(buskingSettings.roundId || "wow-busking-default");
+        if (isCancelled) return;
+        setBuskingShardCounts(shardSnapshot.voteCounts);
+        setBuskingPublicMeta((prev) => ({
+          ...prev,
+          totalVotes: shardSnapshot.totalVotes,
+          updatedAt: shardSnapshot.updatedAt || prev.updatedAt || null,
+        }));
+      } catch (error) {
+        console.error("Failed to refresh busking shard counts:", error);
+      }
+    };
+
+    refreshShardCounts();
+    intervalId = window.setInterval(refreshShardCounts, BUSKING_PUBLIC_REFRESH_MS);
+
+    return () => {
+      isCancelled = true;
+      if (intervalId) window.clearInterval(intervalId);
+    };
+  }, [user, activeTab, buskingSettings.roundId]);
 
   useEffect(() => {
     if (sitePopup) {
@@ -855,6 +1130,8 @@ export default function App() {
     if (newLevel < 1) newLevel = 1; if (newLevel > 70) newLevel = 70;
     try { 
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { level: newLevel }); 
+      const nextRoster = wowRoster.map((member) => member.id === id ? { ...member, level: newLevel } : member);
+      await persistBuskingPublicSummary({ rosterOverride: nextRoster, voteCountsOverride: buskingShardCounts });
       await updateLastModifiedTime();
     } catch (error) {}
   };
@@ -883,6 +1160,8 @@ export default function App() {
     }
     try {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { isBuskingParticipant: !currentStatus });
+      const nextRoster = wowRoster.map((member) => member.id === memberId ? { ...member, isBuskingParticipant: !currentStatus } : member);
+      await persistBuskingPublicSummary({ rosterOverride: nextRoster, voteCountsOverride: buskingShardCounts });
       await updateLastModifiedTime();
       showToast(!currentStatus ? "버스킹 참가자로 등록했습니다." : "버스킹 참가자에서 제외했습니다.");
     } catch (error) {
@@ -894,6 +1173,8 @@ export default function App() {
     if (!user) return;
     try {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { broadcastUrl: url || "" });
+      const nextRoster = wowRoster.map((member) => member.id === memberId ? { ...member, broadcastUrl: url || "" } : member);
+      await persistBuskingPublicSummary({ rosterOverride: nextRoster, voteCountsOverride: buskingShardCounts });
       await updateLastModifiedTime();
       showToast("WOW 방송국 주소가 저장되었습니다.");
     } catch (error) {
@@ -905,12 +1186,15 @@ export default function App() {
     if (!user || isBuskingAdminSaving) return;
     setIsBuskingAdminSaving(true);
     try {
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), {
+      const nextSettings = {
+        ...buskingSettings,
         isVotingOpen: true,
         roundId: buskingSettings.roundId || `wow-busking-${Date.now()}`,
         startedAt: new Date().toISOString(),
         endedAt: null,
-      }, { merge: true });
+      };
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      await persistBuskingPublicSummary({ settingsOverride: nextSettings, voteCountsOverride: buskingShardCounts });
       showToast("와우 버스킹 투표를 시작했습니다.");
     } catch (error) {
       showToast("투표 시작 처리 중 오류가 발생했습니다.", "error");
@@ -923,10 +1207,13 @@ export default function App() {
     if (!user || isBuskingAdminSaving) return;
     setIsBuskingAdminSaving(true);
     try {
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), {
+      const nextSettings = {
+        ...buskingSettings,
         isVotingOpen: false,
         endedAt: new Date().toISOString(),
-      }, { merge: true });
+      };
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      await persistBuskingPublicSummary({ settingsOverride: nextSettings, voteCountsOverride: buskingShardCounts });
       showToast("와우 버스킹 투표를 종료했습니다.");
     } catch (error) {
       showToast("투표 종료 처리 중 오류가 발생했습니다.", "error");
@@ -940,20 +1227,32 @@ export default function App() {
     setIsBuskingAdminSaving(true);
     const nextRoundId = `wow-busking-${Date.now()}`;
     try {
-      await Promise.all(
-        wowRoster
-          .filter((member) => (member.buskingVoteCount || 0) !== 0)
-          .map((member) => updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", member.id), { buskingVoteCount: 0 }))
-      );
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), {
+      const batch = writeBatch(db);
+      const nextSettings = {
         isVotingOpen: false,
         roundId: nextRoundId,
         startedAt: null,
         endedAt: null,
         resetAt: new Date().toISOString(),
-      }, { merge: true });
+      };
+      batch.set(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      const resetSummary = buildBuskingPublicSummary(wowRoster, nextSettings, {});
+      batch.set(
+        doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID),
+        resetSummary
+      );
+      await batch.commit();
       localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: nextRoundId, votes: [] }));
       setBuskingLocalVotes([]);
+      setBuskingShardCounts({});
+      setBuskingPublicRoster(resetSummary.participants.map((member) => ({ ...member, isBuskingParticipant: true })));
+      setBuskingPublicMeta({
+        totalVotes: 0,
+        participantCount: resetSummary.participantCount,
+        updatedAt: resetSummary.updatedAt,
+        leaderId: resetSummary.leaderId,
+      });
+      setBuskingSettings(nextSettings);
       showToast("와우 버스킹 투표를 초기화했습니다.");
     } catch (error) {
       showToast("투표 초기화 중 오류가 발생했습니다.", "error");
@@ -974,16 +1273,95 @@ export default function App() {
       return;
     }
 
+    const currentRoundId = buskingSettings.roundId || "wow-busking-default";
+    const voteEntryId = `${buskingClientId}__${member.id}`;
+    const shardIndex = getBuskingVoteShardIndex(`${buskingClientId}:${member.id}:${Date.now()}`);
+
     setPendingBuskingVoteId(member.id);
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", member.id), { buskingVoteCount: increment(1) });
-      const currentRoundId = buskingSettings.roundId || "wow-busking-default";
+      await runTransaction(db, async (transaction) => {
+        const settingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
+        const memberRef = doc(db, "artifacts", appId, "public", "data", "wow_roster", member.id);
+        const voteRef = doc(db, "artifacts", appId, "public", "data", "busking_rounds", currentRoundId, "votes", voteEntryId);
+        const shardRef = doc(db, "artifacts", appId, "public", "data", "busking_rounds", currentRoundId, BUSKING_PUBLIC_SHARDS_COLLECTION, `shard_${shardIndex}`);
+
+        const [settingsSnap, memberSnap, voteSnap] = await Promise.all([
+          transaction.get(settingsRef),
+          transaction.get(memberRef),
+          transaction.get(voteRef),
+        ]);
+
+        const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
+        if (!settingsData?.isVotingOpen || (settingsData.roundId || "wow-busking-default") !== currentRoundId) {
+          throw new Error("VOTING_CLOSED");
+        }
+
+        if (!memberSnap.exists()) {
+          throw new Error("MEMBER_NOT_FOUND");
+        }
+
+        if (voteSnap.exists()) {
+          throw new Error("ALREADY_VOTED");
+        }
+
+        const memberData = memberSnap.data();
+        if (!memberData?.isBuskingParticipant || Number(memberData?.level) < 40) {
+          throw new Error("MEMBER_NOT_ELIGIBLE");
+        }
+
+        transaction.set(voteRef, {
+          memberId: member.id,
+          memberName: memberData.streamerName || member.streamerName || "",
+          roundId: currentRoundId,
+          clientId: buskingClientId,
+          shardIndex,
+          createdAt: new Date().toISOString(),
+        });
+
+        transaction.set(shardRef, {
+          shardIndex,
+          roundId: currentRoundId,
+          totalVotes: increment(1),
+          updatedAt: new Date().toISOString(),
+          [`counts.${member.id}`]: increment(1),
+        }, { merge: true });
+      });
+
       const nextVotes = [...buskingLocalVotes, member.id];
       localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: currentRoundId, votes: nextVotes }));
       setBuskingLocalVotes(nextVotes);
+
+      const nextCounts = {
+        ...buskingShardCounts,
+        [member.id]: (Number(buskingShardCounts[member.id]) || 0) + 1,
+      };
+      setBuskingShardCounts(nextCounts);
+
+      let optimisticRoster = [];
+      setBuskingPublicRoster((prev) => {
+        optimisticRoster = sortBuskingParticipants(applyBuskingVoteCounts(prev, nextCounts));
+        return optimisticRoster;
+      });
+      setBuskingPublicMeta((prev) => ({
+        ...prev,
+        totalVotes: (prev.totalVotes || 0) + 1,
+        updatedAt: new Date().toISOString(),
+        leaderId: optimisticRoster[0]?.id || prev.leaderId || null,
+      }));
       showToast(`${member.streamerName}님에게 응원 투표를 반영했습니다!`);
     } catch (error) {
-      showToast("버스킹 투표 처리 중 오류가 발생했습니다.", "error");
+      if (error?.message === "ALREADY_VOTED") {
+        const nextVotes = buskingLocalVotes.includes(member.id) ? buskingLocalVotes : [...buskingLocalVotes, member.id];
+        localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: currentRoundId, votes: nextVotes }));
+        setBuskingLocalVotes(nextVotes);
+        showToast(`${member.streamerName}님에게는 이미 투표를 완료했습니다.`);
+      } else if (error?.message === "VOTING_CLOSED") {
+        showToast("투표가 닫혀 있어 응원 투표를 반영할 수 없습니다.", "error");
+      } else if (error?.message === "MEMBER_NOT_ELIGIBLE") {
+        showToast("현재 이 참가자에게는 투표할 수 없습니다.", "error");
+      } else {
+        showToast("버스킹 투표 처리 중 오류가 발생했습니다.", "error");
+      }
     } finally {
       setPendingBuskingVoteId(null);
     }
@@ -2656,6 +3034,8 @@ export default function App() {
                         onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${buskingLeader.streamerName}`; }}
                         alt={buskingLeader.streamerName}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                     <div className="min-w-0">
@@ -2736,6 +3116,8 @@ export default function App() {
                       onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
                       alt={member.streamerName}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                   <h4 className="text-xl font-black text-white">{member.streamerName}</h4>
