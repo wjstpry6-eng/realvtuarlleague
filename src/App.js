@@ -216,7 +216,7 @@ export default function App() {
   const [raidAssignments, setRaidAssignments] = useState(() => createEmptyRaidLayout(getRaidConfig(DEFAULT_RAID_TYPE).groupCount, GUILD_MASTER_ID));
   const [selectedRaidMemberId, setSelectedRaidMemberId] = useState(null);
   const [raidSearchInput, setRaidSearchInput] = useState("");
-  const [raidSelectedJobFilter, setRaidSelectedJobFilter] = useState("전체");
+  const [raidSelectedJobFilters, setRaidSelectedJobFilters] = useState(["전체"]);
   const [raidDragMemberId, setRaidDragMemberId] = useState(null);
   const [raidDragOverSlot, setRaidDragOverSlot] = useState(null);
   const [isRaidCapturing, setIsRaidCapturing] = useState(false);
@@ -396,8 +396,9 @@ export default function App() {
   const raidAvailableMembers = useMemo(() => {
     let items = wowRoster.filter((member) => !raidAssignedPositions[member.id]);
 
-    if (raidSelectedJobFilter !== "전체") {
-      items = items.filter((member) => member.jobClass === raidSelectedJobFilter);
+    const isAllJobsSelected = raidSelectedJobFilters.includes("전체") || raidSelectedJobFilters.length === 0;
+    if (!isAllJobsSelected) {
+      items = items.filter((member) => raidSelectedJobFilters.includes(member.jobClass));
     }
 
     if (raidSearchInput.trim()) {
@@ -411,9 +412,9 @@ export default function App() {
 
     return [...items].sort((a, b) => {
       if (b.level !== a.level) return b.level - a.level;
-      return a.streamerName.localeCompare(b.streamerName);
+      return a.streamerName.localeCompare(b.streamerName, "ko");
     });
-  }, [wowRoster, raidAssignedPositions, raidSelectedJobFilter, raidSearchInput]);
+  }, [wowRoster, raidAssignedPositions, raidSelectedJobFilters, raidSearchInput]);
 
   useEffect(() => {
     setRaidAssignments((prev) => {
@@ -442,6 +443,22 @@ export default function App() {
   useEffect(() => {
     setRaidAssignments((prev) => resizeRaidLayout(prev, raidConfig.groupCount, GUILD_MASTER_ID));
   }, [raidConfig.groupCount]);
+  const handleRaidJobFilterToggle = (job) => {
+    if (job === "전체") {
+      setRaidSelectedJobFilters(["전체"]);
+      return;
+    }
+
+    setRaidSelectedJobFilters((prev) => {
+      const current = prev.includes("전체") ? [] : prev;
+      const next = current.includes(job)
+        ? current.filter((item) => item !== job)
+        : [...current, job];
+
+      return next.length ? next : ["전체"];
+    });
+  };
+
 
   const handleJobFilterClick = (job) => {
     setSelectedJobFilter(job);
@@ -2560,7 +2577,7 @@ export default function App() {
                   {wowJobStats.sortedJobs.map((job) => {
                     const count = wowJobStats.stats[job];
                     if (count === 0) return null;
-                    const isSelected = raidSelectedJobFilter === job;
+                    const isSelected = raidSelectedJobFilters.includes(job);
                     const baseStyle = job === "전체"
                       ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
                       : getJobBadgeStyle(job);
@@ -2568,7 +2585,7 @@ export default function App() {
                     return (
                       <button
                         key={job}
-                        onClick={() => setRaidSelectedJobFilter(job)}
+                        onClick={() => handleRaidJobFilterToggle(job)}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
                           isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-75 hover:opacity-100'
                         }`}
