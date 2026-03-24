@@ -139,6 +139,8 @@ const GUILD_MASTER_MEMBER = {
   isGuildMaster: true,
 };
 
+const BUSKING_VOTE_STORAGE_KEY = "wak_wow_busking_votes_v1";
+
 const getRaidConfig = (raidType = DEFAULT_RAID_TYPE) => (
   RAID_TYPE_OPTIONS.find((option) => option.id === raidType) || RAID_TYPE_OPTIONS[RAID_TYPE_OPTIONS.length - 1]
 );
@@ -192,7 +194,7 @@ const findNextEmptyRaidSlot = (layout, { skipLockedSlot = false } = {}) => {
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "players", "matches", "stats", "tier", "wow", "raid", "admin"].includes(hash) ? hash : "home";
+    return ["home", "players", "matches", "stats", "tier", "wow", "busking", "raid", "admin"].includes(hash) ? hash : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -220,6 +222,10 @@ export default function App() {
   const [raidDragMemberId, setRaidDragMemberId] = useState(null);
   const [raidDragOverSlot, setRaidDragOverSlot] = useState(null);
   const [isRaidCapturing, setIsRaidCapturing] = useState(false);
+  const [buskingSettings, setBuskingSettings] = useState({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null });
+  const [pendingBuskingVoteId, setPendingBuskingVoteId] = useState(null);
+  const [buskingLocalVotes, setBuskingLocalVotes] = useState([]);
+  const [isBuskingAdminSaving, setIsBuskingAdminSaving] = useState(false);
   const raidScreenshotRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -265,6 +271,7 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageInputs, setImageInputs] = useState({});
   const [wowImageInputs, setWowImageInputs] = useState({});
+  const [wowBroadcastUrlInputs, setWowBroadcastUrlInputs] = useState({});
   const [broadcastUrlInputs, setBroadcastUrlInputs] = useState({});
 
   const [wowStreamerName, setWowStreamerName] = useState("");
@@ -416,6 +423,31 @@ export default function App() {
     });
   }, [wowRoster, raidAssignedPositions, raidSelectedJobFilters, raidSearchInput]);
 
+
+  const buskingEligibleMembers = useMemo(() => (
+    [...wowRoster]
+      .filter((member) => Number(member.level) >= 40)
+      .sort((a, b) => {
+        if (b.level !== a.level) return b.level - a.level;
+        return a.streamerName.localeCompare(b.streamerName, "ko");
+      })
+  ), [wowRoster]);
+
+  const buskingParticipants = useMemo(() => (
+    [...wowRoster]
+      .filter((member) => Number(member.level) >= 40 && member.isBuskingParticipant)
+      .sort((a, b) => {
+        const voteGap = (b.buskingVoteCount || 0) - (a.buskingVoteCount || 0);
+        if (voteGap !== 0) return voteGap;
+        if (b.level !== a.level) return b.level - a.level;
+        return a.streamerName.localeCompare(b.streamerName, "ko");
+      })
+  ), [wowRoster]);
+
+  const buskingTopMembers = useMemo(() => buskingParticipants.slice(0, 3), [buskingParticipants]);
+  const buskingTotalVotes = useMemo(() => buskingParticipants.reduce((sum, member) => sum + (member.buskingVoteCount || 0), 0), [buskingParticipants]);
+  const buskingLeader = buskingParticipants[0] || null;
+
   useEffect(() => {
     setRaidAssignments((prev) => {
       const next = cloneRaidLayout(prev);
@@ -443,6 +475,25 @@ export default function App() {
   useEffect(() => {
     setRaidAssignments((prev) => resizeRaidLayout(prev, raidConfig.groupCount, GUILD_MASTER_ID));
   }, [raidConfig.groupCount]);
+
+
+  useEffect(() => {
+    const currentRoundId = buskingSettings.roundId || "wow-busking-default";
+    try {
+      const stored = JSON.parse(localStorage.getItem(BUSKING_VOTE_STORAGE_KEY) || "{}");
+      if (stored.roundId === currentRoundId && Array.isArray(stored.votes)) {
+        setBuskingLocalVotes(stored.votes);
+      } else {
+        const next = { roundId: currentRoundId, votes: [] };
+        localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify(next));
+        setBuskingLocalVotes([]);
+      }
+    } catch (error) {
+      const next = { roundId: currentRoundId, votes: [] };
+      localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify(next));
+      setBuskingLocalVotes([]);
+    }
+  }, [buskingSettings.roundId]);
   const handleRaidJobFilterToggle = (job) => {
     if (job === "전체") {
       setRaidSelectedJobFilters(["전체"]);
@@ -520,7 +571,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "players", "matches", "stats", "tier", "wow", "raid", "admin"].includes(hash)) setActiveTab(hash);
+      if (["home", "players", "matches", "stats", "tier", "wow", "busking", "raid", "admin"].includes(hash)) setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -607,7 +658,22 @@ export default function App() {
       }
     });
 
-    return () => { unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
+    const buskingRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
+    const unsubBusking = onSnapshot(buskingRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setBuskingSettings({
+          isVotingOpen: false,
+          roundId: "wow-busking-default",
+          startedAt: null,
+          endedAt: null,
+          ...docSnap.data(),
+        });
+      } else {
+        setBuskingSettings({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null });
+      }
+    });
+
+    return () => { unsubPlayers(); unsubMatches(); unsubWow(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); unsubBusking(); };
   }, [user]);
 
   useEffect(() => {
@@ -773,7 +839,10 @@ export default function App() {
         jobClass: wowJobClass.trim(), 
         level: Number(wowLevel), 
         isApplied: false, 
-        isWowPartner: false, 
+        isWowPartner: false,
+        isBuskingParticipant: false,
+        buskingVoteCount: 0,
+        broadcastUrl: "",
         createdAt: new Date().toISOString()
       });
       setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
@@ -804,6 +873,120 @@ export default function App() {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isWowPartner: !currentStatus }); 
       await updateLastModifiedTime();
     } catch (error) {}
+  };
+
+  const handleToggleBuskingParticipant = async (memberId, currentStatus, memberLevel) => {
+    if (!user) return;
+    if (Number(memberLevel) < 40) {
+      showToast("40레벨 이상 길드원만 버스킹 참가자로 지정할 수 있습니다.", "error");
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { isBuskingParticipant: !currentStatus });
+      await updateLastModifiedTime();
+      showToast(!currentStatus ? "버스킹 참가자로 등록했습니다." : "버스킹 참가자에서 제외했습니다.");
+    } catch (error) {
+      showToast("버스킹 참가 상태를 변경하지 못했습니다.", "error");
+    }
+  };
+
+  const handleUpdateWowBroadcastUrl = async (memberId, url) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { broadcastUrl: url || "" });
+      await updateLastModifiedTime();
+      showToast("WOW 방송국 주소가 저장되었습니다.");
+    } catch (error) {
+      showToast("WOW 방송국 주소 저장 중 오류가 발생했습니다.", "error");
+    }
+  };
+
+  const handleStartBuskingVoting = async () => {
+    if (!user || isBuskingAdminSaving) return;
+    setIsBuskingAdminSaving(true);
+    try {
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), {
+        isVotingOpen: true,
+        roundId: buskingSettings.roundId || `wow-busking-${Date.now()}`,
+        startedAt: new Date().toISOString(),
+        endedAt: null,
+      }, { merge: true });
+      showToast("와우 버스킹 투표를 시작했습니다.");
+    } catch (error) {
+      showToast("투표 시작 처리 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsBuskingAdminSaving(false);
+    }
+  };
+
+  const handleStopBuskingVoting = async () => {
+    if (!user || isBuskingAdminSaving) return;
+    setIsBuskingAdminSaving(true);
+    try {
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), {
+        isVotingOpen: false,
+        endedAt: new Date().toISOString(),
+      }, { merge: true });
+      showToast("와우 버스킹 투표를 종료했습니다.");
+    } catch (error) {
+      showToast("투표 종료 처리 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsBuskingAdminSaving(false);
+    }
+  };
+
+  const handleResetBuskingVoting = async () => {
+    if (!user || isBuskingAdminSaving) return;
+    setIsBuskingAdminSaving(true);
+    const nextRoundId = `wow-busking-${Date.now()}`;
+    try {
+      await Promise.all(
+        wowRoster
+          .filter((member) => (member.buskingVoteCount || 0) !== 0)
+          .map((member) => updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", member.id), { buskingVoteCount: 0 }))
+      );
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), {
+        isVotingOpen: false,
+        roundId: nextRoundId,
+        startedAt: null,
+        endedAt: null,
+        resetAt: new Date().toISOString(),
+      }, { merge: true });
+      localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: nextRoundId, votes: [] }));
+      setBuskingLocalVotes([]);
+      showToast("와우 버스킹 투표를 초기화했습니다.");
+    } catch (error) {
+      showToast("투표 초기화 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsBuskingAdminSaving(false);
+    }
+  };
+
+  const handleBuskingVote = async (member) => {
+    if (!user) return;
+    if (pendingBuskingVoteId === member.id) return;
+    if (!buskingSettings.isVotingOpen) {
+      showToast("관리자가 투표를 시작하면 응원 투표가 열립니다.", "error");
+      return;
+    }
+    if (buskingLocalVotes.includes(member.id)) {
+      showToast(`${member.streamerName}님에게는 이미 투표를 완료했습니다.`);
+      return;
+    }
+
+    setPendingBuskingVoteId(member.id);
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", member.id), { buskingVoteCount: increment(1) });
+      const currentRoundId = buskingSettings.roundId || "wow-busking-default";
+      const nextVotes = [...buskingLocalVotes, member.id];
+      localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: currentRoundId, votes: nextVotes }));
+      setBuskingLocalVotes(nextVotes);
+      showToast(`${member.streamerName}님에게 응원 투표를 반영했습니다!`);
+    } catch (error) {
+      showToast("버스킹 투표 처리 중 오류가 발생했습니다.", "error");
+    } finally {
+      setPendingBuskingVoteId(null);
+    }
   };
 
   const copyTextToClipboard = async (text, successMessage) => {
@@ -1382,6 +1565,9 @@ export default function App() {
             </button>
             <button onClick={() => navigateTo("wow")} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-900 to-purple-900 text-white rounded-lg border border-blue-700/50 shadow-lg hover:from-blue-800 hover:to-purple-800 transition">
               <Shield className="w-5 h-5 mr-2" /> 와우 왁타버스 길드
+            </button>
+            <button onClick={() => navigateTo("busking")} className="flex items-center px-4 py-2 bg-gradient-to-r from-fuchsia-700 to-rose-600 text-white rounded-lg border border-fuchsia-400/40 shadow-lg hover:from-fuchsia-600 hover:to-rose-500 transition">
+              <Megaphone className="w-5 h-5 mr-2" /> 이번주 이벤트 : 와우 버스킹
             </button>
           </div>
         </div>
@@ -2397,6 +2583,210 @@ export default function App() {
   };
 
 
+  const renderBuskingView = () => {
+    const maxVotes = Math.max(...buskingParticipants.map((member) => member.buskingVoteCount || 0), 0);
+    const votingStatusLabel = buskingSettings.isVotingOpen ? "투표 진행중" : buskingSettings.endedAt ? "투표 종료" : "투표 준비중";
+    const votingStatusClass = buskingSettings.isVotingOpen
+      ? "bg-rose-500/15 text-rose-300 border-rose-400/40"
+      : buskingSettings.endedAt
+        ? "bg-gray-700/70 text-gray-200 border-gray-500/40"
+        : "bg-amber-500/15 text-amber-200 border-amber-400/40";
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-r from-fuchsia-900/40 via-violet-900/35 to-blue-900/40 border border-fuchsia-500/30 rounded-2xl p-6 md:p-8 shadow-xl overflow-hidden relative">
+          <div className="absolute -right-8 -top-8 opacity-10 pointer-events-none">
+            <Megaphone className="w-40 h-40 text-fuchsia-300" />
+          </div>
+          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="space-y-4 max-w-2xl">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
+                  <Megaphone className="w-8 h-8 md:w-10 md:h-10 text-fuchsia-300" /> 와우 버스킹
+                </h2>
+                <p className="text-gray-300 mt-3 break-keep text-sm md:text-base">
+                  한 스트리머당 1회만 투표 가능, 여러 스트리머에게는 각각 투표 가능
+                </p>
+              </div>
+              <div className={`inline-flex items-center px-3 py-1.5 rounded-full border text-sm font-bold ${votingStatusClass}`}>
+                <Heart className="w-4 h-4 mr-2" /> {votingStatusLabel}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 xl:min-w-[520px]">
+              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
+                <p className="text-sm text-gray-300 mb-2">참가 스트리머</p>
+                <p className="text-3xl font-black text-white">{buskingParticipants.length}<span className="text-base text-gray-400 ml-1">명</span></p>
+              </div>
+              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
+                <p className="text-sm text-gray-300 mb-2">총 투표 수</p>
+                <p className="text-3xl font-black text-rose-300">{buskingTotalVotes}</p>
+              </div>
+              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
+                <p className="text-sm text-gray-300 mb-2">현재 1위</p>
+                <p className="text-xl font-black text-white truncate">{buskingLeader ? buskingLeader.streamerName : "대기중"}</p>
+              </div>
+              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
+                <p className="text-sm text-gray-300 mb-2">투표 라운드</p>
+                <p className="text-lg font-black text-fuchsia-200 truncate">{buskingSettings.roundId || "기본 라운드"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-800 rounded-2xl border border-gray-700 shadow-lg p-6 space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <h3 className="text-2xl font-black text-white flex items-center">
+                <TrendingUp className="w-6 h-6 mr-2 text-rose-400" /> 버스킹 투표 현황
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">현재 응원 흐름이 가장 뜨거운 스트리머를 한눈에 확인할 수 있어요.</p>
+            </div>
+            <span className={`px-3 py-1.5 rounded-full border text-sm font-bold w-fit ${votingStatusClass}`}>{votingStatusLabel}</span>
+          </div>
+
+          {buskingParticipants.length > 0 ? (
+            <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6">
+              <div className="bg-gradient-to-b from-rose-500/15 to-fuchsia-500/10 border border-rose-400/20 rounded-2xl p-5">
+                <p className="text-sm text-rose-200 font-bold mb-4">현재 가장 많은 응원을 받는 스트리머</p>
+                {buskingLeader ? (
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-rose-300/60 shadow-[0_0_20px_rgba(244,114,182,0.25)] bg-gray-900">
+                      <img
+                        src={getWowAvatarSrc(buskingLeader)}
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${buskingLeader.streamerName}`; }}
+                        alt={buskingLeader.streamerName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-300">1위</p>
+                      <p className="text-2xl font-black text-white truncate">{buskingLeader.streamerName}</p>
+                      <p className="text-sm mt-1" style={{ color: WOW_CLASS_COLORS[buskingLeader.jobClass] || '#cbd5e1' }}>{buskingLeader.jobClass} · Lv.{buskingLeader.level}</p>
+                      <p className="text-lg font-black text-rose-300 mt-2">{(buskingLeader.buskingVoteCount || 0).toLocaleString()}표</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-400">아직 참가자가 없습니다.</p>
+                )}
+                {buskingTopMembers.length > 1 && (
+                  <div className="mt-5 space-y-2">
+                    {buskingTopMembers.slice(1).map((member, index) => (
+                      <div key={member.id} className="flex items-center justify-between bg-black/20 rounded-lg px-3 py-2 border border-white/5">
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-400">{index + 2}위</p>
+                          <p className="text-sm font-bold text-white truncate">{member.streamerName}</p>
+                        </div>
+                        <p className="text-sm font-black text-rose-200">{(member.buskingVoteCount || 0).toLocaleString()}표</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {buskingParticipants.map((member, index) => {
+                  const percent = maxVotes > 0 ? Math.max(((member.buskingVoteCount || 0) / maxVotes) * 100, 8) : 8;
+                  return (
+                    <div key={member.id} className="bg-gray-900/70 border border-gray-700 rounded-xl p-4">
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${index === 0 ? 'bg-yellow-500 text-black' : index === 1 ? 'bg-slate-300 text-black' : index === 2 ? 'bg-amber-700 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-bold text-white truncate">{member.streamerName}</p>
+                            <p className="text-xs" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
+                          </div>
+                        </div>
+                        <p className="text-sm md:text-base font-black text-rose-300">{(member.buskingVoteCount || 0).toLocaleString()}표</p>
+                      </div>
+                      <div className="h-3 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
+                        <div className="h-full rounded-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-500" style={{ width: `${percent}%` }}></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="py-16 text-center text-gray-500">
+              <Megaphone className="w-12 h-12 mx-auto mb-3 opacity-25" />
+              아직 버스킹 참가자로 등록된 스트리머가 없습니다.
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {buskingParticipants.map((member) => {
+            const hasVoted = buskingLocalVotes.includes(member.id);
+            const isProcessing = pendingBuskingVoteId === member.id;
+            const broadcastLink = member.broadcastUrl?.trim()
+              ? member.broadcastUrl
+              : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(member.streamerName)}`;
+            const broadcastLabel = member.broadcastUrl?.trim()
+              ? member.broadcastUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+              : 'SOOP 검색으로 이동';
+
+            return (
+              <div key={member.id} className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-fuchsia-500/40 transition-all duration-300 group flex flex-col">
+                <div className="p-5 flex-1 flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-fuchsia-400/40 bg-gray-900 mb-4 shadow-[0_0_18px_rgba(217,70,239,0.16)]">
+                    <img
+                      src={getWowAvatarSrc(member)}
+                      onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                      alt={member.streamerName}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h4 className="text-xl font-black text-white">{member.streamerName}</h4>
+                  <p className="text-sm mt-1" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
+                  <p className="text-xs text-gray-400 mt-3 break-all">방송국 주소: {broadcastLabel}</p>
+                  <p className="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-rose-500/10 border border-rose-400/30 text-rose-200 text-sm font-bold">
+                    💖 {(member.buskingVoteCount || 0).toLocaleString()}표
+                  </p>
+                </div>
+                <div className="px-4 pb-4 space-y-2">
+                  <a
+                    href={broadcastLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors shadow-md"
+                  >
+                    <Tv className="w-4 h-4 mr-2" /> 방송국 가기
+                  </a>
+                  <button
+                    onClick={() => handleBuskingVote(member)}
+                    disabled={isProcessing || !buskingSettings.isVotingOpen || hasVoted}
+                    className={`w-full flex items-center justify-center py-2.5 rounded-lg font-bold text-sm transition-all duration-300 ${
+                      isProcessing
+                        ? 'bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed'
+                        : !buskingSettings.isVotingOpen
+                          ? 'bg-gray-700/70 border border-gray-600 text-gray-300 cursor-not-allowed'
+                          : hasVoted
+                            ? 'bg-rose-500/10 border border-rose-400/40 text-rose-300 cursor-not-allowed'
+                            : 'bg-rose-500 hover:bg-rose-400 text-white shadow-[0_4px_16px_rgba(244,63,94,0.3)]'
+                    }`}
+                  >
+                    {isProcessing ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 투표 반영중...</>
+                    ) : !buskingSettings.isVotingOpen ? (
+                      buskingSettings.endedAt ? '투표 종료' : '투표 준비중'
+                    ) : hasVoted ? (
+                      '투표 완료'
+                    ) : (
+                      <><Heart className="w-4 h-4 mr-2" /> 응원 투표하기</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+
 
   const renderRaidView = () => {
     const totalRaidSlots = raidConfig.totalSlots;
@@ -3254,6 +3644,18 @@ export default function App() {
                             {member.isApplied ? '✅ 참가 신청 ON' : '📝 참가 신청 OFF'}
                           </button>
                         )}
+                        {member.level >= 40 && (
+                          <button
+                            onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
+                            className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                              member.isBuskingParticipant
+                                ? 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-500/50 hover:bg-fuchsia-800'
+                                : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                            }`}
+                          >
+                            {member.isBuskingParticipant ? '🎤 버스킹 참가 ON' : '🎤 버스킹 참가 OFF'}
+                          </button>
+                        )}
                       </div>
 
                       <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
@@ -3268,6 +3670,124 @@ export default function App() {
                   </div>
                 ))}
                 {wowRoster.length === 0 && <p className="text-center text-gray-500 py-6">검색된 길드원이 없습니다.</p>}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-b from-fuchsia-900/20 to-gray-800 rounded-xl p-6 border border-fuchsia-800/40 shadow-lg">
+              <h2 className="text-xl font-bold text-fuchsia-200 mb-2 flex items-center">
+                <Megaphone className="w-5 h-5 mr-2 text-fuchsia-300" /> 와우 버스킹 관리
+              </h2>
+              <p className="text-sm text-gray-400 mb-6 break-keep">
+                40레벨 이상 길드원 중에서 이번 주 버스킹 참가자를 지정하고, 투표를 시작하거나 종료할 수 있습니다.
+              </p>
+
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+                  <p className="text-xs text-gray-400 mb-2">참가 가능 인원</p>
+                  <p className="text-2xl font-black text-white">{buskingEligibleMembers.length}</p>
+                </div>
+                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+                  <p className="text-xs text-gray-400 mb-2">선정된 참가자</p>
+                  <p className="text-2xl font-black text-fuchsia-300">{buskingParticipants.length}</p>
+                </div>
+                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+                  <p className="text-xs text-gray-400 mb-2">총 투표 수</p>
+                  <p className="text-2xl font-black text-rose-300">{buskingTotalVotes}</p>
+                </div>
+                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
+                  <p className="text-xs text-gray-400 mb-2">현재 상태</p>
+                  <p className={`text-lg font-black ${buskingSettings.isVotingOpen ? 'text-rose-300' : 'text-gray-200'}`}>{buskingSettings.isVotingOpen ? '투표 진행중' : buskingSettings.endedAt ? '투표 종료' : '투표 준비중'}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3 mb-6">
+                <button
+                  onClick={handleStartBuskingVoting}
+                  disabled={isBuskingAdminSaving || buskingParticipants.length === 0}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isBuskingAdminSaving || buskingParticipants.length === 0 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-400 text-white shadow-[0_4px_16px_rgba(244,63,94,0.25)]'}`}
+                >
+                  {isBuskingAdminSaving ? '처리 중...' : '투표 시작'}
+                </button>
+                <button
+                  onClick={handleStopBuskingVoting}
+                  disabled={isBuskingAdminSaving}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-500'}`}
+                >
+                  투표 종료
+                </button>
+                <button
+                  onClick={handleResetBuskingVoting}
+                  disabled={isBuskingAdminSaving}
+                  className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-fuchsia-900/50 hover:bg-fuchsia-800 text-fuchsia-200 border border-fuchsia-500/40'}`}
+                >
+                  투표 초기화
+                </button>
+              </div>
+
+              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
+                {buskingEligibleMembers.length > 0 ? buskingEligibleMembers.map((member) => (
+                  <div key={member.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={getWowAvatarSrc(member)}
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                        alt={member.streamerName}
+                        className="w-11 h-11 rounded-full bg-gray-800 object-cover border border-gray-600"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-white truncate">{member.streamerName}</p>
+                        <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
+                      <span className="text-sm font-black text-rose-300 whitespace-nowrap">{(member.buskingVoteCount || 0).toLocaleString()}표</span>
+                      <button
+                        onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${member.isBuskingParticipant ? 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-500/50 hover:bg-fuchsia-800' : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'}`}
+                      >
+                        {member.isBuskingParticipant ? '참가 ON' : '참가 OFF'}
+                      </button>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-center text-gray-500 py-6">40레벨 이상 WOW 길드원이 아직 없습니다.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+              <h2 className="text-xl font-bold text-white mb-2 flex items-center">
+                <Tv className="w-5 h-5 mr-2 text-fuchsia-300" /> WOW 버스킹 방송국 주소 관리
+              </h2>
+              <p className="text-sm text-gray-400 mb-6">
+                버스킹 참가자 카드의 방송국 가기 버튼에 연결될 주소를 입력해주세요. 비워두면 SOOP 검색으로 연결됩니다.
+              </p>
+
+              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
+                {[...wowRoster].sort((a, b) => a.streamerName.localeCompare(b.streamerName, 'ko')).map(member => (
+                  <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div className="flex flex-col justify-center w-32 flex-shrink-0">
+                      <span className="font-bold text-white truncate" title={member.streamerName}>{member.streamerName}</span>
+                      <span className="text-[11px] text-gray-500 truncate">{member.jobClass} · Lv.{member.level}</span>
+                    </div>
+                    <div className="flex flex-1 gap-2">
+                      <input
+                        type="text"
+                        placeholder="https://..."
+                        value={wowBroadcastUrlInputs[member.id] !== undefined ? wowBroadcastUrlInputs[member.id] : (member.broadcastUrl || "")}
+                        onChange={(e) => setWowBroadcastUrlInputs({...wowBroadcastUrlInputs, [member.id]: e.target.value})}
+                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-fuchsia-500 outline-none"
+                      />
+                      <button
+                        onClick={() => handleUpdateWowBroadcastUrl(member.id, wowBroadcastUrlInputs[member.id])}
+                        className="px-3 py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {wowRoster.length === 0 && <p className="text-center text-gray-500 py-4">등록된 길드원이 없습니다.</p>}
               </div>
             </div>
 
@@ -3932,6 +4452,9 @@ export default function App() {
             <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
               <Shield className="w-4 h-4 mr-1" /> WOW
             </button>
+            <button onClick={() => navigateTo("busking")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "busking" ? "bg-fuchsia-900/50 text-fuchsia-300 border border-fuchsia-500/50" : "text-fuchsia-200 hover:text-white hover:bg-gray-800"}`}>
+              <Megaphone className="w-4 h-4 mr-1" /> 와우 버스킹
+            </button>
             <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
               {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
             </button>
@@ -3946,6 +4469,7 @@ export default function App() {
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
         {activeTab === "wow" && renderWowView()}
+        {activeTab === "busking" && renderBuskingView()}
         {activeTab === "raid" && renderRaidView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
@@ -3977,6 +4501,7 @@ export default function App() {
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
             { id: "wow", label: "WOW", icon: Shield },
+            { id: "busking", label: "와우 버스킹", icon: Megaphone },
             { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
           ].map((item) => (
             <button
