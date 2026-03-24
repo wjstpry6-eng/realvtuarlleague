@@ -2477,7 +2477,7 @@ export default function App() {
           <div className="absolute -top-12 -right-10 w-44 h-44 rounded-full bg-fuchsia-500/10 blur-3xl"></div>
           <div className="absolute -bottom-12 left-16 w-40 h-40 rounded-full bg-blue-500/10 blur-3xl"></div>
 
-          <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="max-w-3xl">
               <h2 className="text-3xl md:text-4xl font-black text-white flex items-center">
                 <span className="mr-3 text-3xl md:text-4xl">⚔️</span> 레이드 구성하기
@@ -2539,6 +2539,7 @@ export default function App() {
                 <h3 className="text-lg font-black text-white flex items-center">
                   <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
                 </h3>
+                <p className="mt-2 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
               </div>
 
               <div className="p-4 space-y-3.5">
@@ -2603,7 +2604,7 @@ export default function App() {
                 )}
 
                 <div className="max-h-[calc(100vh-355px)] min-h-[320px] overflow-y-auto custom-scrollbar pr-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     {raidAvailableMembers.map((member) => {
                       const isSelected = selectedRaidMemberId === member.id;
                       return (
@@ -2625,7 +2626,7 @@ export default function App() {
                               className="w-9 h-9 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
                             />
                             <div className="min-w-0 flex-1">
-                              <div className="text-sm font-black text-white truncate">{member.streamerName}</div>
+                              <div className="text-sm font-black text-white break-words leading-tight">{member.streamerName}</div>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                 <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
                                   {member.jobClass}
