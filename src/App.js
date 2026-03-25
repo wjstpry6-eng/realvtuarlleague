@@ -3456,7 +3456,7 @@ export default function App() {
         <div className={`grid ${raidLayoutGridClass} gap-5 items-start`}>
           {isRaidWaitingRoomCollapsed ? (
             <div className="xl:sticky xl:top-24">
-              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
+              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-visible">
                 <div className="p-3 flex flex-col items-center gap-3">
                   <button
                     type="button"
@@ -3703,7 +3703,7 @@ export default function App() {
                   const filledCount = groupMembers.filter(Boolean).length;
 
                   return (
-                    <div key={groupIndex} className="rounded-2xl border border-gray-700 bg-gray-900/55 overflow-hidden">
+                    <div key={groupIndex} className="relative rounded-2xl border border-gray-700 bg-gray-900/55 overflow-visible">
                       <div className={`px-3 ${isUltraDenseRaidLayout ? 'py-2' : 'py-2.5'} border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-between`}>
                         <div className={`${isUltraDenseRaidLayout ? 'text-sm' : 'text-base'} font-black text-white`}>파티 {groupIndex + 1}</div>
                         <div className={`${raidSlotInfoClass} text-gray-400`}>{filledCount} / {RAID_SLOT_SIZE}</div>
