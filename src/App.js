@@ -146,7 +146,7 @@ const GUILD_MASTER_MEMBER = {
 
 const BUSKING_VOTE_STORAGE_KEY = "wak_wow_busking_votes_v1";
 const BUSKING_CLIENT_ID_STORAGE_KEY = "wak_wow_busking_client_v1";
-const BUSKING_PUBLIC_REFRESH_MS = 12000;
+const BUSKING_PUBLIC_REFRESH_MS = 5000;
 const BUSKING_PUBLIC_SUMMARY_DOC_ID = "busking_public";
 const BUSKING_PUBLIC_SHARD_COUNT = 12;
 const BUSKING_PUBLIC_SHARDS_COLLECTION = "public_shards";
@@ -344,8 +344,16 @@ export default function App() {
       if (shardData.updatedAt && (!latestUpdatedAt || new Date(shardData.updatedAt).getTime() > new Date(latestUpdatedAt).getTime())) {
         latestUpdatedAt = shardData.updatedAt;
       }
+
       const shardCounts = shardData.counts || {};
       Object.entries(shardCounts).forEach(([memberId, count]) => {
+        voteCounts[memberId] = (voteCounts[memberId] || 0) + (Number(count) || 0);
+      });
+
+      Object.entries(shardData).forEach(([fieldKey, count]) => {
+        if (!fieldKey.startsWith("counts.")) return;
+        const memberId = fieldKey.slice(7);
+        if (!memberId) return;
         voteCounts[memberId] = (voteCounts[memberId] || 0) + (Number(count) || 0);
       });
     });
@@ -567,13 +575,14 @@ export default function App() {
 
 
   const buskingEligibleMembers = useMemo(() => (
-    [...wowRoster]
-      .filter((member) => Number(member.level) >= 40)
-      .sort((a, b) => {
-        if (b.level !== a.level) return b.level - a.level;
-        return a.streamerName.localeCompare(b.streamerName, "ko");
-      })
-  ), [wowRoster]);
+    applyBuskingVoteCounts(
+      [...wowRoster].filter((member) => Number(member.level) >= 40),
+      buskingShardCounts
+    ).sort((a, b) => {
+      if (b.level !== a.level) return b.level - a.level;
+      return a.streamerName.localeCompare(b.streamerName, "ko");
+    })
+  ), [wowRoster, buskingShardCounts]);
 
   const buskingSourceRoster = useMemo(() => (
     activeTab === "busking" ? buskingPublicRoster : wowRoster
@@ -1323,7 +1332,9 @@ export default function App() {
           roundId: currentRoundId,
           totalVotes: increment(1),
           updatedAt: new Date().toISOString(),
-          [`counts.${member.id}`]: increment(1),
+          counts: {
+            [member.id]: increment(1),
+          },
         }, { merge: true });
       });
 
