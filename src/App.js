@@ -144,6 +144,59 @@ const GUILD_MASTER_MEMBER = {
   isGuildMaster: true,
 };
 
+const RAID_LEVEL_FILTER_OPTIONS = [
+  { id: "50+", label: "50+" },
+  { id: "50-59", label: "50-59" },
+  { id: "60-69", label: "60-69" },
+  { id: "70", label: "70" },
+];
+
+const RAID_ROLE_OPTIONS = [
+  { id: "raidLeader", label: "공대장", iconKey: "crown", toneClass: "text-amber-300", chipClass: "border-amber-400/30 bg-amber-500/10 text-amber-200" },
+  { id: "mainTank", label: "메인탱커", iconKey: "shield", toneClass: "text-sky-300", chipClass: "border-sky-400/30 bg-sky-500/10 text-sky-200" },
+  { id: "subTank", label: "서브탱커", iconKey: "swords", toneClass: "text-orange-300", chipClass: "border-orange-400/30 bg-orange-500/10 text-orange-200" },
+  { id: "mainHealer", label: "메인힐러", iconKey: "sparkles", toneClass: "text-violet-300", chipClass: "border-violet-400/30 bg-violet-500/10 text-violet-200" },
+  { id: "subHealer", label: "서브힐러", iconKey: "heart", toneClass: "text-rose-300", chipClass: "border-rose-400/30 bg-rose-500/10 text-rose-200" },
+];
+
+const getRaidRoleMeta = (roleId) => RAID_ROLE_OPTIONS.find((role) => role.id === roleId) || null;
+
+const renderRaidRoleIcon = (roleId, className = "w-3.5 h-3.5") => {
+  const roleMeta = getRaidRoleMeta(roleId);
+  const iconClassName = `${className} ${roleMeta?.toneClass || "text-white"}`;
+
+  switch (roleMeta?.iconKey) {
+    case "crown":
+      return <Crown className={iconClassName} />;
+    case "shield":
+      return <Shield className={iconClassName} />;
+    case "swords":
+      return <Swords className={iconClassName} />;
+    case "sparkles":
+      return <Sparkles className={iconClassName} />;
+    case "heart":
+      return <Heart className={iconClassName} />;
+    default:
+      return <CheckSquare className={iconClassName} />;
+  }
+};
+
+const matchesRaidLevelFilter = (levelValue, selectedFilters = ["50+"]) => {
+  const level = Number(levelValue) || 0;
+  if (level < 50) return false;
+  if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("50+")) {
+    return true;
+  }
+
+  return selectedFilters.some((filterId) => {
+    if (filterId === "50-59") return level >= 50 && level <= 59;
+    if (filterId === "60-69") return level >= 60 && level <= 69;
+    if (filterId === "70") return level >= 70;
+    return false;
+  });
+};
+
+
 const BUSKING_VOTE_STORAGE_KEY = "wak_wow_busking_votes_v1";
 const BUSKING_CLIENT_ID_STORAGE_KEY = "wak_wow_busking_client_v1";
 const BUSKING_PUBLIC_REFRESH_MS = 5000;
@@ -306,6 +359,12 @@ export default function App() {
   const [selectedRaidMemberId, setSelectedRaidMemberId] = useState(null);
   const [raidSearchInput, setRaidSearchInput] = useState("");
   const [raidSelectedJobFilters, setRaidSelectedJobFilters] = useState(["전체"]);
+  const [raidSelectedLevelFilters, setRaidSelectedLevelFilters] = useState(["50+"]);
+  const [isRaidLevelFilterOpen, setIsRaidLevelFilterOpen] = useState(false);
+  const [isRaidWaitingRoomCollapsed, setIsRaidWaitingRoomCollapsed] = useState(false);
+  const [raidRoleAssignments, setRaidRoleAssignments] = useState({});
+  const [raidRoleMenuSlotKey, setRaidRoleMenuSlotKey] = useState(null);
+  const [isRaidRoleGuideOpen, setIsRaidRoleGuideOpen] = useState(false);
   const [raidDragMemberId, setRaidDragMemberId] = useState(null);
   const [raidDragOverSlot, setRaidDragOverSlot] = useState(null);
   const [isRaidCapturing, setIsRaidCapturing] = useState(false);
@@ -550,8 +609,23 @@ export default function App() {
 
   const raidSelectedMember = selectedRaidMemberId ? raidMemberMap[selectedRaidMemberId] : null;
 
+  const raidEligibleRoster = useMemo(() => (
+    wowRoster.filter((member) => matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
+  ), [wowRoster, raidSelectedLevelFilters]);
+
+  const raidJobStats = useMemo(() => {
+    const stats = { "전체": raidEligibleRoster.length };
+    raidEligibleRoster.forEach((member) => {
+      stats[member.jobClass] = (stats[member.jobClass] || 0) + 1;
+    });
+    const sortedJobs = Object.keys(stats)
+      .filter((key) => key !== "전체")
+      .sort((a, b) => stats[b] - stats[a]);
+    return { stats, sortedJobs: ["전체", ...sortedJobs] };
+  }, [raidEligibleRoster]);
+
   const raidAvailableMembers = useMemo(() => {
-    let items = wowRoster.filter((member) => !raidAssignedPositions[member.id]);
+    let items = raidEligibleRoster.filter((member) => !raidAssignedPositions[member.id]);
 
     const isAllJobsSelected = raidSelectedJobFilters.includes("전체") || raidSelectedJobFilters.length === 0;
     if (!isAllJobsSelected) {
@@ -568,10 +642,10 @@ export default function App() {
     }
 
     return [...items].sort((a, b) => {
-      if (b.level !== a.level) return b.level - a.level;
-      return a.streamerName.localeCompare(b.streamerName, "ko");
+      if ((Number(b.level) || 0) !== (Number(a.level) || 0)) return (Number(b.level) || 0) - (Number(a.level) || 0);
+      return (a.streamerName || "").localeCompare(b.streamerName || "", "ko");
     });
-  }, [wowRoster, raidAssignedPositions, raidSelectedJobFilters, raidSearchInput]);
+  }, [raidEligibleRoster, raidAssignedPositions, raidSelectedJobFilters, raidSearchInput]);
 
 
   const buskingEligibleMembers = useMemo(() => (
@@ -631,6 +705,38 @@ export default function App() {
     setRaidAssignments((prev) => resizeRaidLayout(prev, raidConfig.groupCount, GUILD_MASTER_ID));
   }, [raidConfig.groupCount]);
 
+  useEffect(() => {
+    const assignedMemberIds = new Set(raidAssignedMembers.map((member) => member?.id).filter(Boolean));
+    setRaidRoleAssignments((prev) => {
+      let changed = false;
+      const next = {};
+
+      Object.entries(prev).forEach(([memberId, roles]) => {
+        const safeRoles = Array.isArray(roles) ? roles.filter((roleId) => RAID_ROLE_OPTIONS.some((role) => role.id === roleId)) : [];
+        if (!assignedMemberIds.has(memberId) || safeRoles.length === 0) {
+          changed = true;
+          return;
+        }
+        next[memberId] = safeRoles;
+        if (safeRoles.length !== roles.length) changed = true;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [raidAssignedMembers]);
+
+  useEffect(() => {
+    if (!raidRoleMenuSlotKey && !isRaidRoleGuideOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (event.target.closest('[data-raid-role-layer="true"]')) return;
+      setRaidRoleMenuSlotKey(null);
+      setIsRaidRoleGuideOpen(false);
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [raidRoleMenuSlotKey, isRaidRoleGuideOpen]);
 
   useEffect(() => {
     const currentRoundId = buskingSettings.roundId || "wow-busking-default";
@@ -665,6 +771,38 @@ export default function App() {
     });
   };
 
+  const handleRaidLevelFilterToggle = (filterId) => {
+    if (filterId === "50+") {
+      setRaidSelectedLevelFilters(["50+"]);
+      return;
+    }
+
+    setRaidSelectedLevelFilters((prev) => {
+      const current = prev.includes("50+") ? [] : prev;
+      const next = current.includes(filterId)
+        ? current.filter((item) => item !== filterId)
+        : [...current, filterId];
+
+      return next.length ? next : ["50+"];
+    });
+  };
+
+  const handleToggleRaidRole = (memberId, roleId) => {
+    setRaidRoleAssignments((prev) => {
+      const currentRoles = Array.isArray(prev[memberId]) ? prev[memberId] : [];
+      const nextRoles = currentRoles.includes(roleId)
+        ? currentRoles.filter((item) => item !== roleId)
+        : [...currentRoles, roleId];
+
+      const next = { ...prev };
+      if (nextRoles.length > 0) {
+        next[memberId] = nextRoles;
+      } else {
+        delete next[memberId];
+      }
+      return next;
+    });
+  };
 
   const handleJobFilterClick = (job) => {
     setSelectedJobFilter(job);
@@ -1416,6 +1554,8 @@ export default function App() {
     const member = raidMemberMap[memberId];
     if (!member) return;
 
+    setRaidRoleMenuSlotKey(null);
+
     if (memberId === GUILD_MASTER_ID && !isLockedRaidSlot(targetGroupIndex, targetSlotIndex)) {
       showToast("길드장 우왁굳은 1번 파티 1번 슬롯에 고정됩니다.", "error");
       return;
@@ -1445,6 +1585,15 @@ export default function App() {
 
       if (targetMemberId && targetMemberId !== memberId && sourceSlot) {
         next[sourceSlot.groupIndex][sourceSlot.slotIndex] = targetMemberId;
+      }
+
+      if (targetMemberId && targetMemberId !== memberId && !sourceSlot) {
+        setRaidRoleAssignments((prevRoles) => {
+          if (!prevRoles[targetMemberId]) return prevRoles;
+          const nextRoles = { ...prevRoles };
+          delete nextRoles[targetMemberId];
+          return nextRoles;
+        });
       }
 
       next[targetGroupIndex][targetSlotIndex] = memberId;
@@ -1495,6 +1644,15 @@ export default function App() {
       return next;
     });
 
+    if (removedMemberId) {
+      setRaidRoleAssignments((prev) => {
+        if (!prev[removedMemberId]) return prev;
+        const next = { ...prev };
+        delete next[removedMemberId];
+        return next;
+      });
+    }
+
     if (removedMemberId && selectedRaidMemberId === removedMemberId) {
       setSelectedRaidMemberId(null);
     }
@@ -1505,6 +1663,8 @@ export default function App() {
     setSelectedRaidMemberId(null);
     setRaidDragMemberId(null);
     setRaidDragOverSlot(null);
+    setRaidRoleAssignments({});
+    setRaidRoleMenuSlotKey(null);
     showToast(`${raidConfig.label} 레이드 편성을 초기화했습니다.`);
   };
 
@@ -1590,7 +1750,7 @@ export default function App() {
         logging: false,
         imageTimeout: 12000,
         onclone: (clonedDocument) => {
-          clonedDocument.querySelectorAll('[data-no-screenshot="true"]').forEach((element) => {
+          clonedDocument.querySelectorAll('[data-no-screenshot="true"], [data-raid-role-panel="true"]').forEach((element) => {
             element.style.display = "none";
           });
 
@@ -3189,6 +3349,9 @@ export default function App() {
       acc[member.jobClass] = (acc[member.jobClass] || 0) + 1;
       return acc;
     }, {});
+    const raidLevelSummaryLabel = raidSelectedLevelFilters.includes("50+")
+      ? "50+"
+      : [...raidSelectedLevelFilters].sort((a, b) => RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === a) - RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === b)).join(", ");
 
     const raidPartyGridClass = raidType === "40"
       ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-4"
@@ -3201,34 +3364,36 @@ export default function App() {
     const isDenseRaidLayout = raidType === "20" || raidType === "25" || raidType === "40";
     const isUltraDenseRaidLayout = raidType === "40";
     const raidSlotMinHeightClass = isUltraDenseRaidLayout
-      ? "min-h-[58px]"
+      ? "min-h-[68px]"
       : raidType === "25"
-        ? "min-h-[64px]"
+        ? "min-h-[74px]"
         : raidType === "20"
-          ? "min-h-[70px]"
-          : "min-h-[78px]";
+          ? "min-h-[80px]"
+          : "min-h-[90px]";
     const raidSlotPaddingClass = isUltraDenseRaidLayout
-      ? "p-2"
+      ? "p-2.5"
       : isDenseRaidLayout
-        ? "p-2.5"
-        : "p-3";
+        ? "p-3"
+        : "p-3.5";
     const raidSlotAvatarClass = isUltraDenseRaidLayout
-      ? "w-7 h-7"
+      ? "w-10 h-10"
       : isDenseRaidLayout
-        ? "w-8 h-8"
-        : "w-10 h-10";
+        ? "w-11 h-11"
+        : "w-12 h-12";
     const raidSlotNameClass = isUltraDenseRaidLayout
       ? "text-[12px]"
       : isDenseRaidLayout
         ? "text-[13px]"
         : "text-sm";
     const raidSlotInfoClass = isUltraDenseRaidLayout ? "text-[10px]" : "text-[11px]";
-    const raidSlotMetaClass = isUltraDenseRaidLayout ? "text-[9px]" : "text-[10px]";
     const raidGroupInnerClass = isUltraDenseRaidLayout
       ? "p-2 space-y-1.5"
       : isDenseRaidLayout
         ? "p-2.5 space-y-2"
         : "p-3 space-y-2.5";
+    const raidLayoutGridClass = isRaidWaitingRoomCollapsed
+      ? "grid-cols-1 xl:grid-cols-[88px_minmax(0,1fr)]"
+      : "grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)]";
 
     return (
       <div className="space-y-5">
@@ -3277,14 +3442,14 @@ export default function App() {
           <div className="absolute -top-12 -right-10 w-44 h-44 rounded-full bg-fuchsia-500/10 blur-3xl"></div>
           <div className="absolute -bottom-12 left-16 w-40 h-40 rounded-full bg-blue-500/10 blur-3xl"></div>
 
-          <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-            <div className="max-w-3xl">
-              <h2 className="text-3xl md:text-4xl font-black text-white flex items-center">
+          <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-3xl pt-0.5">
+              <h2 className="text-3xl md:text-4xl font-black text-white flex items-center leading-none">
                 <span className="mr-3 text-3xl md:text-4xl">⚔️</span> 레이드 구성하기
               </h2>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-full xl:min-w-[460px]">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-full xl:min-w-[460px] self-start">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-gray-400 mb-1">현재 레이드</div>
                 <div className="text-2xl font-black text-white">{raidConfig.label}</div>
@@ -3332,141 +3497,234 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)] gap-5 items-start">
-          <div className="space-y-5 xl:sticky xl:top-24">
-            <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-              <div className="p-4 border-b border-gray-700 bg-gray-900/60">
-                <h3 className="text-lg font-black text-white flex items-center">
-                  <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
-                </h3>
-                <p className="mt-2 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
+        <div className={`grid ${raidLayoutGridClass} gap-5 items-start`}>
+          {isRaidWaitingRoomCollapsed ? (
+            <div className="xl:sticky xl:top-24">
+              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
+                <div className="p-3 flex flex-col items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsRaidWaitingRoomCollapsed(false)}
+                    className="w-full rounded-xl border border-gray-700 bg-gray-900/80 text-gray-200 hover:text-white hover:border-fuchsia-500/40 hover:bg-gray-900 transition px-2 py-3 flex flex-col items-center gap-1.5"
+                  >
+                    <Menu className="w-5 h-5" />
+                    <span className="text-[11px] font-black leading-tight text-center">대기실 열기</span>
+                  </button>
+                  <div className="w-full rounded-xl border border-gray-700 bg-gray-900/60 px-2 py-2 text-center">
+                    <div className="text-[10px] text-gray-500">대기 인원</div>
+                    <div className="text-base font-black text-white">{raidAvailableMembers.length}</div>
+                  </div>
+                </div>
               </div>
-
-              <div className="p-4 space-y-3.5">
-                <div className="relative flex items-center w-full bg-gray-900 rounded-xl border border-gray-700 p-1.5 shadow-inner">
-                  <div className="flex items-center px-2.5">
-                    <Search className="w-4 h-4 text-gray-400" />
+            </div>
+          ) : (
+            <div className="space-y-5 xl:sticky xl:top-24">
+              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
+                <div className="p-4 border-b border-gray-700 bg-gray-900/60 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-white flex items-center">
+                      <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
+                    </h3>
+                    <p className="mt-2 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
                   </div>
-                  <input
-                    type="text"
-                    value={raidSearchInput}
-                    onChange={(e) => setRaidSearchInput(e.target.value)}
-                    placeholder="스트리머, 닉네임, 직업 검색"
-                    className="w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsRaidWaitingRoomCollapsed(true)}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800 text-xs font-black text-gray-300 hover:text-white hover:border-fuchsia-500/40 hover:bg-gray-700 transition"
+                  >
+                    <Menu className="w-4 h-4" /> 접기
+                  </button>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {wowJobStats.sortedJobs.map((job) => {
-                    const count = wowJobStats.stats[job];
-                    if (count === 0) return null;
-                    const isSelected = raidSelectedJobFilters.includes(job);
-                    const baseStyle = job === "전체"
-                      ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
-                      : getJobBadgeStyle(job);
-
-                    return (
-                      <button
-                        key={job}
-                        onClick={() => handleRaidJobFilterToggle(job)}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
-                          isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-75 hover:opacity-100'
-                        }`}
-                        style={{
-                          ...baseStyle,
-                          backgroundColor: isSelected ? baseStyle.color : baseStyle.backgroundColor,
-                          color: isSelected ? '#020617' : baseStyle.color,
-                          borderColor: isSelected ? 'transparent' : baseStyle.borderColor,
-                        }}
-                      >
-                        {job}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? 'bg-black/25 text-white' : 'bg-gray-900 text-gray-300'}`}>
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
-                  <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2.5 flex items-center gap-3">
-                    <img
-                      src={getWowAvatarSrc(raidSelectedMember)}
-                      onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${raidSelectedMember.streamerName}`; }}
-                      alt={raidSelectedMember.streamerName}
-                      className="w-9 h-9 rounded-full object-cover border border-fuchsia-400/40 bg-gray-950 shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11px] text-fuchsia-200 font-black">클릭 선택됨</div>
-                      <div className="text-sm font-black text-white truncate">{raidSelectedMember.streamerName}</div>
+                <div className="p-4 space-y-3.5">
+                  <div className="relative flex items-center w-full bg-gray-900 rounded-xl border border-gray-700 p-1.5 shadow-inner">
+                    <div className="flex items-center px-2.5">
+                      <Search className="w-4 h-4 text-gray-400" />
                     </div>
+                    <input
+                      type="text"
+                      value={raidSearchInput}
+                      onChange={(e) => setRaidSearchInput(e.target.value)}
+                      placeholder="스트리머, 닉네임, 직업 검색"
+                      className="w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
+                    />
                   </div>
-                )}
 
-                <div className="max-h-[calc(100vh-355px)] min-h-[320px] overflow-y-auto custom-scrollbar pr-1">
-                  <div className="grid grid-cols-1 gap-2">
-                    {raidAvailableMembers.map((member) => {
-                      const isSelected = selectedRaidMemberId === member.id;
+                  <div className="flex flex-wrap gap-2">
+                    {raidJobStats.sortedJobs.map((job) => {
+                      const count = raidJobStats.stats[job];
+                      if (count === 0) return null;
+                      const isSelected = raidSelectedJobFilters.includes(job);
+                      const baseStyle = job === "전체"
+                        ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
+                        : getJobBadgeStyle(job);
+
                       return (
-                        <div
-                          key={member.id}
-                          draggable
-                          onDragStart={(event) => handleRaidDragStart(event, member.id)}
-                          onDragEnd={clearRaidDragState}
-                          onClick={() => setSelectedRaidMemberId((prev) => prev === member.id ? null : member.id)}
-                          className={`rounded-xl border p-2.5 transition cursor-grab active:cursor-grabbing ${
-                            isSelected ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_20px_rgba(168,85,247,0.12)]' : 'border-gray-700 bg-gray-900/60 hover:border-gray-500 hover:bg-gray-900'
+                        <button
+                          key={job}
+                          onClick={() => handleRaidJobFilterToggle(job)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
+                            isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-75 hover:opacity-100'
                           }`}
+                          style={{
+                            ...baseStyle,
+                            backgroundColor: isSelected ? baseStyle.color : baseStyle.backgroundColor,
+                            color: isSelected ? '#020617' : baseStyle.color,
+                            borderColor: isSelected ? 'transparent' : baseStyle.borderColor,
+                          }}
                         >
-                          <div className="flex items-center gap-2.5">
-                            <img
-                              src={getWowAvatarSrc(member)}
-                              onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                              alt={member.streamerName}
-                              className="w-9 h-9 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-black text-white break-words leading-tight">{member.streamerName}</div>
-                              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
-                                  {member.jobClass}
-                                </span>
-                                <span className="text-[11px] font-black text-gray-300">Lv. {member.level}</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleQuickAddRaidMember(member.id);
-                              }}
-                              className="shrink-0 w-8 h-8 rounded-lg bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-500/30 hover:bg-fuchsia-500/25 transition flex items-center justify-center"
-                              aria-label="다음 빈칸에 추가"
-                              title="다음 빈칸에 추가"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
+                          {job}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? 'bg-black/25 text-white' : 'bg-gray-900 text-gray-300'}`}>
+                            {count}
+                          </span>
+                        </button>
                       );
                     })}
                   </div>
 
-                  {raidAvailableMembers.length === 0 && (
-                    <div className="rounded-2xl border border-gray-700 bg-gray-900/50 px-6 py-10 text-center text-gray-500 mt-2">
-                      조건에 맞는 대기 인원이 없습니다.
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsRaidLevelFilterOpen((prev) => !prev)}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-black transition ${
+                        isRaidLevelFilterOpen ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                      }`}
+                    >
+                      <Filter className="w-3.5 h-3.5" /> 레벨
+                      <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100">{raidLevelSummaryLabel}</span>
+                      {isRaidLevelFilterOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+
+                    <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 ${isRaidLevelFilterOpen ? 'max-w-full opacity-100 translate-x-0' : 'max-w-0 opacity-0 overflow-hidden -translate-x-2 pointer-events-none'}`}>
+                      {RAID_LEVEL_FILTER_OPTIONS.map((option) => {
+                        const isSelected = raidSelectedLevelFilters.includes(option.id);
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => handleRaidLevelFilterToggle(option.id)}
+                            className={`px-3 py-1.5 rounded-full border text-xs font-black transition whitespace-nowrap ${
+                              isSelected
+                                ? 'border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]'
+                                : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
+                    <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2.5 flex items-center gap-3">
+                      <img
+                        src={getWowAvatarSrc(raidSelectedMember)}
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${raidSelectedMember.streamerName}`; }}
+                        alt={raidSelectedMember.streamerName}
+                        className="w-9 h-9 rounded-full object-cover border border-fuchsia-400/40 bg-gray-950 shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] text-fuchsia-200 font-black">클릭 선택됨</div>
+                        <div className="text-sm font-black text-white truncate">{raidSelectedMember.streamerName}</div>
+                      </div>
                     </div>
                   )}
+
+                  <div className="max-h-[calc(100vh-330px)] min-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                    <div className="grid grid-cols-1 gap-2">
+                      {raidAvailableMembers.map((member) => {
+                        const isSelected = selectedRaidMemberId === member.id;
+                        return (
+                          <div
+                            key={member.id}
+                            draggable
+                            onDragStart={(event) => handleRaidDragStart(event, member.id)}
+                            onDragEnd={clearRaidDragState}
+                            onClick={() => setSelectedRaidMemberId((prev) => prev === member.id ? null : member.id)}
+                            className={`rounded-xl border p-2.5 transition cursor-grab active:cursor-grabbing ${
+                              isSelected ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_20px_rgba(168,85,247,0.12)]' : 'border-gray-700 bg-gray-900/60 hover:border-gray-500 hover:bg-gray-900'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={getWowAvatarSrc(member)}
+                                onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                                alt={member.streamerName}
+                                className="w-10 h-10 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-black text-white break-words leading-tight">{member.streamerName}</div>
+                                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                  <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                                    {member.jobClass}
+                                  </span>
+                                  <span className="text-[11px] font-black text-gray-300">Lv. {member.level}</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleQuickAddRaidMember(member.id);
+                                }}
+                                className="shrink-0 w-8 h-8 rounded-lg bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-500/30 hover:bg-fuchsia-500/25 transition flex items-center justify-center"
+                                aria-label="다음 빈칸에 추가"
+                                title="다음 빈칸에 추가"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {raidAvailableMembers.length === 0 && (
+                      <div className="rounded-2xl border border-gray-700 bg-gray-900/50 px-6 py-10 text-center text-gray-500 mt-2">
+                        조건에 맞는 대기 인원이 없습니다.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="space-y-5" ref={raidScreenshotRef} data-raid-screenshot-root="true">
             <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <h3 className="text-lg font-black text-white flex items-center">
-                  <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
-                </h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-lg font-black text-white flex items-center">
+                    <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
+                  </h3>
+                  <div className="relative" data-raid-role-layer="true">
+                    <button
+                      type="button"
+                      onClick={() => setIsRaidRoleGuideOpen((prev) => !prev)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
+                        isRaidRoleGuideOpen ? 'border-violet-400/40 bg-violet-500/15 text-violet-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> 역할 안내
+                    </button>
+                    {isRaidRoleGuideOpen && (
+                      <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
+                        <div className="text-[11px] font-black text-white mb-2">레이드 역할 안내</div>
+                        <div className="space-y-1.5">
+                          {RAID_ROLE_OPTIONS.map((role) => (
+                            <div key={role.id} className="flex items-center gap-2 text-xs text-gray-200">
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg border ${role.chipClass}`}>
+                                {renderRaidRoleIcon(role.id, "w-3.5 h-3.5")}
+                              </span>
+                              <span className="font-semibold">{role.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[10px] text-gray-400">참가자마다 여러 역할을 함께 지정할 수 있습니다.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(assignedClassStats).length > 0 ? Object.entries(assignedClassStats).sort((a, b) => b[1] - a[1]).map(([job, count]) => (
@@ -3496,11 +3754,17 @@ export default function App() {
                           const member = memberId ? raidMemberMap[memberId] : null;
                           const isLocked = isLockedRaidSlot(groupIndex, slotIndex);
                           const isSelected = memberId && selectedRaidMemberId === memberId;
-                          const isDropTarget = raidDragOverSlot === `${groupIndex}-${slotIndex}`;
+                          const slotKey = `${groupIndex}-${slotIndex}`;
+                          const isDropTarget = raidDragOverSlot === slotKey;
+                          const roleIds = member ? (raidRoleAssignments[member.id] || []) : [];
+                          const visibleRoleIds = roleIds.slice(0, 2);
+                          const hiddenRoleCount = Math.max(roleIds.length - visibleRoleIds.length, 0);
+                          const isRoleMenuOpen = raidRoleMenuSlotKey === slotKey;
+                          const roleTooltip = roleIds.map((roleId) => getRaidRoleMeta(roleId)?.label).filter(Boolean).join(', ');
 
                           return (
                             <div
-                              key={`${groupIndex}-${slotIndex}`}
+                              key={slotKey}
                               role="button"
                               tabIndex={0}
                               onClick={() => handleRaidSlotClick(groupIndex, slotIndex)}
@@ -3512,11 +3776,11 @@ export default function App() {
                               }}
                               onDragOver={(event) => handleRaidSlotDragOver(event, groupIndex, slotIndex)}
                               onDrop={(event) => handleRaidSlotDrop(event, groupIndex, slotIndex)}
-                              onDragLeave={() => setRaidDragOverSlot((prev) => prev === `${groupIndex}-${slotIndex}` ? null : prev)}
+                              onDragLeave={() => setRaidDragOverSlot((prev) => prev === slotKey ? null : prev)}
                               draggable={Boolean(member && !isLocked)}
                               onDragStart={(event) => handleRaidDragStart(event, memberId)}
                               onDragEnd={clearRaidDragState}
-                              className={`w-full rounded-xl border text-left transition overflow-hidden ${
+                              className={`w-full rounded-xl border text-left transition overflow-visible ${
                                 isDropTarget
                                   ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_22px_rgba(168,85,247,0.18)]'
                                   : isSelected
@@ -3526,13 +3790,11 @@ export default function App() {
                                       : 'border-dashed border-gray-700 bg-gray-900/60 hover:border-fuchsia-500/40 hover:bg-gray-900'
                               } ${member && !isLocked ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                             >
-                              <div className={`flex items-center gap-2 ${raidSlotPaddingClass} ${raidSlotMinHeightClass}`}>
-                                <div className={`w-6 shrink-0 ${raidSlotMetaClass} font-black text-center ${isLocked ? 'text-yellow-300' : 'text-gray-500'}`}>{slotIndex + 1}</div>
-
+                              <div className={`flex items-center gap-2.5 ${raidSlotPaddingClass} ${raidSlotMinHeightClass}`}>
                                 {member ? (
                                   <>
                                     {member.isGuildMaster ? (
-                                      <div className={`${raidSlotAvatarClass} rounded-full bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 border border-yellow-400 shadow-[0_0_16px_rgba(250,204,21,0.28)] flex items-center justify-center shrink-0 ${isUltraDenseRaidLayout ? 'text-sm' : 'text-base'}`}>
+                                      <div className={`${raidSlotAvatarClass} rounded-full bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 border border-yellow-400 shadow-[0_0_16px_rgba(250,204,21,0.28)] flex items-center justify-center shrink-0 ${isUltraDenseRaidLayout ? 'text-base' : 'text-lg'}`}>
                                         👑
                                       </div>
                                     ) : (
@@ -3550,13 +3812,76 @@ export default function App() {
                                         <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
                                           {member.jobClass}
                                         </span>
-                                        <span className="font-black text-gray-300 whitespace-nowrap">Lv. {member.level}</span>
                                       </div>
                                     </div>
                                   </>
                                 ) : (
                                   <div className="min-w-0 flex-1">
                                     <div className={`${raidSlotNameClass} font-black text-gray-400`}>빈 슬롯</div>
+                                  </div>
+                                )}
+
+                                {member && (
+                                  <div className="relative shrink-0" data-raid-role-layer="true">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setRaidRoleMenuSlotKey((prev) => prev === slotKey ? null : slotKey);
+                                      }}
+                                      title={roleTooltip || '역할 지정'}
+                                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
+                                        roleIds.length > 0
+                                          ? 'border-violet-400/30 bg-violet-500/10 text-violet-100 hover:bg-violet-500/15'
+                                          : 'border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-violet-400/30'
+                                      }`}
+                                    >
+                                      {roleIds.length > 0 ? (
+                                        <>
+                                          {visibleRoleIds.map((roleId) => (
+                                            <span key={roleId} className="inline-flex">{renderRaidRoleIcon(roleId, "w-3.5 h-3.5")}</span>
+                                          ))}
+                                          {hiddenRoleCount > 0 && <span className="text-[10px] font-black text-violet-100">+{hiddenRoleCount}</span>}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckSquare className="w-3.5 h-3.5" />
+                                          <span className="text-[10px] font-black">역할</span>
+                                        </>
+                                      )}
+                                    </button>
+
+                                    {isRoleMenuOpen && (
+                                      <div data-raid-role-panel="true" className="absolute right-0 top-[calc(100%+10px)] z-30 w-44 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl">
+                                        <div className="px-2 pb-2 text-[10px] font-black text-gray-400">역할 배지 설정</div>
+                                        <div className="space-y-1">
+                                          {RAID_ROLE_OPTIONS.map((role) => {
+                                            const isActive = roleIds.includes(role.id);
+                                            return (
+                                              <button
+                                                key={role.id}
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleToggleRaidRole(member.id, role.id);
+                                                }}
+                                                className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
+                                                  isActive
+                                                    ? `${role.chipClass} shadow-[0_0_12px_rgba(255,255,255,0.06)]`
+                                                    : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                                                }`}
+                                              >
+                                                <span className="flex items-center gap-2 min-w-0">
+                                                  {renderRaidRoleIcon(role.id, 'w-3.5 h-3.5')}
+                                                  <span className="truncate">{role.label}</span>
+                                                </span>
+                                                {isActive && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
 
