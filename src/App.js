@@ -368,13 +368,14 @@ export default function App() {
   const [raidDragMemberId, setRaidDragMemberId] = useState(null);
   const [raidDragOverSlot, setRaidDragOverSlot] = useState(null);
   const [isRaidCapturing, setIsRaidCapturing] = useState(false);
-  const [buskingSettings, setBuskingSettings] = useState({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null });
+  const [buskingSettings, setBuskingSettings] = useState({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" });
   const [pendingBuskingVoteId, setPendingBuskingVoteId] = useState(null);
   const [buskingLocalVotes, setBuskingLocalVotes] = useState([]);
   const [buskingPublicRoster, setBuskingPublicRoster] = useState([]);
   const [buskingPublicMeta, setBuskingPublicMeta] = useState({ totalVotes: 0, participantCount: 0, updatedAt: null, leaderId: null });
   const [buskingShardCounts, setBuskingShardCounts] = useState({});
   const [isBuskingAdminSaving, setIsBuskingAdminSaving] = useState(false);
+  const [buskingNoticeLinkInput, setBuskingNoticeLinkInput] = useState("");
   const [buskingClientId] = useState(() => {
     try {
       const existing = localStorage.getItem(BUSKING_CLIENT_ID_STORAGE_KEY);
@@ -676,6 +677,10 @@ export default function App() {
     Object.values(buskingShardCounts).reduce((sum, count) => sum + (Number(count) || 0), 0)
   ), [buskingShardCounts]);
   const buskingLeader = buskingParticipants[0] || null;
+
+  useEffect(() => {
+    setBuskingNoticeLinkInput(buskingSettings.noticeUrl || "");
+  }, [buskingSettings.noticeUrl]);
 
   useEffect(() => {
     setRaidAssignments((prev) => {
@@ -1403,6 +1408,43 @@ export default function App() {
       showToast("와우 버스킹 투표를 초기화했습니다.");
     } catch (error) {
       showToast("투표 초기화 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsBuskingAdminSaving(false);
+    }
+  };
+
+  const handleSaveBuskingNoticeUrl = async () => {
+    if (!user || isBuskingAdminSaving) return;
+    setIsBuskingAdminSaving(true);
+    try {
+      const nextSettings = {
+        ...buskingSettings,
+        noticeUrl: (buskingNoticeLinkInput || "").trim(),
+      };
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      setBuskingSettings(nextSettings);
+      showToast(nextSettings.noticeUrl ? "와우 버스킹 공지사항 링크를 저장했습니다." : "공지사항 링크를 비웠습니다.");
+    } catch (error) {
+      showToast("공지사항 링크 저장 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsBuskingAdminSaving(false);
+    }
+  };
+
+  const handleDeleteBuskingNoticeUrl = async () => {
+    if (!user || isBuskingAdminSaving) return;
+    setIsBuskingAdminSaving(true);
+    try {
+      const nextSettings = {
+        ...buskingSettings,
+        noticeUrl: "",
+      };
+      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      setBuskingSettings(nextSettings);
+      setBuskingNoticeLinkInput("");
+      showToast("와우 버스킹 공지사항 링크를 삭제했습니다.");
+    } catch (error) {
+      showToast("공지사항 링크 삭제 중 오류가 발생했습니다.", "error");
     } finally {
       setIsBuskingAdminSaving(false);
     }
@@ -2347,7 +2389,7 @@ export default function App() {
                                       {fRatio > 0 && <span className="text-xs text-gray-400 font-bold ml-1.5">({fRatio}%)</span>}
                                    </div>
                                 </div>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-1.5">
                                    {team.players.map(p => (
                                       <span key={p} className="text-sm text-gray-200 font-medium bg-gray-700 px-2.5 py-1 rounded">{p}</span>
                                    ))}
@@ -3133,13 +3175,7 @@ export default function App() {
 
 
   const renderBuskingView = () => {
-    const maxVotes = Math.max(...buskingParticipants.map((member) => member.buskingVoteCount || 0), 0);
-    const votingStatusLabel = buskingSettings.isVotingOpen ? "투표 진행중" : buskingSettings.endedAt ? "투표 종료" : "투표 준비중";
-    const votingStatusClass = buskingSettings.isVotingOpen
-      ? "bg-rose-500/15 text-rose-300 border-rose-400/40"
-      : buskingSettings.endedAt
-        ? "bg-gray-700/70 text-gray-200 border-gray-500/40"
-        : "bg-amber-500/15 text-amber-200 border-amber-400/40";
+    const noticeUrl = (buskingSettings.noticeUrl || "").trim();
 
     return (
       <div className="space-y-6">
@@ -3148,197 +3184,95 @@ export default function App() {
             <Megaphone className="w-40 h-40 text-fuchsia-300" />
           </div>
           <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="space-y-4 max-w-2xl">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
-                  <Megaphone className="w-8 h-8 md:w-10 md:h-10 text-fuchsia-300" /> 와우 버스킹
-                </h2>
-                <p className="text-gray-300 mt-3 break-keep text-sm md:text-base">
-                  한 스트리머당 1회만 투표 가능, 여러 스트리머에게는 각각 투표 가능
-                </p>
-              </div>
-              <div className={`inline-flex items-center px-3 py-1.5 rounded-full border text-sm font-bold ${votingStatusClass}`}>
-                <Heart className="w-4 h-4 mr-2" /> {votingStatusLabel}
-              </div>
+            <div className="space-y-3 max-w-3xl">
+              <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
+                <Megaphone className="w-8 h-8 md:w-10 md:h-10 text-fuchsia-300" /> 와우 버스킹
+              </h2>
+              <p className="text-gray-300 break-keep text-sm md:text-base leading-relaxed">
+                와우 버스킹 이벤트에 참여한 스트리머 목록입니다. 방송국 가기 버튼을 눌러 여러 스트리머의 버스킹을 즐겨보세요!
+              </p>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 xl:min-w-[520px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 xl:min-w-[420px]">
               <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
-                <p className="text-sm text-gray-300 mb-2">참가 스트리머</p>
+                <p className="text-sm text-gray-300 mb-2">참여한 스트리머수</p>
                 <p className="text-3xl font-black text-white">{buskingParticipants.length}<span className="text-base text-gray-400 ml-1">명</span></p>
               </div>
-              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
-                <p className="text-sm text-gray-300 mb-2">총 투표 수</p>
-                <p className="text-3xl font-black text-rose-300">{buskingTotalVotes}</p>
-              </div>
-              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
-                <p className="text-sm text-gray-300 mb-2">현재 1위</p>
-                <p className="text-xl font-black text-white truncate">{buskingLeader ? buskingLeader.streamerName : "대기중"}</p>
-              </div>
-              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
-                <p className="text-sm text-gray-300 mb-2">투표 라운드</p>
-                <p className="text-lg font-black text-fuchsia-200 truncate">{buskingSettings.roundId || "기본 라운드"}</p>
-              </div>
+              {noticeUrl ? (
+                <a
+                  href={noticeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-white/8 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3 hover:bg-white/12 transition"
+                >
+                  <div>
+                    <p className="text-sm text-gray-300 mb-2">이벤트 안내</p>
+                    <p className="text-xl font-black text-fuchsia-200">공지사항</p>
+                  </div>
+                  <Link2 className="w-6 h-6 text-fuchsia-300 flex-shrink-0" />
+                </a>
+              ) : (
+                <div className="bg-white/8 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3 opacity-70">
+                  <div>
+                    <p className="text-sm text-gray-300 mb-2">이벤트 안내</p>
+                    <p className="text-xl font-black text-gray-300">공지사항 준비중</p>
+                  </div>
+                  <Megaphone className="w-6 h-6 text-gray-400 flex-shrink-0" />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-2xl border border-gray-700 shadow-lg p-6 space-y-5">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <h3 className="text-2xl font-black text-white flex items-center">
-                <TrendingUp className="w-6 h-6 mr-2 text-rose-400" /> 버스킹 투표 현황
-              </h3>
-              <p className="text-sm text-gray-400 mt-1">현재 응원 흐름이 가장 뜨거운 스트리머를 한눈에 확인할 수 있어요.</p>
-            </div>
-            <span className={`px-3 py-1.5 rounded-full border text-sm font-bold w-fit ${votingStatusClass}`}>{votingStatusLabel}</span>
-          </div>
+        {buskingParticipants.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {buskingParticipants.map((member) => {
+              const broadcastLink = member.broadcastUrl?.trim()
+                ? member.broadcastUrl
+                : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(member.streamerName)}`;
+              const broadcastLabel = member.broadcastUrl?.trim()
+                ? member.broadcastUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
+                : 'SOOP 검색으로 이동';
 
-          {buskingParticipants.length > 0 ? (
-            <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6">
-              <div className="bg-gradient-to-b from-rose-500/15 to-fuchsia-500/10 border border-rose-400/20 rounded-2xl p-5">
-                <p className="text-sm text-rose-200 font-bold mb-4">현재 가장 많은 응원을 받는 스트리머</p>
-                {buskingLeader ? (
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-rose-300/60 shadow-[0_0_20px_rgba(244,114,182,0.25)] bg-gray-900">
+              return (
+                <div key={member.id} className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-fuchsia-500/40 transition-all duration-300 group flex flex-col">
+                  <div className="p-5 flex-1 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-fuchsia-400/40 bg-gray-900 mb-4 shadow-[0_0_18px_rgba(217,70,239,0.16)]">
                       <img
-                        src={getWowAvatarSrc(buskingLeader)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${buskingLeader.streamerName}`; }}
-                        alt={buskingLeader.streamerName}
+                        src={getWowAvatarSrc(member)}
+                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                        alt={member.streamerName}
                         className="w-full h-full object-cover"
                         loading="lazy"
                         decoding="async"
                       />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-300">1위</p>
-                      <p className="text-2xl font-black text-white truncate">{buskingLeader.streamerName}</p>
-                      <p className="text-sm mt-1" style={{ color: WOW_CLASS_COLORS[buskingLeader.jobClass] || '#cbd5e1' }}>{buskingLeader.jobClass} · Lv.{buskingLeader.level}</p>
-                      <p className="text-lg font-black text-rose-300 mt-2">{(buskingLeader.buskingVoteCount || 0).toLocaleString()}표</p>
-                    </div>
+                    <h4 className="text-lg font-black text-white break-keep">{member.streamerName}</h4>
+                    <p className="text-sm mt-1" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
+                    <p className="text-xs text-gray-400 mt-3 break-all line-clamp-2 min-h-[2.5rem]">{broadcastLabel}</p>
                   </div>
-                ) : (
-                  <p className="text-gray-400">아직 참가자가 없습니다.</p>
-                )}
-                {buskingTopMembers.length > 1 && (
-                  <div className="mt-5 space-y-2">
-                    {buskingTopMembers.slice(1).map((member, index) => (
-                      <div key={member.id} className="flex items-center justify-between bg-black/20 rounded-lg px-3 py-2 border border-white/5">
-                        <div className="min-w-0">
-                          <p className="text-xs text-gray-400">{index + 2}위</p>
-                          <p className="text-sm font-bold text-white truncate">{member.streamerName}</p>
-                        </div>
-                        <p className="text-sm font-black text-rose-200">{(member.buskingVoteCount || 0).toLocaleString()}표</p>
-                      </div>
-                    ))}
+                  <div className="px-4 pb-4">
+                    <a
+                      href={broadcastLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors shadow-md"
+                    >
+                      <Tv className="w-4 h-4 mr-2" /> 방송국 가기
+                    </a>
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                {buskingParticipants.map((member, index) => {
-                  const percent = maxVotes > 0 ? Math.max(((member.buskingVoteCount || 0) / maxVotes) * 100, 8) : 8;
-                  return (
-                    <div key={member.id} className="bg-gray-900/70 border border-gray-700 rounded-xl p-4">
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${index === 0 ? 'bg-yellow-500 text-black' : index === 1 ? 'bg-slate-300 text-black' : index === 2 ? 'bg-amber-700 text-white' : 'bg-gray-700 text-gray-200'}`}>
-                            {index + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="font-bold text-white truncate">{member.streamerName}</p>
-                            <p className="text-xs" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
-                          </div>
-                        </div>
-                        <p className="text-sm md:text-base font-black text-rose-300">{(member.buskingVoteCount || 0).toLocaleString()}표</p>
-                      </div>
-                      <div className="h-3 rounded-full bg-gray-800 overflow-hidden border border-gray-700">
-                        <div className="h-full rounded-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-violet-500" style={{ width: `${percent}%` }}></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="py-16 text-center text-gray-500">
-              <Megaphone className="w-12 h-12 mx-auto mb-3 opacity-25" />
-              아직 버스킹 참가자로 등록된 스트리머가 없습니다.
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {buskingParticipants.map((member) => {
-            const hasVoted = buskingLocalVotes.includes(member.id);
-            const isProcessing = pendingBuskingVoteId === member.id;
-            const broadcastLink = member.broadcastUrl?.trim()
-              ? member.broadcastUrl
-              : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(member.streamerName)}`;
-            const broadcastLabel = member.broadcastUrl?.trim()
-              ? member.broadcastUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-              : 'SOOP 검색으로 이동';
-
-            return (
-              <div key={member.id} className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-fuchsia-500/40 transition-all duration-300 group flex flex-col">
-                <div className="p-5 flex-1 flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-fuchsia-400/40 bg-gray-900 mb-4 shadow-[0_0_18px_rgba(217,70,239,0.16)]">
-                    <img
-                      src={getWowAvatarSrc(member)}
-                      onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                      alt={member.streamerName}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <h4 className="text-xl font-black text-white">{member.streamerName}</h4>
-                  <p className="text-sm mt-1" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
-                  <p className="text-xs text-gray-400 mt-3 break-all">방송국 주소: {broadcastLabel}</p>
-                  <p className="mt-4 inline-flex items-center px-3 py-1 rounded-full bg-rose-500/10 border border-rose-400/30 text-rose-200 text-sm font-bold">
-                    💖 {(member.buskingVoteCount || 0).toLocaleString()}표
-                  </p>
                 </div>
-                <div className="px-4 pb-4 space-y-2">
-                  <a
-                    href={broadcastLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors shadow-md"
-                  >
-                    <Tv className="w-4 h-4 mr-2" /> 방송국 가기
-                  </a>
-                  <button
-                    onClick={() => handleBuskingVote(member)}
-                    disabled={isProcessing || !buskingSettings.isVotingOpen || hasVoted}
-                    className={`w-full flex items-center justify-center py-2.5 rounded-lg font-bold text-sm transition-all duration-300 ${
-                      isProcessing
-                        ? 'bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed'
-                        : !buskingSettings.isVotingOpen
-                          ? 'bg-gray-700/70 border border-gray-600 text-gray-300 cursor-not-allowed'
-                          : hasVoted
-                            ? 'bg-rose-500/10 border border-rose-400/40 text-rose-300 cursor-not-allowed'
-                            : 'bg-rose-500 hover:bg-rose-400 text-white shadow-[0_4px_16px_rgba(244,63,94,0.3)]'
-                    }`}
-                  >
-                    {isProcessing ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 투표 반영중...</>
-                    ) : !buskingSettings.isVotingOpen ? (
-                      buskingSettings.endedAt ? '투표 종료' : '투표 준비중'
-                    ) : hasVoted ? (
-                      '투표 완료'
-                    ) : (
-                      <><Heart className="w-4 h-4 mr-2" /> 응원 투표하기</>
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 shadow-lg py-20 text-center text-gray-500">
+            <Megaphone className="w-12 h-12 mx-auto mb-3 opacity-25" />
+            아직 버스킹 참가자로 등록된 스트리머가 없습니다.
+          </div>
+        )}
       </div>
     );
   };
-
 
 
   const renderRaidView = () => {
@@ -3354,9 +3288,9 @@ export default function App() {
       : [...raidSelectedLevelFilters].sort((a, b) => RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === a) - RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === b)).join(", ");
 
     const raidPartyGridClass = raidType === "40"
-      ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-4"
+      ? (isRaidWaitingRoomCollapsed ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4" : "grid-cols-1 md:grid-cols-2 2xl:grid-cols-4")
       : raidType === "25"
-        ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3"
+        ? (isRaidWaitingRoomCollapsed ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3")
         : raidType === "20"
           ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
           : "grid-cols-1 md:grid-cols-2";
@@ -3392,7 +3326,7 @@ export default function App() {
         ? "p-2.5 space-y-2"
         : "p-3 space-y-2.5";
     const raidLayoutGridClass = isRaidWaitingRoomCollapsed
-      ? "grid-cols-1 xl:grid-cols-[88px_minmax(0,1fr)]"
+      ? "grid-cols-1 xl:grid-cols-[92px_minmax(0,1fr)]"
       : "grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)]";
 
     return (
@@ -3525,7 +3459,7 @@ export default function App() {
                     <h3 className="text-lg font-black text-white flex items-center">
                       <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
                     </h3>
-                    <p className="mt-2 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
+                    <p className="mt-1.5 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
                   </div>
                   <button
                     type="button"
@@ -3536,8 +3470,8 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="p-4 space-y-3.5">
-                  <div className="relative flex items-center w-full bg-gray-900 rounded-xl border border-gray-700 p-1.5 shadow-inner">
+                <div className="p-4 space-y-2.5">
+                  <div className="relative flex items-center w-full bg-gray-900 rounded-xl border border-gray-700 px-1.5 py-1 shadow-inner">
                     <div className="flex items-center px-2.5">
                       <Search className="w-4 h-4 text-gray-400" />
                     </div>
@@ -3546,7 +3480,7 @@ export default function App() {
                       value={raidSearchInput}
                       onChange={(e) => setRaidSearchInput(e.target.value)}
                       placeholder="스트리머, 닉네임, 직업 검색"
-                      className="w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
+                      className="w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1"
                     />
                   </div>
 
@@ -3563,7 +3497,7 @@ export default function App() {
                         <button
                           key={job}
                           onClick={() => handleRaidJobFilterToggle(job)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
                             isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-75 hover:opacity-100'
                           }`}
                           style={{
@@ -3582,38 +3516,42 @@ export default function App() {
                     })}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsRaidLevelFilterOpen((prev) => !prev)}
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-black transition ${
-                        isRaidLevelFilterOpen ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
-                      }`}
-                    >
-                      <Filter className="w-3.5 h-3.5" /> 레벨
-                      <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100">{raidLevelSummaryLabel}</span>
-                      {isRaidLevelFilterOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-
-                    <div className={`flex flex-wrap items-center gap-2 transition-all duration-200 ${isRaidLevelFilterOpen ? 'max-w-full opacity-100 translate-x-0' : 'max-w-0 opacity-0 overflow-hidden -translate-x-2 pointer-events-none'}`}>
-                      {RAID_LEVEL_FILTER_OPTIONS.map((option) => {
-                        const isSelected = raidSelectedLevelFilters.includes(option.id);
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => handleRaidLevelFilterToggle(option.id)}
-                            className={`px-3 py-1.5 rounded-full border text-xs font-black transition whitespace-nowrap ${
-                              isSelected
-                                ? 'border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]'
-                                : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsRaidLevelFilterOpen((prev) => !prev)}
+                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-black transition ${
+                          isRaidLevelFilterOpen ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                        }`}
+                      >
+                        <Filter className="w-3.5 h-3.5" /> 레벨
+                        <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100">{raidLevelSummaryLabel}</span>
+                        {isRaidLevelFilterOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
                     </div>
+
+                    {isRaidLevelFilterOpen && (
+                      <div className="flex flex-wrap items-center gap-2 pl-0.5">
+                        {RAID_LEVEL_FILTER_OPTIONS.map((option) => {
+                          const isSelected = raidSelectedLevelFilters.includes(option.id);
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => handleRaidLevelFilterToggle(option.id)}
+                              className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${
+                                isSelected
+                                  ? 'border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]'
+                                  : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
@@ -3631,7 +3569,7 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="max-h-[calc(100vh-330px)] min-h-[320px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="max-h-[calc(100vh-300px)] min-h-[260px] overflow-y-auto custom-scrollbar pr-1">
                     <div className="grid grid-cols-1 gap-2">
                       {raidAvailableMembers.map((member) => {
                         const isSelected = selectedRaidMemberId === member.id;
@@ -4396,10 +4334,10 @@ export default function App() {
                 <Megaphone className="w-5 h-5 mr-2 text-fuchsia-300" /> 와우 버스킹 관리
               </h2>
               <p className="text-sm text-gray-400 mb-6 break-keep">
-                40레벨 이상 길드원 중에서 이번 주 버스킹 참가자를 지정하고, 투표를 시작하거나 종료할 수 있습니다.
+                40레벨 이상 길드원 중에서 이번 주 버스킹 참가자를 지정하고, 공지사항 링크를 관리할 수 있습니다.
               </p>
 
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
                 <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
                   <p className="text-xs text-gray-400 mb-2">참가 가능 인원</p>
                   <p className="text-2xl font-black text-white">{buskingEligibleMembers.length}</p>
@@ -4409,37 +4347,38 @@ export default function App() {
                   <p className="text-2xl font-black text-fuchsia-300">{buskingParticipants.length}</p>
                 </div>
                 <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
-                  <p className="text-xs text-gray-400 mb-2">총 투표 수</p>
-                  <p className="text-2xl font-black text-rose-300">{buskingTotalVotes}</p>
-                </div>
-                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
-                  <p className="text-xs text-gray-400 mb-2">현재 상태</p>
-                  <p className={`text-lg font-black ${buskingSettings.isVotingOpen ? 'text-rose-300' : 'text-gray-200'}`}>{buskingSettings.isVotingOpen ? '투표 진행중' : buskingSettings.endedAt ? '투표 종료' : '투표 준비중'}</p>
+                  <p className="text-xs text-gray-400 mb-2">공지사항 링크</p>
+                  <p className={`text-lg font-black ${buskingSettings.noticeUrl ? 'text-emerald-300' : 'text-gray-300'}`}>{buskingSettings.noticeUrl ? '등록됨' : '없음'}</p>
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3 mb-6">
-                <button
-                  onClick={handleStartBuskingVoting}
-                  disabled={isBuskingAdminSaving || buskingParticipants.length === 0}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isBuskingAdminSaving || buskingParticipants.length === 0 ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-rose-500 hover:bg-rose-400 text-white shadow-[0_4px_16px_rgba(244,63,94,0.25)]'}`}
-                >
-                  {isBuskingAdminSaving ? '처리 중...' : '투표 시작'}
-                </button>
-                <button
-                  onClick={handleStopBuskingVoting}
-                  disabled={isBuskingAdminSaving}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-500'}`}
-                >
-                  투표 종료
-                </button>
-                <button
-                  onClick={handleResetBuskingVoting}
-                  disabled={isBuskingAdminSaving}
-                  className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-fuchsia-900/50 hover:bg-fuchsia-800 text-fuchsia-200 border border-fuchsia-500/40'}`}
-                >
-                  투표 초기화
-                </button>
+              <div className="bg-gray-900/80 border border-gray-700 rounded-xl p-4 mb-6">
+                <p className="text-sm font-bold text-white mb-3">와우 버스킹 공지사항 링크</p>
+                <div className="flex flex-col lg:flex-row gap-3">
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={buskingNoticeLinkInput}
+                    onChange={(e) => setBuskingNoticeLinkInput(e.target.value)}
+                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-fuchsia-500 outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveBuskingNoticeUrl}
+                      disabled={isBuskingAdminSaving}
+                      className={`px-4 py-2 rounded-lg font-bold text-sm transition whitespace-nowrap ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white'}`}
+                    >
+                      저장
+                    </button>
+                    <button
+                      onClick={handleDeleteBuskingNoticeUrl}
+                      disabled={isBuskingAdminSaving}
+                      className={`px-4 py-2 rounded-lg font-bold text-sm transition whitespace-nowrap ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-500'}`}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
@@ -4458,7 +4397,6 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
-                      <span className="text-sm font-black text-rose-300 whitespace-nowrap">{(member.buskingVoteCount || 0).toLocaleString()}표</span>
                       <button
                         onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${member.isBuskingParticipant ? 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-500/50 hover:bg-fuchsia-800' : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'}`}
