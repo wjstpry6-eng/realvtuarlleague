@@ -300,6 +300,7 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
     roundId: "wow-busking-default",
     startedAt: null,
     endedAt: null,
+    noticeUrl: "",
     ...settings,
   };
 
@@ -323,6 +324,7 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
     isVotingOpen: !!normalizedSettings.isVotingOpen,
     startedAt: normalizedSettings.startedAt || null,
     endedAt: normalizedSettings.endedAt || null,
+    noticeUrl: normalizedSettings.noticeUrl || "",
     participants,
     participantCount: participants.length,
     totalVotes: participants.reduce((sum, member) => sum + (member.buskingVoteCount || 0), 0),
@@ -428,8 +430,8 @@ export default function App() {
     if (!resolvedSettings) {
       const settingsSnap = await getDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"));
       resolvedSettings = settingsSnap.exists()
-        ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, ...settingsSnap.data() }
-        : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null };
+        ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "", ...settingsSnap.data() }
+        : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" };
     }
 
     const resolvedVoteCounts = voteCountsOverride ?? buskingShardCounts;
@@ -611,7 +613,7 @@ export default function App() {
   const raidSelectedMember = selectedRaidMemberId ? raidMemberMap[selectedRaidMemberId] : null;
 
   const raidEligibleRoster = useMemo(() => (
-    wowRoster.filter((member) => matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
+    wowRoster.filter((member) => member.isRaidApplied && matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
   ), [wowRoster, raidSelectedLevelFilters]);
 
   const raidJobStats = useMemo(() => {
@@ -979,10 +981,11 @@ export default function App() {
           roundId: "wow-busking-default",
           startedAt: null,
           endedAt: null,
+          noticeUrl: "",
           ...docSnap.data(),
         });
       } else {
-        setBuskingSettings({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null });
+        setBuskingSettings({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" });
       }
     });
 
@@ -999,17 +1002,23 @@ export default function App() {
     const fetchBuskingData = async () => {
       try {
         const summaryRef = doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID);
-        const summarySnap = await getDoc(summaryRef);
+        const settingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
+        const [summarySnap, settingsSnap] = await Promise.all([
+          getDoc(summaryRef),
+          getDoc(settingsRef),
+        ]);
 
         if (isCancelled) return;
 
         if (summarySnap.exists()) {
           const summaryData = summarySnap.data();
+          const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
           const resolvedSettings = {
             isVotingOpen: !!summaryData.isVotingOpen,
             roundId: summaryData.roundId || "wow-busking-default",
             startedAt: summaryData.startedAt || null,
             endedAt: summaryData.endedAt || null,
+            noticeUrl: summaryData.noticeUrl || settingsData.noticeUrl || "",
           };
           const shardSnapshot = await fetchBuskingShardSnapshot(resolvedSettings.roundId);
           if (isCancelled) return;
@@ -1027,22 +1036,18 @@ export default function App() {
           return;
         }
 
-        const settingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
         const participantsQuery = query(
           collection(db, "artifacts", appId, "public", "data", "wow_roster"),
           where("isBuskingParticipant", "==", true)
         );
 
-        const [settingsSnap, participantsSnap] = await Promise.all([
-          getDoc(settingsRef),
-          getDocs(participantsQuery),
-        ]);
+        const participantsSnap = await getDocs(participantsQuery);
 
         if (isCancelled) return;
 
         const fallbackSettings = settingsSnap.exists()
-          ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, ...settingsSnap.data() }
-          : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null };
+          ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "", ...settingsSnap.data() }
+          : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" };
         const shardSnapshot = await fetchBuskingShardSnapshot(fallbackSettings.roundId);
         if (isCancelled) return;
 
@@ -1268,6 +1273,7 @@ export default function App() {
         isApplied: false, 
         isWowPartner: false,
         isBuskingParticipant: false,
+        isRaidApplied: false,
         buskingVoteCount: 0,
         broadcastUrl: "",
         createdAt: new Date().toISOString()
@@ -1302,6 +1308,22 @@ export default function App() {
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isWowPartner: !currentStatus }); 
       await updateLastModifiedTime();
     } catch (error) {}
+  };
+
+
+  const handleToggleRaidApply = async (id, currentStatus, level) => {
+    if (!user) return;
+    if (Number(level) < 50) {
+      showToast("50레벨 이상 길드원만 레이드 신청자로 지정할 수 있습니다.", "error");
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isRaidApplied: !currentStatus });
+      await updateLastModifiedTime();
+      showToast(!currentStatus ? "레이드 신청자로 등록했습니다." : "레이드 신청 상태를 해제했습니다.");
+    } catch (error) {
+      showToast("레이드 신청 상태를 변경하지 못했습니다.", "error");
+    }
   };
 
   const handleToggleBuskingParticipant = async (memberId, currentStatus, memberLevel) => {
@@ -4277,41 +4299,56 @@ export default function App() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <div className="flex flex-col gap-2 mr-2">
+                      <div className="grid grid-cols-2 gap-2 mr-2 min-w-[240px]">
                         <button
                           onClick={() => handleToggleWowPartner(member.id, member.isWowPartner)}
-                          className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
+                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
                             member.isWowPartner 
                               ? 'bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800' 
-                              : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
+                              : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
                           }`}
                         >
                           {member.isWowPartner ? '👑 와트너 해제' : '🎬 와트너 임명'}
                         </button>
-                        {member.level >= 40 && (
-                          <button
-                            onClick={() => handleToggleWowApply(member.id, member.isApplied)}
-                            className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
-                              member.isApplied 
+                        <button
+                          onClick={() => handleToggleWowApply(member.id, member.isApplied)}
+                          disabled={Number(member.level) < 40}
+                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
+                            Number(member.level) < 40
+                              ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
+                              : member.isApplied 
                                 ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
-                                : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
-                            }`}
-                          >
-                            {member.isApplied ? '✅ 참가 신청 ON' : '📝 참가 신청 OFF'}
-                          </button>
-                        )}
-                        {member.level >= 40 && (
-                          <button
-                            onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
-                            className={`px-3 py-1 rounded text-xs font-bold transition flex items-center border ${
-                              member.isBuskingParticipant
+                                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
+                          }`}
+                        >
+                          {member.isApplied ? '✅ 버종리 신청 ON' : '📝 버종리 신청 OFF'}
+                        </button>
+                        <button
+                          onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
+                          disabled={Number(member.level) < 40}
+                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
+                            Number(member.level) < 40
+                              ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
+                              : member.isBuskingParticipant
                                 ? 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-500/50 hover:bg-fuchsia-800'
-                                : 'bg-gray-700 text-gray-400 border-gray-600 hover:bg-gray-600 hover:text-white'
-                            }`}
-                          >
-                            {member.isBuskingParticipant ? '🎤 버스킹 참가 ON' : '🎤 버스킹 참가 OFF'}
-                          </button>
-                        )}
+                                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
+                          }`}
+                        >
+                          {member.isBuskingParticipant ? '🎤 버스킹 참가 ON' : '🎤 버스킹 참가 OFF'}
+                        </button>
+                        <button
+                          onClick={() => handleToggleRaidApply(member.id, member.isRaidApplied, member.level)}
+                          disabled={Number(member.level) < 50}
+                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
+                            Number(member.level) < 50
+                              ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
+                              : member.isRaidApplied
+                                ? 'bg-cyan-900/50 text-cyan-300 border-cyan-500/50 hover:bg-cyan-800'
+                                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
+                          }`}
+                        >
+                          {member.isRaidApplied ? '⚔️ 레이드 신청 ON' : '⚔️ 레이드 신청 OFF'}
+                        </button>
                       </div>
 
                       <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
@@ -4420,7 +4457,10 @@ export default function App() {
               </p>
 
               <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...wowRoster].sort((a, b) => a.streamerName.localeCompare(b.streamerName, 'ko')).map(member => (
+                {wowRoster
+                  .filter((member) => member.isBuskingParticipant)
+                  .sort((a, b) => a.streamerName.localeCompare(b.streamerName, 'ko'))
+                  .map(member => (
                   <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
                     <div className="flex flex-col justify-center w-32 flex-shrink-0">
                       <span className="font-bold text-white truncate" title={member.streamerName}>{member.streamerName}</span>
@@ -4443,7 +4483,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {wowRoster.length === 0 && <p className="text-center text-gray-500 py-4">등록된 길드원이 없습니다.</p>}
+                {wowRoster.filter((member) => member.isBuskingParticipant).length === 0 && <p className="text-center text-gray-500 py-4">버스킹 참가 신청을 완료한 길드원이 없습니다.</p>}
               </div>
             </div>
 
@@ -4485,7 +4525,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {wowRoster.length === 0 && <p className="text-center text-gray-500 py-4">등록된 길드원이 없습니다.</p>}
+                {wowRoster.filter((member) => member.isBuskingParticipant).length === 0 && <p className="text-center text-gray-500 py-4">버스킹 참가 신청을 완료한 길드원이 없습니다.</p>}
               </div>
             </div>
 
