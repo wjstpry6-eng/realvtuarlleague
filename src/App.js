@@ -3251,14 +3251,11 @@ export default function App() {
               const broadcastLink = member.broadcastUrl?.trim()
                 ? member.broadcastUrl
                 : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(member.streamerName)}`;
-              const broadcastLabel = member.broadcastUrl?.trim()
-                ? member.broadcastUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')
-                : 'SOOP 검색으로 이동';
 
               return (
                 <div key={member.id} className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-fuchsia-500/40 transition-all duration-300 group flex flex-col">
-                  <div className="p-5 flex-1 flex flex-col items-center text-center">
-                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-fuchsia-400/40 bg-gray-900 mb-4 shadow-[0_0_18px_rgba(217,70,239,0.16)]">
+                  <div className="p-6 flex-1 flex flex-col items-center text-center justify-center">
+                    <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-fuchsia-400/50 bg-gray-900 mb-5 shadow-[0_0_24px_rgba(217,70,239,0.22)]">
                       <img
                         src={getWowAvatarSrc(member)}
                         onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
@@ -3268,16 +3265,15 @@ export default function App() {
                         decoding="async"
                       />
                     </div>
-                    <h4 className="text-lg font-black text-white break-keep">{member.streamerName}</h4>
-                    <p className="text-sm mt-1" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
-                    <p className="text-xs text-gray-400 mt-3 break-all line-clamp-2 min-h-[2.5rem]">{broadcastLabel}</p>
+                    <h4 className="text-xl md:text-2xl font-black text-white break-keep leading-tight">{member.streamerName}</h4>
+                    <p className="text-base mt-2 font-semibold" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
                   </div>
                   <div className="px-4 pb-4">
                     <a
                       href={broadcastLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-colors shadow-md"
+                      className="w-full flex items-center justify-center py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-colors shadow-md"
                     >
                       <Tv className="w-4 h-4 mr-2" /> 방송국 가기
                     </a>
@@ -5158,7 +5154,8 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto px-4 py-8 relative">
+      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : "max-w-6xl px-4"}`}>
+
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
         {activeTab === "matches" && renderMatchesView()}
