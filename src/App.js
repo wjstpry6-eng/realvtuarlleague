@@ -6000,7 +6000,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1480px] px-4 md:px-5 lg:px-6" : "max-w-6xl px-4"}`}>
+      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : "max-w-6xl px-4"}`}>
 
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
