@@ -922,9 +922,7 @@ export default function App() {
         stats[assignedPosition] += 1;
         return;
       }
-      if (normalizePreferredPositions(member.preferredPositions).length > 1) {
-        stats.undecided += 1;
-      }
+      stats.undecided += 1;
     });
     return stats;
   }, [raidAssignedMembers, raidAssignedPreferredPositions]);
@@ -982,7 +980,6 @@ export default function App() {
   }, [raidAssignedMembers]);
 
   useEffect(() => {
-    const assignedMemberIds = new Set(raidAssignedMembers.map((member) => member?.id).filter(Boolean));
     setRaidAssignedPreferredPositions((prev) => {
       let changed = false;
       const next = {};
@@ -992,14 +989,14 @@ export default function App() {
         const preferredPositions = normalizePreferredPositions(member.preferredPositions);
         const currentAssignedPosition = prev[member.id];
 
-        if (preferredPositions.length === 1) {
-          next[member.id] = preferredPositions[0];
-          if (currentAssignedPosition !== preferredPositions[0]) changed = true;
+        if (currentAssignedPosition && WOW_POSITION_IDS.includes(currentAssignedPosition)) {
+          next[member.id] = currentAssignedPosition;
           return;
         }
 
-        if (preferredPositions.length > 1 && currentAssignedPosition && preferredPositions.includes(currentAssignedPosition)) {
-          next[member.id] = currentAssignedPosition;
+        if (preferredPositions.length > 0) {
+          next[member.id] = preferredPositions[0];
+          if (currentAssignedPosition !== preferredPositions[0]) changed = true;
           return;
         }
 
@@ -3589,7 +3586,7 @@ export default function App() {
                   <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('jobClass')}>
                     <div className="flex items-center">직업 <WowSortIcon columnKey="jobClass" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-5">선호 포지션</th>
+                  <th scope="col" className="px-6 py-5 text-center">선호 포지션</th>
                   <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestWowSort('level')}>
                     <div className="flex items-center justify-end">현재 레벨 <WowSortIcon columnKey="level" /></div>
                   </th>
@@ -3681,8 +3678,8 @@ export default function App() {
                             {member.jobClass}
                           </span>
                         </td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-wrap gap-1.5">
+                        <td className="px-6 py-5 text-center">
+                          <div className="flex flex-wrap gap-1.5 justify-center">
                             {normalizePreferredPositions(member.preferredPositions).length > 0 ? normalizePreferredPositions(member.preferredPositions).map((positionId) => (
                               <span key={positionId} className={`inline-flex items-center px-2 py-1 rounded-full text-[15px] font-black border whitespace-nowrap leading-none ${getWowPositionTagClasses(positionId)}`}>
                                 {getWowPositionShortLabel(positionId)}
@@ -4437,31 +4434,35 @@ export default function App() {
                                     {(() => {
                                       const preferredPositionIds = normalizePreferredPositions(member.preferredPositions);
                                       const assignedPositionId = raidAssignedPreferredPositions[member.id];
-                                      const hasSinglePreferredPosition = preferredPositionIds.length === 1;
-                                      const assignedPositionLabel = assignedPositionId ? getWowPositionShortLabel(assignedPositionId) : (hasSinglePreferredPosition ? getWowPositionShortLabel(preferredPositionIds[0]) : '미정');
+                                      const fallbackPositionId = preferredPositionIds[0] || null;
+                                      const displayPositionId = assignedPositionId && WOW_POSITION_IDS.includes(assignedPositionId)
+                                        ? assignedPositionId
+                                        : fallbackPositionId;
+                                      const assignedPositionLabel = displayPositionId ? getWowPositionShortLabel(displayPositionId) : '미정';
                                       const isPositionMenuOpen = raidPositionMenuSlotKey === slotKey;
-                                      return preferredPositionIds.length > 0 ? (
+                                      return (
                                         <div className="relative" data-raid-floating-layer="true">
                                           <button
                                             type="button"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              if (hasSinglePreferredPosition) return;
                                               setRaidPositionMenuSlotKey((prev) => prev === slotKey ? null : slotKey);
                                               setRaidRoleMenuSlotKey(null);
                                             }}
-                                            title={hasSinglePreferredPosition ? `배정 포지션: ${assignedPositionLabel}` : '배정 포지션 선택'}
+                                            title={preferredPositionIds.length > 0
+                                              ? `선호 포지션: ${preferredPositionIds.map((positionId) => getWowPositionShortLabel(positionId)).join(', ')} / 현재 배정: ${assignedPositionLabel}`
+                                              : `배정 포지션: ${assignedPositionLabel}`}
                                             className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
-                                              assignedPositionId || hasSinglePreferredPosition
-                                                ? `${getWowPositionTagClasses(assignedPositionId || preferredPositionIds[0])} hover:brightness-110`
+                                              displayPositionId
+                                                ? `${getWowPositionTagClasses(displayPositionId)} hover:brightness-110`
                                                 : 'border-gray-700 bg-gray-900 text-gray-200 hover:text-white hover:border-white/50'
-                                            } ${hasSinglePreferredPosition ? 'cursor-default' : ''}`}
+                                            }`}
                                           >
                                             <span className="text-[10px] font-black">{assignedPositionLabel}</span>
                                           </button>
 
-                                          {!hasSinglePreferredPosition && isPositionMenuOpen && (
-                                            <div data-raid-role-panel="true" className="absolute right-0 top-[calc(100%+10px)] z-30 w-36 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl">
+                                          {isPositionMenuOpen && (
+                                            <div data-raid-role-panel="true" className="absolute right-0 top-[calc(100%+10px)] z-30 w-40 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl">
                                               <div className="px-2 pb-2 text-[10px] font-black text-gray-400">배정 포지션</div>
                                               <div className="space-y-1">
                                                 <button
@@ -4472,32 +4473,32 @@ export default function App() {
                                                     setRaidPositionMenuSlotKey(null);
                                                   }}
                                                   className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
-                                                    !assignedPositionId
+                                                    !assignedPositionId && !fallbackPositionId
                                                       ? 'border-gray-500 bg-gray-800 text-white'
                                                       : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
                                                   }`}
                                                 >
                                                   <span>미정</span>
-                                                  {!assignedPositionId && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
+                                                  {!assignedPositionId && !fallbackPositionId && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
                                                 </button>
-                                                {preferredPositionIds.map((positionId) => {
-                                                  const isActive = assignedPositionId === positionId;
+                                                {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
+                                                  const isActive = assignedPositionId === option.id || (!assignedPositionId && fallbackPositionId === option.id);
                                                   return (
                                                     <button
-                                                      key={positionId}
+                                                      key={option.id}
                                                       type="button"
                                                       onClick={(e) => {
                                                         e.stopPropagation();
-                                                        handleSelectRaidAssignedPosition(member.id, positionId);
+                                                        handleSelectRaidAssignedPosition(member.id, option.id);
                                                         setRaidPositionMenuSlotKey(null);
                                                       }}
                                                       className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
                                                         isActive
-                                                          ? getWowPositionMenuOptionClasses(positionId, true)
-                                                          : getWowPositionMenuOptionClasses(positionId, false)
+                                                          ? getWowPositionMenuOptionClasses(option.id, true)
+                                                          : getWowPositionMenuOptionClasses(option.id, false)
                                                       }`}
                                                     >
-                                                      <span>{getWowPositionLabel(positionId)}</span>
+                                                      <span>{option.label}</span>
                                                       {isActive && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
                                                     </button>
                                                   );
@@ -4506,7 +4507,7 @@ export default function App() {
                                             </div>
                                           )}
                                         </div>
-                                      ) : null;
+                                      );
                                     })()}
 
                                     <button
