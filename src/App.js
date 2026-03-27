@@ -3927,7 +3927,7 @@ export default function App() {
     const raidLayoutGridClass = isRaidWaitingRoomCollapsed
       ? "grid-cols-1 xl:grid-cols-[92px_minmax(0,1fr)]"
       : "grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)]";
-    const raidWorkspacePanelHeightClass = "xl:h-[calc(100vh-220px)]";
+    const raidWorkspacePanelHeightClass = "xl:h-[calc(100vh-300px)]";
 
     return (
       <div className="space-y-5">
