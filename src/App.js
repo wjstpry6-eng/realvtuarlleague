@@ -526,6 +526,7 @@ export default function App() {
   const [selectedWowPositionFilters, setSelectedWowPositionFilters] = useState(["전체"]);
   const [showWowRaidApplicantsOnly, setShowWowRaidApplicantsOnly] = useState(false);
   const [fixedRaidMembers, setFixedRaidMembers] = useState([]);
+  const [raidPublicSettings, setRaidPublicSettings] = useState({ activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID });
   const [selectedFixedRaidMemberOptionId, setSelectedFixedRaidMemberOptionId] = useState(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
   const [fixedRaidMemberForm, setFixedRaidMemberForm] = useState({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [] });
   const [isFixedRaidMemberSaving, setIsFixedRaidMemberSaving] = useState(false);
@@ -1179,7 +1180,16 @@ export default function App() {
 
     try {
       await deleteDoc(doc(db, "artifacts", appId, "public", "data", "fixed_raid_members", memberId));
-      if (selectedFixedRaidMemberOptionId === memberId) {
+      const shouldResetAppliedMember = selectedFixedRaidMemberOptionId === memberId || raidPublicSettings.activeFixedRaidMemberOptionId === memberId;
+      if (shouldResetAppliedMember) {
+        await setDoc(
+          doc(db, "artifacts", appId, "public", "data", "settings", "raid"),
+          {
+            activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID,
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
         setSelectedFixedRaidMemberOptionId(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
         setRaidRoleAssignments((prev) => {
           if (!prev[GUILD_MASTER_ID]) return prev;
@@ -1219,6 +1229,26 @@ export default function App() {
       return next;
     });
     showToast(optionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID ? "고정 길드원을 길드장 우왁굳으로 변경했습니다." : "고정 길드원을 변경했습니다.");
+  };
+
+  const handleApplyFixedRaidMemberGlobally = async (optionId) => {
+    if (!user) return;
+
+    const nextOptionId = optionId || DEFAULT_FIXED_RAID_MEMBER_OPTION_ID;
+    try {
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "raid"),
+        {
+          activeFixedRaidMemberOptionId: nextOptionId,
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
+      handleSelectFixedRaidMemberOption(nextOptionId);
+      showToast(nextOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID ? "기본 고정 길드원을 레이드에 적용했습니다." : "고정 길드원을 레이드에 적용했습니다.");
+    } catch (error) {
+      showToast("고정 길드원을 레이드에 적용하지 못했습니다.", "error");
+    }
   };
 
   const handleJobFilterClick = (job) => {
@@ -1407,6 +1437,25 @@ export default function App() {
 
     return () => unsubFixedRaidMembers();
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!["raid", "admin"].includes(activeTab)) return;
+
+    const raidSettingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "raid");
+    const unsubRaidSettings = onSnapshot(raidSettingsRef, (docSnap) => {
+      const nextSettings = docSnap.exists()
+        ? { activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID, ...docSnap.data() }
+        : { activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID };
+      setRaidPublicSettings(nextSettings);
+    });
+
+    return () => unsubRaidSettings();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    setSelectedFixedRaidMemberOptionId(raidPublicSettings.activeFixedRaidMemberOptionId || DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
+  }, [raidPublicSettings.activeFixedRaidMemberOptionId]);
 
   useEffect(() => {
     if (selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID) return;
@@ -3878,6 +3927,7 @@ export default function App() {
     const raidLayoutGridClass = isRaidWaitingRoomCollapsed
       ? "grid-cols-1 xl:grid-cols-[92px_minmax(0,1fr)]"
       : "grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)]";
+    const raidWorkspacePanelHeightClass = "xl:h-[calc(100vh-220px)]";
 
     return (
       <div className="space-y-5">
@@ -3981,11 +4031,11 @@ export default function App() {
           </div>
         </div>
 
-        <div className={`grid ${raidLayoutGridClass} gap-5 items-start`}>
+        <div className={`grid ${raidLayoutGridClass} gap-5 items-stretch`}>
           {isRaidWaitingRoomCollapsed ? (
-            <div className="xl:sticky xl:top-24">
-              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-visible">
-                <div className="p-3 flex flex-col items-center gap-3">
+            <div className={raidWorkspacePanelHeightClass}>
+              <div className={`rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-visible flex flex-col ${raidWorkspacePanelHeightClass}`}>
+                <div className="p-3 flex flex-1 flex-col items-center justify-start gap-3">
                   <button
                     type="button"
                     onClick={() => setIsRaidWaitingRoomCollapsed(false)}
@@ -4002,9 +4052,9 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div className="space-y-5 xl:sticky xl:top-24">
-              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-                <div className="p-4 border-b border-gray-700 bg-gray-900/60 flex items-start justify-between gap-3">
+            <div className={raidWorkspacePanelHeightClass}>
+              <div className={`rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden flex flex-col ${raidWorkspacePanelHeightClass}`}>
+                <div className="p-4 border-b border-gray-700 bg-gray-900/60 flex items-start justify-between gap-3 shrink-0">
                   <div>
                     <h3 className="text-lg font-black text-white flex items-center">
                       <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
@@ -4020,7 +4070,7 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="p-4 space-y-2.5">
+                <div className="p-4 space-y-2.5 border-b border-gray-700/70 shrink-0 bg-gray-800/95">
                   <div className="relative flex items-center w-full bg-gray-900 rounded-xl border border-gray-700 px-1.5 py-1 shadow-inner">
                     <div className="flex items-center px-2.5">
                       <Search className="w-4 h-4 text-gray-400" />
@@ -4130,22 +4180,22 @@ export default function App() {
                     </div>
                   </div>
 
-                  {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
-                    <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2.5 flex items-center gap-3">
-                      <img
-                        src={getWowAvatarSrc(raidSelectedMember)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${raidSelectedMember.streamerName}`; }}
-                        alt={raidSelectedMember.streamerName}
-                        className="w-9 h-9 rounded-full object-cover border border-fuchsia-400/40 bg-gray-950 shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[11px] text-fuchsia-200 font-black">클릭 선택됨</div>
-                        <div className="text-sm font-black text-white truncate">{raidSelectedMember.streamerName}</div>
+                  <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 pt-3">
+                    {raidSelectedMember && !raidSelectedMember.isGuildMaster && (
+                      <div className="rounded-xl border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2.5 flex items-center gap-3 mb-3">
+                        <img
+                          src={getWowAvatarSrc(raidSelectedMember)}
+                          onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${raidSelectedMember.streamerName}`; }}
+                          alt={raidSelectedMember.streamerName}
+                          className="w-9 h-9 rounded-full object-cover border border-fuchsia-400/40 bg-gray-950 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] text-fuchsia-200 font-black">클릭 선택됨</div>
+                          <div className="text-sm font-black text-white truncate">{raidSelectedMember.streamerName}</div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="max-h-[calc(100vh-300px)] min-h-[260px] overflow-y-auto custom-scrollbar pr-1">
                     <div className="grid grid-cols-1 gap-2">
                       {raidAvailableMembers.map((member) => {
                         const isSelected = selectedRaidMemberId === member.id;
@@ -4211,8 +4261,8 @@ export default function App() {
             </div>
           )}
 
-          <div className="space-y-5" ref={raidScreenshotRef} data-raid-screenshot-root="true">
-            <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
+          <div className={`space-y-5 min-w-0 ${raidWorkspacePanelHeightClass}`} ref={raidScreenshotRef} data-raid-screenshot-root="true">
+            <div className={`rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden flex flex-col ${raidWorkspacePanelHeightClass}`}> 
               <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-lg font-black text-white flex items-center">
@@ -4345,7 +4395,8 @@ export default function App() {
                 </div>
               </div>
 
-              <div className={`p-3 grid gap-3 ${raidPartyGridClass}`}>
+              <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+                <div className={`p-3 grid gap-3 ${raidPartyGridClass}`}>
                 {Array.from({ length: raidConfig.groupCount }).map((_, groupIndex) => {
                   const groupMembers = raidAssignments[groupIndex] || [];
                   const filledCount = groupMembers.filter(Boolean).length;
@@ -4595,6 +4646,7 @@ export default function App() {
                     </div>
                   );
                 })}
+                </div>
               </div>
             </div>
           </div>
@@ -4997,7 +5049,7 @@ export default function App() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-bold text-white truncate">{member.streamerName}</p>
-                          {selectedFixedRaidMemberOptionId === member.id && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">현재 선택</span>}
+                          {raidPublicSettings.activeFixedRaidMemberOptionId === member.id && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">레이드 적용중</span>}
                         </div>
                         <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -5008,7 +5060,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSelectFixedRaidMemberOption(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-amber-500/10 text-amber-200 border-amber-400/30 hover:bg-amber-500/20">레이드에 적용</button>
+                      <button onClick={() => handleApplyFixedRaidMemberGlobally(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-amber-500/10 text-amber-200 border-amber-400/30 hover:bg-amber-500/20">레이드에 적용</button>
                       <button onClick={() => handleDeleteFixedRaidMember(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white">삭제</button>
                     </div>
                   </div>
