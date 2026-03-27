@@ -526,6 +526,7 @@ export default function App() {
   const [selectedWowPositionFilters, setSelectedWowPositionFilters] = useState(["전체"]);
   const [showWowRaidApplicantsOnly, setShowWowRaidApplicantsOnly] = useState(false);
   const [fixedRaidMembers, setFixedRaidMembers] = useState([]);
+  const [raidPublicSettings, setRaidPublicSettings] = useState({ activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID });
   const [selectedFixedRaidMemberOptionId, setSelectedFixedRaidMemberOptionId] = useState(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
   const [fixedRaidMemberForm, setFixedRaidMemberForm] = useState({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [] });
   const [isFixedRaidMemberSaving, setIsFixedRaidMemberSaving] = useState(false);
@@ -1179,7 +1180,16 @@ export default function App() {
 
     try {
       await deleteDoc(doc(db, "artifacts", appId, "public", "data", "fixed_raid_members", memberId));
-      if (selectedFixedRaidMemberOptionId === memberId) {
+      const shouldResetAppliedMember = selectedFixedRaidMemberOptionId === memberId || raidPublicSettings.activeFixedRaidMemberOptionId === memberId;
+      if (shouldResetAppliedMember) {
+        await setDoc(
+          doc(db, "artifacts", appId, "public", "data", "settings", "raid"),
+          {
+            activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID,
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
         setSelectedFixedRaidMemberOptionId(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
         setRaidRoleAssignments((prev) => {
           if (!prev[GUILD_MASTER_ID]) return prev;
@@ -1219,6 +1229,26 @@ export default function App() {
       return next;
     });
     showToast(optionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID ? "고정 길드원을 길드장 우왁굳으로 변경했습니다." : "고정 길드원을 변경했습니다.");
+  };
+
+  const handleApplyFixedRaidMemberGlobally = async (optionId) => {
+    if (!user) return;
+
+    const nextOptionId = optionId || DEFAULT_FIXED_RAID_MEMBER_OPTION_ID;
+    try {
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "raid"),
+        {
+          activeFixedRaidMemberOptionId: nextOptionId,
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
+      handleSelectFixedRaidMemberOption(nextOptionId);
+      showToast(nextOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID ? "기본 고정 길드원을 레이드에 적용했습니다." : "고정 길드원을 레이드에 적용했습니다.");
+    } catch (error) {
+      showToast("고정 길드원을 레이드에 적용하지 못했습니다.", "error");
+    }
   };
 
   const handleJobFilterClick = (job) => {
@@ -1407,6 +1437,25 @@ export default function App() {
 
     return () => unsubFixedRaidMembers();
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!["raid", "admin"].includes(activeTab)) return;
+
+    const raidSettingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "raid");
+    const unsubRaidSettings = onSnapshot(raidSettingsRef, (docSnap) => {
+      const nextSettings = docSnap.exists()
+        ? { activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID, ...docSnap.data() }
+        : { activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID };
+      setRaidPublicSettings(nextSettings);
+    });
+
+    return () => unsubRaidSettings();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    setSelectedFixedRaidMemberOptionId(raidPublicSettings.activeFixedRaidMemberOptionId || DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
+  }, [raidPublicSettings.activeFixedRaidMemberOptionId]);
 
   useEffect(() => {
     if (selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID) return;
@@ -4213,134 +4262,145 @@ export default function App() {
 
           <div className="space-y-5" ref={raidScreenshotRef} data-raid-screenshot-root="true">
             <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-lg font-black text-white flex items-center">
-                    <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
-                  </h3>
-                  <div className="relative" data-raid-floating-layer="true">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaidRoleGuideOpen((prev) => !prev);
-                        setIsRaidFixedMemberMenuOpen(false);
-                      }}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
-                        isRaidRoleGuideOpen ? 'border-violet-400/40 bg-violet-500/15 text-violet-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
-                      }`}
-                    >
-                      <Sparkles className="w-3.5 h-3.5" /> 역할 안내
-                    </button>
-                    {isRaidRoleGuideOpen && (
-                      <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
-                        <div className="text-[11px] font-black text-white mb-2">레이드 역할 안내</div>
-                        <div className="space-y-1.5">
-                          {RAID_ROLE_OPTIONS.map((role) => (
-                            <div key={role.id} className="flex items-center gap-2 text-xs text-gray-200">
-                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg border ${role.chipClass}`}>
-                                {renderRaidRoleIcon(role.id, "w-3.5 h-3.5")}
-                              </span>
-                              <span className="font-semibold">{role.label}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="mt-2 text-[10px] text-gray-400">참가자마다 여러 역할을 함께 지정할 수 있습니다.</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative" data-raid-floating-layer="true">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsRaidFixedMemberMenuOpen((prev) => !prev);
-                        setIsRaidRoleGuideOpen(false);
-                      }}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
-                        isRaidFixedMemberMenuOpen ? 'border-amber-400/40 bg-amber-500/15 text-amber-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
-                      }`}
-                    >
-                      <Users className="w-3.5 h-3.5" /> 고정 길드원 바꾸기
-                    </button>
-                    {isRaidFixedMemberMenuOpen && (
-                      <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-80 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
-                        <div className="text-[11px] font-black text-white mb-2">고정 길드원 선택</div>
-                        <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+              <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60">
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-black text-white flex items-center">
+                          <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
+                        </h3>
+                        <div className="relative" data-raid-floating-layer="true">
                           <button
                             type="button"
-                            onClick={() => handleSelectFixedRaidMemberOption(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID)}
-                            className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
-                              selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
-                                ? 'border-amber-400/50 bg-amber-500/10 text-amber-100'
-                                : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                            onClick={() => {
+                              setIsRaidRoleGuideOpen((prev) => !prev);
+                              setIsRaidFixedMemberMenuOpen(false);
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
+                              isRaidRoleGuideOpen ? 'border-violet-400/40 bg-violet-500/15 text-violet-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
                             }`}
                           >
-                            <div className="w-10 h-10 rounded-full border border-yellow-400 bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 flex items-center justify-center shrink-0 text-lg">👑</div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-black truncate">길드장 우왁굳</div>
-                              <div className="text-[11px] text-gray-400">성기사 · Lv.60</div>
-                            </div>
+                            <Sparkles className="w-3.5 h-3.5" /> 역할 안내
                           </button>
-                          {sortedFixedRaidMembers.map((member) => {
-                            const isSelected = selectedFixedRaidMemberOptionId === member.id;
-                            return (
-                              <button
-                                key={member.id}
-                                type="button"
-                                onClick={() => handleSelectFixedRaidMemberOption(member.id)}
-                                className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
-                                  isSelected
-                                    ? 'border-amber-400/50 bg-amber-500/10 text-amber-100'
-                                    : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
-                                }`}
-                              >
-                                <img
-                                  src={getWowAvatarSrc(member)}
-                                  onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                                  alt={member.streamerName}
-                                  className="w-10 h-10 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-sm font-black truncate">{member.streamerName}</div>
-                                  <div className="text-[11px] text-gray-400">{member.jobClass} · Lv.{member.level}</div>
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                                      <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
-                                    ))}
+                          {isRaidRoleGuideOpen && (
+                            <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
+                              <div className="text-[11px] font-black text-white mb-2">레이드 역할 안내</div>
+                              <div className="space-y-1.5">
+                                {RAID_ROLE_OPTIONS.map((role) => (
+                                  <div key={role.id} className="flex items-center gap-2 text-xs text-gray-200">
+                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg border ${role.chipClass}`}>
+                                      {renderRaidRoleIcon(role.id, "w-3.5 h-3.5")}
+                                    </span>
+                                    <span className="font-semibold">{role.label}</span>
                                   </div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                          {sortedFixedRaidMembers.length === 0 && (
-                            <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/60 px-3 py-4 text-xs text-gray-400 text-center">관리자 모드에서 등록한 고정 길드원이 아직 없습니다.</div>
+                                ))}
+                              </div>
+                              <p className="mt-2 text-[10px] text-gray-400">참가자마다 여러 역할을 함께 지정할 수 있습니다.</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="relative" data-raid-floating-layer="true">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsRaidFixedMemberMenuOpen((prev) => !prev);
+                              setIsRaidRoleGuideOpen(false);
+                            }}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
+                              isRaidFixedMemberMenuOpen ? 'border-amber-400/40 bg-amber-500/15 text-amber-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
+                            }`}
+                          >
+                            <Users className="w-3.5 h-3.5" /> 고정 길드원 바꾸기
+                          </button>
+                          {isRaidFixedMemberMenuOpen && (
+                            <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-80 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
+                              <div className="text-[11px] font-black text-white mb-2">고정 길드원 선택</div>
+                              <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectFixedRaidMemberOption(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID)}
+                                  className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
+                                    selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+                                      ? 'border-amber-400/50 bg-amber-500/10 text-amber-100'
+                                      : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                                  }`}
+                                >
+                                  <div className="w-10 h-10 rounded-full border border-yellow-400 bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 flex items-center justify-center shrink-0 text-lg">👑</div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-black truncate">길드장 우왁굳</div>
+                                    <div className="text-[11px] text-gray-400">성기사 · Lv.60</div>
+                                  </div>
+                                </button>
+                                {sortedFixedRaidMembers.map((member) => {
+                                  const isSelected = selectedFixedRaidMemberOptionId === member.id;
+                                  return (
+                                    <button
+                                      key={member.id}
+                                      type="button"
+                                      onClick={() => handleSelectFixedRaidMemberOption(member.id)}
+                                      className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
+                                        isSelected
+                                          ? 'border-amber-400/50 bg-amber-500/10 text-amber-100'
+                                          : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                                      }`}
+                                    >
+                                      <img
+                                        src={getWowAvatarSrc(member)}
+                                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                                        alt={member.streamerName}
+                                        className="w-10 h-10 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
+                                      />
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-black truncate">{member.streamerName}</div>
+                                        <div className="text-[11px] text-gray-400">{member.jobClass} · Lv.{member.level}</div>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
+                                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                                {sortedFixedRaidMembers.length === 0 && (
+                                  <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/60 px-3 py-4 text-xs text-gray-400 text-center">관리자 모드에서 등록한 고정 길드원이 아직 없습니다.</div>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
 
-                <div className="flex flex-col gap-2 items-start lg:items-end">
-                  <div className="flex flex-wrap gap-2 justify-start lg:justify-end">
-                    {Object.entries(assignedClassStats).length > 0 ? Object.entries(assignedClassStats).sort((a, b) => b[1] - a[1]).map(([job, count]) => (
-                      <span key={job} style={getJobBadgeStyle(job)} className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border">
-                        {job} <span className="ml-1 opacity-80">{count}</span>
-                      </span>
-                    )) : (
-                      <span className="text-sm text-gray-500">아직 편성된 직업이 없습니다.</span>
-                    )}
+                    <div className="flex flex-wrap gap-2 justify-start xl:justify-end xl:max-w-[45%] xl:pt-0.5">
+                      {Object.entries(assignedClassStats).length > 0 ? Object.entries(assignedClassStats).sort((a, b) => b[1] - a[1]).map(([job, count]) => (
+                        <span key={job} style={getJobBadgeStyle(job)} className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border">
+                          {job} <span className="ml-1 opacity-80">{count}</span>
+                        </span>
+                      )) : (
+                        <span className="text-sm text-gray-500">아직 편성된 직업이 없습니다.</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 justify-start lg:justify-end">
-                    {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => (
-                      <span key={option.id} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black border ${getWowPositionTagClasses(option.id)}`}>
-                        {option.shortLabel} <span className="ml-1">{raidAssignedPositionStats[option.id] || 0}</span>
-                      </span>
-                    ))}
-                    {raidAssignedPositionStats.undecided > 0 && (
+
+                  <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+                    <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                      참가자의 선호 포지션 말고도 다른 포지션을 지정할 수 있습니다.
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-start xl:justify-end">
+                      {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
+                        const countLabel = option.id === 'heal' ? option.label : option.shortLabel;
+                        return (
+                          <span key={option.id} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black border ${getWowPositionTagClasses(option.id)}`}>
+                            {countLabel} <span className="ml-1">{raidAssignedPositionStats[option.id] || 0}</span>
+                          </span>
+                        );
+                      })}
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-900 text-gray-200 text-[11px] font-black border border-gray-700">
                         미정 <span className="ml-1">{raidAssignedPositionStats.undecided}</span>
                       </span>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4997,7 +5057,7 @@ export default function App() {
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-bold text-white truncate">{member.streamerName}</p>
-                          {selectedFixedRaidMemberOptionId === member.id && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">현재 선택</span>}
+                          {raidPublicSettings.activeFixedRaidMemberOptionId === member.id && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">레이드 적용중</span>}
                         </div>
                         <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -5008,7 +5068,7 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleSelectFixedRaidMemberOption(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-amber-500/10 text-amber-200 border-amber-400/30 hover:bg-amber-500/20">레이드에 적용</button>
+                      <button onClick={() => handleApplyFixedRaidMemberGlobally(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-amber-500/10 text-amber-200 border-amber-400/30 hover:bg-amber-500/20">레이드에 적용</button>
                       <button onClick={() => handleDeleteFixedRaidMember(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white">삭제</button>
                     </div>
                   </div>
