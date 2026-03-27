@@ -4510,7 +4510,7 @@ export default function App() {
                     </>
                   )}
 
-                  <div className={`${isRaidFilterPanelCollapsed ? 'max-h-[calc(100vh-390px)]' : 'max-h-[calc(100vh-300px)]'} min-h-[260px] overflow-y-auto custom-scrollbar pr-1`}>
+                  <div className={`${isRaidFilterPanelCollapsed ? 'max-h-[calc(100vh-230px)]' : 'max-h-[calc(100vh-300px)]'} min-h-[420px] overflow-y-auto custom-scrollbar pr-1`}>
                     <div className="grid grid-cols-1 gap-2">
                       {raidAvailableMembers.map((member) => {
                         return (
