@@ -144,6 +144,8 @@ const GUILD_MASTER_MEMBER = {
   isGuildMaster: true,
   isFixedRaidMember: true,
   imageUrl: "",
+  mainSpec: "",
+  availableSpecs: [],
   preferredPositions: [],
 };
 const DEFAULT_FIXED_RAID_MEMBER_OPTION_ID = "__default_fixed_raid_member__";
@@ -260,16 +262,73 @@ const normalizePreferredPositions = (value) => {
   );
 };
 
+const WOW_SPEC_OPTIONS_BY_JOB = {
+  전사: ["무기", "분노", "방어"],
+  도적: ["암살", "전투", "잠행"],
+  마법사: ["냉기", "화염", "비전"],
+  사냥꾼: ["야수", "사격", "생존"],
+  흑마법사: ["파괴", "악마", "고통"],
+  사제: ["신성", "수양", "암흑"],
+  드루이드: ["야성", "회복", "조화", "수호"],
+  성기사: ["징벌", "보호", "신성"],
+  주술사: ["고양", "정기", "복원"],
+};
 
-const normalizeFixedRaidMember = (member = {}) => ({
-  imageUrl: "",
-  streamerName: "",
-  wowNickname: "",
-  jobClass: "",
-  ...member,
-  level: Number(member?.level) || 60,
-  preferredPositions: normalizePreferredPositions(member?.preferredPositions),
-});
+const normalizeWowJobClassKey = (jobClass = "") => {
+  const trimmed = `${jobClass || ""}`.trim();
+  if (["흑마", "흑마법사"].includes(trimmed)) return "흑마법사";
+  if (["드루", "드루이드"].includes(trimmed)) return "드루이드";
+  return trimmed;
+};
+
+const getWowSpecOptions = (jobClass = "") => (
+  WOW_SPEC_OPTIONS_BY_JOB[normalizeWowJobClassKey(jobClass)] || []
+);
+
+const normalizeAvailableSpecs = (jobClass = "", value = []) => {
+  const validSpecs = getWowSpecOptions(jobClass);
+  const raw = Array.isArray(value) ? value : typeof value === "string" && value ? [value] : [];
+  return raw.filter((spec, index) => validSpecs.includes(spec) && raw.indexOf(spec) === index);
+};
+
+const normalizeWowSpecState = (jobClass = "", mainSpec = "", availableSpecs = []) => {
+  const validSpecs = getWowSpecOptions(jobClass);
+  let normalizedAvailableSpecs = normalizeAvailableSpecs(jobClass, availableSpecs);
+  const normalizedMainSpec = validSpecs.includes(mainSpec) ? mainSpec : (normalizedAvailableSpecs[0] || "");
+  if (normalizedMainSpec && !normalizedAvailableSpecs.includes(normalizedMainSpec)) {
+    normalizedAvailableSpecs = [normalizedMainSpec, ...normalizedAvailableSpecs];
+  }
+  return { mainSpec: normalizedMainSpec, availableSpecs: normalizedAvailableSpecs };
+};
+
+const matchesWowSpecFilters = (jobClass = "", availableSpecs = [], selectedFilters = ["전체"]) => {
+  if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("전체")) {
+    return true;
+  }
+  const normalizedAvailableSpecs = normalizeAvailableSpecs(jobClass, availableSpecs);
+  if (normalizedAvailableSpecs.length === 0) return false;
+  return selectedFilters.some((filterId) => normalizedAvailableSpecs.includes(filterId));
+};
+
+const getWowSpecTagTitle = (jobClass = "", mainSpec = "", availableSpecs = []) => {
+  const normalized = normalizeWowSpecState(jobClass, mainSpec, availableSpecs);
+  return normalized.availableSpecs.join(", ");
+};
+
+const normalizeFixedRaidMember = (member = {}) => {
+  const specState = normalizeWowSpecState(member?.jobClass, member?.mainSpec, member?.availableSpecs);
+  return {
+    imageUrl: "",
+    streamerName: "",
+    wowNickname: "",
+    jobClass: "",
+    ...member,
+    level: Number(member?.level) || 60,
+    preferredPositions: normalizePreferredPositions(member?.preferredPositions),
+    mainSpec: specState.mainSpec,
+    availableSpecs: specState.availableSpecs,
+  };
+};
 
 const getWowPositionMeta = (positionId) =>
   WOW_POSITION_OPTIONS.find((option) => option.id === positionId) || null;
@@ -300,6 +359,9 @@ const getWowPositionMenuOptionClasses = (positionId, isActive) => {
     : styleMeta.menuInactiveClass;
 };
 
+const WOW_SPEC_TAG_CLASS = "border-slate-500/40 bg-slate-700/55 text-slate-100";
+const WOW_SPEC_EXTRA_TAG_CLASS = "border-slate-600/45 bg-slate-900/80 text-slate-300";
+
 const matchesPreferredPositionFilters = (preferredPositions = [], selectedFilters = ["전체"]) => {
   if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("전체")) {
     return true;
@@ -310,14 +372,19 @@ const matchesPreferredPositionFilters = (preferredPositions = [], selectedFilter
   return selectedFilters.some((filterId) => normalizedPositions.includes(filterId));
 };
 
-const normalizeWowMember = (member = {}) => ({
-  isApplied: false,
-  isWowPartner: false,
-  isBuskingParticipant: false,
-  isRaidApplied: false,
-  ...member,
-  preferredPositions: normalizePreferredPositions(member?.preferredPositions),
-});
+const normalizeWowMember = (member = {}) => {
+  const specState = normalizeWowSpecState(member?.jobClass, member?.mainSpec, member?.availableSpecs);
+  return ({
+    isApplied: false,
+    isWowPartner: false,
+    isBuskingParticipant: false,
+    isRaidApplied: false,
+    ...member,
+    preferredPositions: normalizePreferredPositions(member?.preferredPositions),
+    mainSpec: specState.mainSpec,
+    availableSpecs: specState.availableSpecs,
+  });
+};
 
 const RAID_ROLE_OPTIONS = [
   { id: "raidLeader", label: "공대장", iconKey: "crown", toneClass: "text-amber-300", chipClass: "border-amber-400/30 bg-amber-500/10 text-amber-200" },
@@ -523,12 +590,13 @@ export default function App() {
   
   // ★ 직업 필터 상태 관리 ★
   const [selectedJobFilter, setSelectedJobFilter] = useState("전체");
+  const [selectedWowSpecFilters, setSelectedWowSpecFilters] = useState(["전체"]);
   const [selectedWowPositionFilters, setSelectedWowPositionFilters] = useState(["전체"]);
   const [showWowRaidApplicantsOnly, setShowWowRaidApplicantsOnly] = useState(false);
   const [fixedRaidMembers, setFixedRaidMembers] = useState([]);
   const [raidPublicSettings, setRaidPublicSettings] = useState({ activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID });
   const [selectedFixedRaidMemberOptionId, setSelectedFixedRaidMemberOptionId] = useState(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
-  const [fixedRaidMemberForm, setFixedRaidMemberForm] = useState({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [] });
+  const [fixedRaidMemberForm, setFixedRaidMemberForm] = useState({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [], mainSpec: "", availableSpecs: [] });
   const [isFixedRaidMemberSaving, setIsFixedRaidMemberSaving] = useState(false);
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
@@ -537,6 +605,7 @@ export default function App() {
   const [raidSearchInput, setRaidSearchInput] = useState("");
   const [raidSelectedJobFilters, setRaidSelectedJobFilters] = useState(["전체"]);
   const [raidSelectedLevelFilters, setRaidSelectedLevelFilters] = useState(["50+"]);
+  const [raidSelectedSpecFilters, setRaidSelectedSpecFilters] = useState(["전체"]);
   const [raidSelectedPositionFilters, setRaidSelectedPositionFilters] = useState(["전체"]);
   const [isRaidLevelFilterOpen, setIsRaidLevelFilterOpen] = useState(false);
   const [isRaidWaitingRoomCollapsed, setIsRaidWaitingRoomCollapsed] = useState(false);
@@ -668,6 +737,8 @@ export default function App() {
   const [wowStreamerName, setWowStreamerName] = useState("");
   const [wowNickname, setWowNickname] = useState("");
   const [wowJobClass, setWowJobClass] = useState("");
+  const [wowMainSpec, setWowMainSpec] = useState("");
+  const [wowAvailableSpecsSelection, setWowAvailableSpecsSelection] = useState([]);
   const [wowLevel, setWowLevel] = useState("");
   const [isWowSubmitting, setIsWowSubmitting] = useState(false);
   const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
@@ -736,6 +807,9 @@ export default function App() {
     if (selectedJobFilter !== "전체") {
       filteredItems = filteredItems.filter((member) => member.jobClass === selectedJobFilter);
     }
+    if (!selectedWowSpecFilters.includes("전체")) {
+      filteredItems = filteredItems.filter((member) => matchesWowSpecFilters(member.jobClass, member.availableSpecs, selectedWowSpecFilters));
+    }
     if (!selectedWowPositionFilters.includes("전체")) {
       filteredItems = filteredItems.filter((member) => matchesPreferredPositionFilters(member.preferredPositions, selectedWowPositionFilters));
     }
@@ -747,7 +821,7 @@ export default function App() {
       return a.streamerName.localeCompare(b.streamerName, 'ko');
     });
     return sortableItems;
-  }, [wowRoster, wowSortConfig, selectedJobFilter, selectedWowPositionFilters, showWowRaidApplicantsOnly]);
+  }, [wowRoster, wowSortConfig, selectedJobFilter, selectedWowSpecFilters, selectedWowPositionFilters, showWowRaidApplicantsOnly]);
 
   const requestWowSort = (key) => {
     let direction = 'desc'; 
@@ -766,6 +840,10 @@ export default function App() {
     return { stats, sortedJobs: ["전체", ...sortedJobs] };
   }, [wowRoster]);
 
+  const wowAvailableSpecOptions = useMemo(() => (
+    selectedJobFilter === "전체" ? [] : getWowSpecOptions(selectedJobFilter)
+  ), [selectedJobFilter]);
+
   const wowPositionStats = useMemo(() => {
     const stats = { 전체: wowRoster.length, tank: 0, meleeDealer: 0, rangedDealer: 0, heal: 0 };
     wowRoster.forEach((member) => {
@@ -775,6 +853,35 @@ export default function App() {
     });
     return { stats, orderedIds: WOW_POSITION_OPTIONS.map((option) => option.id) };
   }, [wowRoster]);
+
+  useEffect(() => {
+    if (selectedJobFilter === "전체") {
+      if (!selectedWowSpecFilters.includes("전체")) setSelectedWowSpecFilters(["전체"]);
+      return;
+    }
+    if (selectedWowSpecFilters.includes("전체")) return;
+    const filtered = selectedWowSpecFilters.filter((specId) => wowAvailableSpecOptions.includes(specId));
+    if (filtered.length !== selectedWowSpecFilters.length) {
+      setSelectedWowSpecFilters(filtered.length ? filtered : ["전체"]);
+    }
+  }, [selectedJobFilter, wowAvailableSpecOptions, selectedWowSpecFilters]);
+
+  const raidAvailableSpecOptions = useMemo(() => {
+    const selectedJobs = raidSelectedJobFilters.includes("전체") ? [] : raidSelectedJobFilters;
+    return [...new Set(selectedJobs.flatMap((jobClass) => getWowSpecOptions(jobClass)))];
+  }, [raidSelectedJobFilters]);
+
+  useEffect(() => {
+    if (raidSelectedJobFilters.includes("전체") || raidSelectedJobFilters.length === 0) {
+      if (!raidSelectedSpecFilters.includes("전체")) setRaidSelectedSpecFilters(["전체"]);
+      return;
+    }
+    if (raidSelectedSpecFilters.includes("전체")) return;
+    const filtered = raidSelectedSpecFilters.filter((specId) => raidAvailableSpecOptions.includes(specId));
+    if (filtered.length !== raidSelectedSpecFilters.length) {
+      setRaidSelectedSpecFilters(filtered.length ? filtered : ["전체"]);
+    }
+  }, [raidSelectedJobFilters, raidAvailableSpecOptions, raidSelectedSpecFilters]);
 
   const raidConfig = useMemo(() => getRaidConfig(raidType), [raidType]);
 
@@ -864,6 +971,10 @@ export default function App() {
     }
 
     const isAllPositionsSelected = raidSelectedPositionFilters.includes("전체") || raidSelectedPositionFilters.length === 0;
+    if (!raidSelectedSpecFilters.includes("전체")) {
+      items = items.filter((member) => matchesWowSpecFilters(member.jobClass, member.availableSpecs, raidSelectedSpecFilters));
+    }
+
     if (!isAllPositionsSelected) {
       items = items.filter((member) => matchesPreferredPositionFilters(member.preferredPositions, raidSelectedPositionFilters));
     }
@@ -874,6 +985,7 @@ export default function App() {
         (member.streamerName || "").toLowerCase().includes(term) ||
         (member.wowNickname || "").toLowerCase().includes(term) ||
         (member.jobClass || "").toLowerCase().includes(term) ||
+        normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some((spec) => spec.toLowerCase().includes(term)) ||
         normalizePreferredPositions(member.preferredPositions).some((positionId) => getWowPositionLabel(positionId).toLowerCase().includes(term) || getWowPositionShortLabel(positionId).toLowerCase().includes(term))
       );
     }
@@ -882,7 +994,7 @@ export default function App() {
       if ((Number(b.level) || 0) !== (Number(a.level) || 0)) return (Number(b.level) || 0) - (Number(a.level) || 0);
       return (a.streamerName || "").localeCompare(b.streamerName || "", "ko");
     });
-  }, [raidEligibleRoster, raidAssignedPositions, raidSelectedJobFilters, raidSelectedPositionFilters, raidSearchInput]);
+  }, [raidEligibleRoster, raidAssignedPositions, raidSelectedJobFilters, raidSelectedSpecFilters, raidSelectedPositionFilters, raidSearchInput]);
 
 
   const buskingEligibleMembers = useMemo(() => (
@@ -1137,7 +1249,7 @@ export default function App() {
   };
 
   const resetFixedRaidMemberForm = () => {
-    setFixedRaidMemberForm({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [] });
+    setFixedRaidMemberForm({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [], mainSpec: "", availableSpecs: [] });
   };
 
   const handleSaveFixedRaidMember = async (event) => {
@@ -1149,6 +1261,7 @@ export default function App() {
     const imageUrl = (fixedRaidMemberForm.imageUrl || "").trim();
     const level = Math.max(1, Math.min(70, Number(fixedRaidMemberForm.level) || 60));
     const preferredPositions = normalizePreferredPositions(fixedRaidMemberForm.preferredPositions);
+    const fixedSpecState = normalizeWowSpecState(jobClass, fixedRaidMemberForm.mainSpec, fixedRaidMemberForm.availableSpecs);
 
     if (!streamerName || !jobClass) {
       showToast("고정 길드원의 이름과 직업을 입력해주세요.", "error");
@@ -1164,6 +1277,8 @@ export default function App() {
         level,
         imageUrl,
         preferredPositions,
+        mainSpec: fixedSpecState.mainSpec,
+        availableSpecs: fixedSpecState.availableSpecs,
         createdAt: Date.now(),
       });
       resetFixedRaidMemberForm();
@@ -1272,6 +1387,20 @@ export default function App() {
     });
   };
 
+  const handleWowSpecFilterToggle = (specId) => {
+    if (specId === "전체") {
+      setSelectedWowSpecFilters(["전체"]);
+      return;
+    }
+    setSelectedWowSpecFilters((prev) => {
+      const current = prev.includes("전체") ? [] : prev;
+      const next = current.includes(specId)
+        ? current.filter((item) => item !== specId)
+        : [...current, specId];
+      return next.length ? next : ["전체"];
+    });
+  };
+
   useEffect(() => {
     if (!wowSearchInput.trim()) {
       setWowSearchResults([]);
@@ -1283,6 +1412,7 @@ export default function App() {
       member.streamerName.toLowerCase().includes(term) ||
       member.wowNickname.toLowerCase().includes(term) ||
       member.jobClass.toLowerCase().includes(term) ||
+      normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some((spec) => spec.toLowerCase().includes(term)) ||
       normalizePreferredPositions(member.preferredPositions).some((positionId) => getWowPositionLabel(positionId).toLowerCase().includes(term) || getWowPositionShortLabel(positionId).toLowerCase().includes(term))
     );
     setWowSearchResults(results);
@@ -1323,6 +1453,62 @@ export default function App() {
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
+
+  const handleWowJobClassChange = (jobClass) => {
+    setWowJobClass(jobClass);
+    const nextSpecState = normalizeWowSpecState(jobClass, "", []);
+    setWowAvailableSpecsSelection(nextSpecState.availableSpecs);
+    setWowMainSpec(nextSpecState.mainSpec);
+  };
+
+  const handleToggleWowFormAvailableSpec = (specId) => {
+    setWowAvailableSpecsSelection((prev) => {
+      const nextAvailableSpecs = prev.includes(specId)
+        ? prev.filter((item) => item !== specId)
+        : [...prev, specId];
+      const nextSpecState = normalizeWowSpecState(wowJobClass, wowMainSpec, nextAvailableSpecs);
+      setWowMainSpec(nextSpecState.mainSpec);
+      return nextSpecState.availableSpecs;
+    });
+  };
+
+  const handleSelectWowMainSpecLocal = (specId) => {
+    const nextAvailableSpecs = wowAvailableSpecsSelection.includes(specId)
+      ? wowAvailableSpecsSelection
+      : [...wowAvailableSpecsSelection, specId];
+    const nextSpecState = normalizeWowSpecState(wowJobClass, specId, nextAvailableSpecs);
+    setWowAvailableSpecsSelection(nextSpecState.availableSpecs);
+    setWowMainSpec(nextSpecState.mainSpec);
+  };
+
+  const handleFixedRaidMemberJobClassChange = (jobClass) => {
+    setFixedRaidMemberForm((prev) => ({
+      ...prev,
+      jobClass,
+      mainSpec: "",
+      availableSpecs: [],
+    }));
+  };
+
+  const handleToggleFixedRaidMemberAvailableSpec = (specId) => {
+    setFixedRaidMemberForm((prev) => {
+      const nextAvailableSpecs = prev.availableSpecs.includes(specId)
+        ? prev.availableSpecs.filter((item) => item !== specId)
+        : [...prev.availableSpecs, specId];
+      const nextSpecState = normalizeWowSpecState(prev.jobClass, prev.mainSpec, nextAvailableSpecs);
+      return { ...prev, availableSpecs: nextSpecState.availableSpecs, mainSpec: nextSpecState.mainSpec };
+    });
+  };
+
+  const handleSelectFixedRaidMemberMainSpec = (specId) => {
+    setFixedRaidMemberForm((prev) => {
+      const nextAvailableSpecs = prev.availableSpecs.includes(specId)
+        ? prev.availableSpecs
+        : [...prev.availableSpecs, specId];
+      const nextSpecState = normalizeWowSpecState(prev.jobClass, specId, nextAvailableSpecs);
+      return { ...prev, availableSpecs: nextSpecState.availableSpecs, mainSpec: nextSpecState.mainSpec };
+    });
   };
 
   useEffect(() => {
@@ -1770,12 +1956,15 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     if (!wowStreamerName.trim() || !wowNickname.trim() || !wowJobClass.trim() || !wowLevel) return showToast("모든 와우 캐릭터 정보를 입력해주세요.", "error");
+    const wowSpecState = normalizeWowSpecState(wowJobClass, wowMainSpec, wowAvailableSpecsSelection);
     setIsWowSubmitting(true);
     try {
       await addDoc(collection(db, "artifacts", appId, "public", "data", "wow_roster"), {
         streamerName: wowStreamerName.trim(), 
         wowNickname: wowNickname.trim(), 
         jobClass: wowJobClass.trim(), 
+        mainSpec: wowSpecState.mainSpec,
+        availableSpecs: wowSpecState.availableSpecs,
         level: Number(wowLevel), 
         isApplied: false, 
         isWowPartner: false,
@@ -1786,7 +1975,7 @@ export default function App() {
         broadcastUrl: "",
         createdAt: new Date().toISOString()
       });
-      setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowLevel("");
+      setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowMainSpec(""); setWowAvailableSpecsSelection([]); setWowLevel("");
       showToast("와우 길드원이 성공적으로 등록되었습니다!");
     } catch (error) { showToast("길드원 등록 중 오류 발생", "error"); } finally { setIsWowSubmitting(false); }
   };
@@ -1831,6 +2020,43 @@ export default function App() {
       await updateLastModifiedTime();
     } catch (error) {
       showToast("선호 포지션을 저장하지 못했습니다.", "error");
+    }
+  };
+
+  const handleToggleWowAvailableSpec = async (memberId, specId, jobClass, currentAvailableSpecs = [], currentMainSpec = "") => {
+    if (!user) return;
+    const baseState = normalizeWowSpecState(jobClass, currentMainSpec, currentAvailableSpecs);
+    const nextAvailableSpecs = baseState.availableSpecs.includes(specId)
+      ? baseState.availableSpecs.filter((item) => item !== specId)
+      : [...baseState.availableSpecs, specId];
+    const nextSpecState = normalizeWowSpecState(jobClass, baseState.mainSpec, nextAvailableSpecs);
+
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), {
+        availableSpecs: nextSpecState.availableSpecs,
+        mainSpec: nextSpecState.mainSpec,
+      });
+      await updateLastModifiedTime();
+    } catch (error) {
+      showToast("특성을 저장하지 못했습니다.", "error");
+    }
+  };
+
+  const handleSelectWowMainSpec = async (memberId, specId, jobClass, currentAvailableSpecs = []) => {
+    if (!user) return;
+    const nextAvailableSpecs = currentAvailableSpecs.includes(specId)
+      ? currentAvailableSpecs
+      : [...currentAvailableSpecs, specId];
+    const nextSpecState = normalizeWowSpecState(jobClass, specId, nextAvailableSpecs);
+
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), {
+        availableSpecs: nextSpecState.availableSpecs,
+        mainSpec: nextSpecState.mainSpec,
+      });
+      await updateLastModifiedTime();
+    } catch (error) {
+      showToast("주 특성을 저장하지 못했습니다.", "error");
     }
   };
 
@@ -3495,7 +3721,7 @@ export default function App() {
                   onFocus={() => { if(wowSearchInput) setShowWowSearchDropdown(true); }}
                   onBlur={() => setTimeout(() => setShowWowSearchDropdown(false), 200)}
                   onKeyDown={(e) => { if(e.key === 'Enter') handleWowSearchNext(); }}
-                  placeholder="스트리머, 직업 찾기..."
+                  placeholder="스트리머, 직업, 특성 찾기..."
                   className="w-full md:w-48 bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
                 />
                 {wowSearchResults.length > 0 && wowSearchInput && (
@@ -3581,6 +3807,36 @@ export default function App() {
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
+              <div className="text-xs font-black text-gray-400">특성</div>
+              {selectedJobFilter === "전체" ? (
+                <div className="text-xs text-gray-500">직업을 선택하면 해당 직업의 특성 필터가 열립니다.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <button
+                    type="button"
+                    onClick={() => handleWowSpecFilterToggle("전체")}
+                    className={`px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap ${selectedWowSpecFilters.includes("전체") ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                  >
+                    전체
+                  </button>
+                  {wowAvailableSpecOptions.map((spec) => {
+                    const isSelected = selectedWowSpecFilters.includes(spec);
+                    return (
+                      <button
+                        key={spec}
+                        type="button"
+                        onClick={() => handleWowSpecFilterToggle(spec)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                      >
+                        {spec}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2 pt-1">
               <div className="text-xs font-black text-gray-400">선호 포지션</div>
               <div className="flex overflow-x-auto gap-2 custom-scrollbar w-full items-center" style={{ scrollbarWidth: 'thin' }}>
                 {wowPositionStats.orderedIds.map((positionId) => {
@@ -3635,6 +3891,7 @@ export default function App() {
                   <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('jobClass')}>
                     <div className="flex items-center">직업 <WowSortIcon columnKey="jobClass" /></div>
                   </th>
+                  <th scope="col" className="px-6 py-5 text-center">특성</th>
                   <th scope="col" className="px-6 py-5 text-center">선호 포지션</th>
                   <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestWowSort('level')}>
                     <div className="flex items-center justify-end">현재 레벨 <WowSortIcon columnKey="level" /></div>
@@ -3728,6 +3985,14 @@ export default function App() {
                           </span>
                         </td>
                         <td className="px-6 py-5 text-center">
+                          {member.mainSpec ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-2 py-1 rounded-full text-[12px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span>
+                              {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > 1 && <span className={`inline-flex items-center px-1.5 py-1 rounded-full text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - 1}</span>}
+                            </div>
+                          ) : <span className="text-sm text-gray-500">-</span>}
+                        </td>
+                        <td className="px-6 py-5 text-center">
                           <div className="flex flex-wrap gap-1.5 justify-center">
                             {normalizePreferredPositions(member.preferredPositions).length > 0 ? normalizePreferredPositions(member.preferredPositions).map((positionId) => (
                               <span key={positionId} className={`inline-flex items-center px-2 py-1 rounded-full text-[15px] font-black border whitespace-nowrap leading-none ${getWowPositionTagClasses(positionId)}`}>
@@ -3762,7 +4027,7 @@ export default function App() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-6 py-16 text-center text-gray-500 flex-col items-center">
+                    <td colSpan="8" className="px-6 py-16 text-center text-gray-500 flex-col items-center">
                       <Shield className="w-12 h-12 text-gray-700 mx-auto mb-3" />
                       선택한 필터 조건에 해당하는 길드원이 없습니다.
                     </td>
@@ -4154,6 +4419,36 @@ export default function App() {
                   </div>
 
                   <div className="flex flex-col gap-2 pt-0.5">
+                    <div className="text-[11px] font-black text-gray-400 pl-0.5">특성</div>
+                    {raidSelectedJobFilters.includes("전체") ? (
+                      <div className="text-[11px] text-gray-500 pl-0.5">직업을 선택하면 해당 직업의 특성 필터가 열립니다.</div>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleRaidSpecFilterToggle("전체")}
+                          className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${raidSelectedSpecFilters.includes("전체") ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                        >
+                          전체
+                        </button>
+                        {raidAvailableSpecOptions.map((spec) => {
+                          const isSelected = raidSelectedSpecFilters.includes(spec);
+                          return (
+                            <button
+                              key={spec}
+                              type="button"
+                              onClick={() => handleRaidSpecFilterToggle(spec)}
+                              className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                            >
+                              {spec}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-0.5">
                     <div className="text-[11px] font-black text-gray-400 pl-0.5">선호 포지션</div>
                     <div className="flex flex-wrap items-center gap-2">
                       {raidPositionStats.orderedIds.map((positionId) => {
@@ -4222,6 +4517,11 @@ export default function App() {
                                   <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
                                     {member.jobClass}
                                   </span>
+                                  {member.mainSpec && (
+                                    <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>
+                                      {member.mainSpec}
+                                    </span>
+                                  )}
                                   <span className="text-[11px] font-black text-gray-300">Lv. {member.level}</span>
                                 </div>
                                 <div className="flex items-center gap-1 mt-1.5 flex-wrap">
@@ -5010,9 +5310,49 @@ export default function App() {
               <form onSubmit={handleSaveFixedRaidMember} className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <input type="text" value={fixedRaidMemberForm.streamerName} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, streamerName: e.target.value }))} placeholder="이름" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
-                  <input type="text" value={fixedRaidMemberForm.jobClass} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, jobClass: e.target.value }))} placeholder="직업" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
+                  <input type="text" value={fixedRaidMemberForm.jobClass} onChange={(e) => handleFixedRaidMemberJobClassChange(e.target.value)} placeholder="직업" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
                   <input type="number" value={fixedRaidMemberForm.level} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, level: e.target.value }))} placeholder="레벨" min="1" max="70" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
                   <input type="text" value={fixedRaidMemberForm.imageUrl} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, imageUrl: e.target.value }))} placeholder="프로필 이미지 주소" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" />
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-black text-gray-400">특성</div>
+                  {getWowSpecOptions(fixedRaidMemberForm.jobClass).length > 0 ? (
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {getWowSpecOptions(fixedRaidMemberForm.jobClass).map((spec) => {
+                          const isSelected = fixedRaidMemberForm.availableSpecs.includes(spec);
+                          return (
+                            <button
+                              key={spec}
+                              type="button"
+                              onClick={() => handleToggleFixedRaidMemberAvailableSpec(spec)}
+                              className={`px-3 py-1 rounded-full text-xs font-black border transition ${isSelected ? 'border-slate-300/40 bg-slate-700/70 text-slate-50' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                            >
+                              {spec}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-[11px] font-black text-gray-500">주 특성</span>
+                        {fixedRaidMemberForm.availableSpecs.length > 0 ? fixedRaidMemberForm.availableSpecs.map((spec) => {
+                          const isActive = fixedRaidMemberForm.mainSpec === spec;
+                          return (
+                            <button
+                              key={spec}
+                              type="button"
+                              onClick={() => handleSelectFixedRaidMemberMainSpec(spec)}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-black border transition ${isActive ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                            >
+                              {spec}
+                            </button>
+                          );
+                        }) : <span className="text-xs text-gray-500">가능 특성을 먼저 선택하세요.</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs text-gray-500">직업을 입력하면 해당 직업의 특성을 선택할 수 있습니다.</div>
+                  )}
                 </div>
                 <div>
                   <div className="text-xs font-black text-gray-400 mb-2">선호 포지션</div>
@@ -5060,7 +5400,10 @@ export default function App() {
                           {raidPublicSettings.activeFixedRaidMemberOptionId === member.id && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">레이드 적용중</span>}
                         </div>
                         <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
+                        <div className="flex flex-wrap gap-1 mt-1 items-center">
+                          {member.mainSpec && (
+                            <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span>
+                          )}
                           {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
                             <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
                           ))}
@@ -5090,13 +5433,53 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <input type="text" value={wowStreamerName} onChange={e=>setWowStreamerName(e.target.value)} placeholder="스트리머명 (예: 단답벌레)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
                   <input type="text" value={wowNickname} onChange={e=>setWowNickname(e.target.value)} placeholder="와우 닉네임" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-                  <input type="text" value={wowJobClass} onChange={e=>setWowJobClass(e.target.value)} placeholder="직업 (예: 전사)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                  <input type="text" value={wowJobClass} onChange={e=>handleWowJobClassChange(e.target.value)} placeholder="직업 (예: 전사)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
                   <div className="flex gap-2">
                     <input type="number" value={wowLevel} onChange={e=>setWowLevel(e.target.value)} placeholder="레벨" min="1" max="70" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
                     <button type="submit" disabled={isWowSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap">
                       {isWowSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "등록"}
                     </button>
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-black text-gray-400">특성</div>
+                  {getWowSpecOptions(wowJobClass).length > 0 ? (
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {getWowSpecOptions(wowJobClass).map((spec) => {
+                          const isSelected = wowAvailableSpecsSelection.includes(spec);
+                          return (
+                            <button
+                              key={spec}
+                              type="button"
+                              onClick={() => handleToggleWowFormAvailableSpec(spec)}
+                              className={`px-3 py-1 rounded-full text-xs font-black border transition ${isSelected ? 'border-slate-300/40 bg-slate-700/70 text-slate-50' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                            >
+                              {spec}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-[11px] font-black text-gray-500">주 특성</span>
+                        {wowAvailableSpecsSelection.length > 0 ? wowAvailableSpecsSelection.map((spec) => {
+                          const isActive = wowMainSpec === spec;
+                          return (
+                            <button
+                              key={spec}
+                              type="button"
+                              onClick={() => handleSelectWowMainSpecLocal(spec)}
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-black border transition ${isActive ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                            >
+                              {spec}
+                            </button>
+                          );
+                        }) : <span className="text-xs text-gray-500">가능 특성을 먼저 선택하세요.</span>}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs text-gray-500">직업을 입력하면 해당 직업의 특성을 선택할 수 있습니다.</div>
+                  )}
                 </div>
               </form>
 
@@ -5134,7 +5517,8 @@ export default function App() {
                   .filter(member => 
                     member.streamerName.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
                     member.wowNickname.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
-                    member.jobClass.toLowerCase().includes(wowAdminSearchTerm.toLowerCase())
+                    member.jobClass.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
+                    normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some((spec) => spec.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()))
                   )
                   .sort((a,b) => {
                     if (wowAdminSortOption === 'levelDesc') return b.level - a.level;
@@ -5175,6 +5559,12 @@ export default function App() {
                           </span>
                         </div>
                         <div className="text-xs text-blue-400">{member.wowNickname}</div>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {member.mainSpec ? <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span> : <span className="text-[10px] text-gray-500">특성 미설정</span>}
+                          {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > (member.mainSpec ? 1 : 0) && (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - (member.mainSpec ? 1 : 0)}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -5247,6 +5637,45 @@ export default function App() {
                               </button>
                             );
                           })}
+                        </div>
+                        <div className="w-full space-y-1.5">
+                          <div className="text-[10px] font-black text-gray-500 text-right">특성 설정</div>
+                          {getWowSpecOptions(member.jobClass).length > 0 ? (
+                            <>
+                              <div className="flex flex-wrap gap-1.5 justify-end">
+                                {getWowSpecOptions(member.jobClass).map((spec) => {
+                                  const isSelected = normalizeAvailableSpecs(member.jobClass, member.availableSpecs).includes(spec);
+                                  return (
+                                    <button
+                                      key={spec}
+                                      type="button"
+                                      onClick={() => handleToggleWowAvailableSpec(member.id, spec, member.jobClass, member.availableSpecs, member.mainSpec)}
+                                      className={`px-2.5 py-1 rounded-full text-[10px] font-black border transition ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                                    >
+                                      {spec}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 justify-end">
+                                {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > 0 ? normalizeAvailableSpecs(member.jobClass, member.availableSpecs).map((spec) => {
+                                  const isActive = member.mainSpec === spec;
+                                  return (
+                                    <button
+                                      key={spec}
+                                      type="button"
+                                      onClick={() => handleSelectWowMainSpec(member.id, spec, member.jobClass, member.availableSpecs)}
+                                      className={`px-2 py-1 rounded-full text-[10px] font-black border transition ${isActive ? 'border-slate-200/60 bg-slate-100 text-slate-950' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                                    >
+                                      주 특성 {spec}
+                                    </button>
+                                  );
+                                }) : <span className="text-[10px] text-gray-500">가능 특성을 선택하세요.</span>}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-[10px] text-gray-500 text-right">직업 입력 후 특성 선택 가능</div>
+                          )}
                         </div>
                       </div>
 
