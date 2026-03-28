@@ -1212,6 +1212,24 @@ export default function App() {
     });
   };
 
+  const handleRaidSpecFilterToggle = (specId) => {
+    if (specId === "전체") {
+      setRaidSelectedSpecFilters(["전체"]);
+      return;
+    }
+
+    setRaidSelectedSpecFilters((prev) => {
+      const current = prev.includes("전체") ? [] : prev;
+      const next = current.includes(specId)
+        ? current.filter((item) => item !== specId)
+        : [...current, specId];
+
+      const filteredNext = next.filter((item) => raidAvailableSpecOptions.includes(item));
+      return filteredNext.length ? filteredNext : ["전체"];
+    });
+  };
+
+
   const handleToggleRaidRole = (memberId, roleId) => {
     setRaidRoleAssignments((prev) => {
       const currentRoles = Array.isArray(prev[memberId]) ? prev[memberId] : [];
