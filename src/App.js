@@ -572,7 +572,7 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "players", "matches", "stats", "tier", "wow", "busking", "raid", "admin"].includes(hash) ? hash : "home";
+    return ["home", "players", "matches", "stats", "tier", "wow", "raid", "admin"].includes(hash) ? hash : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -1534,7 +1534,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "players", "matches", "stats", "tier", "wow", "busking", "raid", "admin"].includes(hash)) setActiveTab(hash);
+      if (["home", "players", "matches", "stats", "tier", "wow", "raid", "admin"].includes(hash)) setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -2951,9 +2951,6 @@ export default function App() {
             <button onClick={() => navigateTo("wow")} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-900 to-purple-900 text-white rounded-lg border border-blue-700/50 shadow-lg hover:from-blue-800 hover:to-purple-800 transition">
               <Shield className="w-5 h-5 mr-2" /> 와우 왁타버스 길드
             </button>
-            <button onClick={() => navigateTo("busking")} className="flex items-center px-4 py-2 bg-gradient-to-r from-fuchsia-700 to-rose-600 text-white rounded-lg border border-fuchsia-400/40 shadow-lg hover:from-fuchsia-600 hover:to-rose-500 transition">
-              <Megaphone className="w-5 h-5 mr-2" /> 이번주 이벤트 : 와우 버스킹
-            </button>
           </div>
         </div>
       </div>
@@ -4069,104 +4066,6 @@ export default function App() {
       </div>
     );
   };
-
-
-  const renderBuskingView = () => {
-    const noticeUrl = (buskingSettings.noticeUrl || "").trim();
-
-    return (
-      <div className="space-y-6">
-        <div className="bg-gradient-to-r from-fuchsia-900/40 via-violet-900/35 to-blue-900/40 border border-fuchsia-500/30 rounded-2xl p-6 md:p-8 shadow-xl overflow-hidden relative">
-          <div className="absolute -right-8 -top-8 opacity-10 pointer-events-none">
-            <Megaphone className="w-40 h-40 text-fuchsia-300" />
-          </div>
-          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="space-y-3 max-w-3xl">
-              <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-3">
-                <Megaphone className="w-8 h-8 md:w-10 md:h-10 text-fuchsia-300" /> 와우 버스킹
-              </h2>
-              <p className="text-gray-300 break-keep text-sm md:text-base leading-relaxed">
-                와우 버스킹 이벤트에 참여한 스트리머 목록입니다. 방송국 가기 버튼을 눌러 여러 스트리머의 버스킹을 즐겨보세요!
-              </p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 xl:min-w-[420px]">
-              <div className="bg-white/8 border border-white/10 rounded-2xl p-4">
-                <p className="text-sm text-gray-300 mb-2">참여한 스트리머수</p>
-                <p className="text-3xl font-black text-white">{buskingParticipants.length}<span className="text-base text-gray-400 ml-1">명</span></p>
-              </div>
-              {noticeUrl ? (
-                <a
-                  href={noticeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white/8 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3 hover:bg-white/12 transition"
-                >
-                  <div>
-                    <p className="text-sm text-gray-300 mb-2">이벤트 안내</p>
-                    <p className="text-xl font-black text-fuchsia-200">공지사항</p>
-                  </div>
-                  <Link2 className="w-6 h-6 text-fuchsia-300 flex-shrink-0" />
-                </a>
-              ) : (
-                <div className="bg-white/8 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3 opacity-70">
-                  <div>
-                    <p className="text-sm text-gray-300 mb-2">이벤트 안내</p>
-                    <p className="text-xl font-black text-gray-300">공지사항 준비중</p>
-                  </div>
-                  <Megaphone className="w-6 h-6 text-gray-400 flex-shrink-0" />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {buskingParticipants.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-            {buskingParticipants.map((member) => {
-              const broadcastLink = member.broadcastUrl?.trim()
-                ? member.broadcastUrl
-                : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(member.streamerName)}`;
-
-              return (
-                <div key={member.id} className="bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-fuchsia-500/40 transition-all duration-300 group flex flex-col">
-                  <div className="p-6 flex-1 flex flex-col items-center text-center justify-center">
-                    <div className="w-24 h-24 md:w-28 md:h-28 rounded-full overflow-hidden border-2 border-fuchsia-400/50 bg-gray-900 mb-5 shadow-[0_0_24px_rgba(217,70,239,0.22)]">
-                      <img
-                        src={getWowAvatarSrc(member)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                        alt={member.streamerName}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                    <h4 className="text-xl md:text-2xl font-black text-white break-keep leading-tight">{member.streamerName}</h4>
-                    <p className="text-base mt-2 font-semibold" style={{ color: WOW_CLASS_COLORS[member.jobClass] || '#94a3b8' }}>{member.jobClass} · Lv.{member.level}</p>
-                  </div>
-                  <div className="px-4 pb-4">
-                    <a
-                      href={broadcastLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-colors shadow-md"
-                    >
-                      <Tv className="w-4 h-4 mr-2" /> 방송국 가기
-                    </a>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 shadow-lg py-20 text-center text-gray-500">
-            <Megaphone className="w-12 h-12 mx-auto mb-3 opacity-25" />
-            아직 버스킹 참가자로 등록된 스트리머가 없습니다.
-          </div>
-        )}
-      </div>
-    );
-  };
-
 
   const renderRaidView = () => {
     const totalRaidSlots = raidConfig.totalSlots;
@@ -5624,19 +5523,6 @@ export default function App() {
                           {member.isApplied ? '✅ 버종리 신청 ON' : '📝 버종리 신청 OFF'}
                         </button>
                         <button
-                          onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
-                          disabled={Number(member.level) < 40}
-                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
-                            Number(member.level) < 40
-                              ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
-                              : member.isBuskingParticipant
-                                ? 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-500/50 hover:bg-fuchsia-800'
-                                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
-                          }`}
-                        >
-                          {member.isBuskingParticipant ? '🎤 버스킹 참가 ON' : '🎤 버스킹 참가 OFF'}
-                        </button>
-                        <button
                           onClick={() => handleToggleRaidApply(member.id, member.isRaidApplied, member.level)}
                           disabled={Number(member.level) < 50}
                           className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
@@ -5723,127 +5609,6 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-b from-fuchsia-900/20 to-gray-800 rounded-xl p-6 border border-fuchsia-800/40 shadow-lg">
-              <h2 className="text-xl font-bold text-fuchsia-200 mb-2 flex items-center">
-                <Megaphone className="w-5 h-5 mr-2 text-fuchsia-300" /> 와우 버스킹 관리
-              </h2>
-              <p className="text-sm text-gray-400 mb-6 break-keep">
-                40레벨 이상 길드원 중에서 이번 주 버스킹 참가자를 지정하고, 공지사항 링크를 관리할 수 있습니다.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
-                  <p className="text-xs text-gray-400 mb-2">참가 가능 인원</p>
-                  <p className="text-2xl font-black text-white">{buskingEligibleMembers.length}</p>
-                </div>
-                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
-                  <p className="text-xs text-gray-400 mb-2">선정된 참가자</p>
-                  <p className="text-2xl font-black text-fuchsia-300">{buskingParticipants.length}</p>
-                </div>
-                <div className="bg-gray-900 rounded-xl border border-gray-700 p-4">
-                  <p className="text-xs text-gray-400 mb-2">공지사항 링크</p>
-                  <p className={`text-lg font-black ${buskingSettings.noticeUrl ? 'text-emerald-300' : 'text-gray-300'}`}>{buskingSettings.noticeUrl ? '등록됨' : '없음'}</p>
-                </div>
-              </div>
-
-              <div className="bg-gray-900/80 border border-gray-700 rounded-xl p-4 mb-6">
-                <p className="text-sm font-bold text-white mb-3">와우 버스킹 공지사항 링크</p>
-                <div className="flex flex-col lg:flex-row gap-3">
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={buskingNoticeLinkInput}
-                    onChange={(e) => setBuskingNoticeLinkInput(e.target.value)}
-                    className="flex-1 bg-gray-800 text-sm text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-fuchsia-500 outline-none"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleSaveBuskingNoticeUrl}
-                      disabled={isBuskingAdminSaving}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm transition whitespace-nowrap ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white'}`}
-                    >
-                      저장
-                    </button>
-                    <button
-                      onClick={handleDeleteBuskingNoticeUrl}
-                      disabled={isBuskingAdminSaving}
-                      className={`px-4 py-2 rounded-lg font-bold text-sm transition whitespace-nowrap ${isBuskingAdminSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600 text-white border border-gray-500'}`}
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                {buskingEligibleMembers.length > 0 ? buskingEligibleMembers.map((member) => (
-                  <div key={member.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={getWowAvatarSrc(member)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                        alt={member.streamerName}
-                        className="w-11 h-11 rounded-full bg-gray-800 object-cover border border-gray-600"
-                      />
-                      <div className="min-w-0">
-                        <p className="font-bold text-white truncate">{member.streamerName}</p>
-                        <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap md:flex-nowrap">
-                      <button
-                        onClick={() => handleToggleBuskingParticipant(member.id, member.isBuskingParticipant, member.level)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${member.isBuskingParticipant ? 'bg-fuchsia-900/50 text-fuchsia-300 border-fuchsia-500/50 hover:bg-fuchsia-800' : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600'}`}
-                      >
-                        {member.isBuskingParticipant ? '참가 ON' : '참가 OFF'}
-                      </button>
-                    </div>
-                  </div>
-                )) : (
-                  <p className="text-center text-gray-500 py-6">40레벨 이상 WOW 길드원이 아직 없습니다.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-              <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-                <Tv className="w-5 h-5 mr-2 text-fuchsia-300" /> WOW 버스킹 방송국 주소 관리
-              </h2>
-              <p className="text-sm text-gray-400 mb-6">
-                버스킹 참가자 카드의 방송국 가기 버튼에 연결될 주소를 입력해주세요. 비워두면 SOOP 검색으로 연결됩니다.
-              </p>
-
-              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                {wowRoster
-                  .filter((member) => member.isBuskingParticipant)
-                  .sort((a, b) => a.streamerName.localeCompare(b.streamerName, 'ko'))
-                  .map(member => (
-                  <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                    <div className="flex flex-col justify-center w-32 flex-shrink-0">
-                      <span className="font-bold text-white truncate" title={member.streamerName}>{member.streamerName}</span>
-                      <span className="text-[11px] text-gray-500 truncate">{member.jobClass} · Lv.{member.level}</span>
-                    </div>
-                    <div className="flex flex-1 gap-2">
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={wowBroadcastUrlInputs[member.id] !== undefined ? wowBroadcastUrlInputs[member.id] : (member.broadcastUrl || "")}
-                        onChange={(e) => setWowBroadcastUrlInputs({...wowBroadcastUrlInputs, [member.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-fuchsia-500 outline-none"
-                      />
-                      <button
-                        onClick={() => handleUpdateWowBroadcastUrl(member.id, wowBroadcastUrlInputs[member.id])}
-                        className="px-3 py-1.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                      >
-                        저장
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {wowRoster.filter((member) => member.isBuskingParticipant).length === 0 && <p className="text-center text-gray-500 py-4">버스킹 참가 신청을 완료한 길드원이 없습니다.</p>}
-              </div>
-            </div>
-
             {/* ★ WOW 길드원 프로필 이미지 관리 ★ */}
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
@@ -5882,7 +5647,6 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {wowRoster.filter((member) => member.isBuskingParticipant).length === 0 && <p className="text-center text-gray-500 py-4">버스킹 참가 신청을 완료한 길드원이 없습니다.</p>}
               </div>
             </div>
           </div>
@@ -6509,9 +6273,6 @@ export default function App() {
             <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
               <Shield className="w-4 h-4 mr-1" /> WOW
             </button>
-            <button onClick={() => navigateTo("busking")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "busking" ? "bg-fuchsia-900/50 text-fuchsia-300 border border-fuchsia-500/50" : "text-fuchsia-200 hover:text-white hover:bg-gray-800"}`}>
-              <Megaphone className="w-4 h-4 mr-1" /> 와우 버스킹
-            </button>
             <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
               {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
             </button>
@@ -6527,7 +6288,6 @@ export default function App() {
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
         {activeTab === "wow" && renderWowView()}
-        {activeTab === "busking" && renderBuskingView()}
         {activeTab === "raid" && renderRaidView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
@@ -6559,7 +6319,6 @@ export default function App() {
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
             { id: "wow", label: "WOW", icon: Shield },
-            { id: "busking", label: "와우 버스킹", icon: Megaphone },
             { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
           ].map((item) => (
             <button
