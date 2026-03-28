@@ -3729,6 +3729,15 @@ export default function App() {
                     WOW 레이드 만들기
                   </span>
                 </button>
+                <a
+                  href="https://wowak-3edc9.web.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-cyan-600/15 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-600/25 hover:border-cyan-300 hover:text-white px-3.5 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                >
+                  <Link2 className="w-4 h-4 mr-1.5" />
+                  템 세팅 보러가기
+                </a>
               </div>
               
               <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20 mt-2 md:mt-0">
