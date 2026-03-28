@@ -1229,7 +1229,6 @@ export default function App() {
     });
   };
 
-
   const handleToggleRaidRole = (memberId, roleId) => {
     setRaidRoleAssignments((prev) => {
       const currentRoles = Array.isArray(prev[memberId]) ? prev[memberId] : [];
@@ -2382,7 +2381,7 @@ export default function App() {
     copyTextToClipboard(applicants, `참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
   };
 
-  const isLockedRaidSlot = (groupIndex, slotIndex) => groupIndex === 0 && slotIndex === 0;
+  const isFixedRaidMemberId = (memberId) => memberId === GUILD_MASTER_ID;
 
   const assignMemberToRaidSlot = (memberId, targetGroupIndex, targetSlotIndex) => {
     const member = raidMemberMap[memberId];
@@ -2390,26 +2389,12 @@ export default function App() {
 
     setRaidRoleMenuSlotKey(null);
 
-    if (memberId === GUILD_MASTER_ID && !isLockedRaidSlot(targetGroupIndex, targetSlotIndex)) {
-      showToast("고정 길드원은 1번 파티 1번 슬롯에 고정됩니다.", "error");
-      return;
-    }
-
-    if (isLockedRaidSlot(targetGroupIndex, targetSlotIndex) && memberId !== GUILD_MASTER_ID) {
-      showToast("1번 파티 1번 슬롯은 고정 길드원의 자리입니다.", "error");
-      return;
-    }
-
     setRaidAssignments((prev) => {
       const next = cloneRaidLayout(prev);
       const sourceSlot = findRaidSlotByMemberId(next, memberId);
       const targetMemberId = next[targetGroupIndex][targetSlotIndex];
 
       if (sourceSlot && sourceSlot.groupIndex === targetGroupIndex && sourceSlot.slotIndex === targetSlotIndex) {
-        return prev;
-      }
-
-      if (targetMemberId === GUILD_MASTER_ID && memberId !== GUILD_MASTER_ID) {
         return prev;
       }
 
@@ -2449,10 +2434,6 @@ export default function App() {
 
     if (currentMemberId) {
       setSelectedRaidTargetSlotKey(null);
-      if (currentMemberId === GUILD_MASTER_ID) {
-        showToast("고정 길드원은 1번 파티 1번 슬롯에 고정됩니다.", "error");
-        return;
-      }
       setSelectedRaidMemberId(currentMemberId);
       return;
     }
@@ -2472,7 +2453,7 @@ export default function App() {
       }
     }
 
-    const emptySlot = targetSlot || findNextEmptyRaidSlot(raidAssignments, { skipLockedSlot: true });
+    const emptySlot = targetSlot || findNextEmptyRaidSlot(raidAssignments);
     if (!emptySlot) {
       showToast(`${raidConfig.label} 레이드 자리가 모두 채워졌습니다.`, "error");
       return;
@@ -2482,12 +2463,12 @@ export default function App() {
   };
 
   const handleRemoveRaidMember = (groupIndex, slotIndex) => {
-    if (isLockedRaidSlot(groupIndex, slotIndex)) {
-      showToast("고정 길드원은 해제할 수 없습니다.", "error");
+    const removedMemberId = raidAssignments[groupIndex]?.[slotIndex] || null;
+
+    if (removedMemberId === GUILD_MASTER_ID) {
+      showToast("고정 길드원은 제거할 수 없지만 다른 슬롯으로 옮길 수 있습니다.", "error");
       return;
     }
-
-    const removedMemberId = raidAssignments[groupIndex]?.[slotIndex] || null;
 
     setRaidAssignments((prev) => {
       const next = cloneRaidLayout(prev);
@@ -2631,7 +2612,7 @@ export default function App() {
   };
 
   const handleRaidDragStart = (event, memberId) => {
-    if (!memberId || memberId === GUILD_MASTER_ID) {
+    if (!memberId) {
       event.preventDefault();
       return;
     }
@@ -4765,7 +4746,7 @@ export default function App() {
                       <div className={raidGroupInnerClass}>
                         {groupMembers.map((memberId, slotIndex) => {
                           const member = memberId ? raidMemberMap[memberId] : null;
-                          const isLocked = isLockedRaidSlot(groupIndex, slotIndex);
+                          const isFixedRaidMember = isFixedRaidMemberId(memberId);
                           const isSelected = memberId && selectedRaidMemberId === memberId;
                           const slotKey = `${groupIndex}-${slotIndex}`;
                           const isDropTarget = raidDragOverSlot === slotKey;
@@ -4791,7 +4772,7 @@ export default function App() {
                               onDragOver={(event) => handleRaidSlotDragOver(event, groupIndex, slotIndex)}
                               onDrop={(event) => handleRaidSlotDrop(event, groupIndex, slotIndex)}
                               onDragLeave={() => setRaidDragOverSlot((prev) => prev === slotKey ? null : prev)}
-                              draggable={Boolean(member && !isLocked)}
+                              draggable={Boolean(member)}
                               onDragStart={(event) => handleRaidDragStart(event, memberId)}
                               onDragEnd={clearRaidDragState}
                               className={`w-full rounded-xl border text-left transition overflow-visible ${
@@ -4804,7 +4785,7 @@ export default function App() {
                                       : member
                                         ? 'border-gray-700 bg-gray-800/90 hover:border-blue-400/50 hover:bg-gray-800'
                                         : 'border-dashed border-gray-700 bg-gray-900/60 hover:border-fuchsia-500/40 hover:bg-gray-900'
-                              } ${member && !isLocked ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+                              } ${member ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
                             >
                               <div className={`flex items-center gap-2.5 ${raidSlotPaddingClass} ${raidSlotMinHeightClass}`}>
                                 {member ? (
@@ -4818,7 +4799,7 @@ export default function App() {
                                         src={getWowAvatarSrc(member)}
                                         onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
                                         alt={member.streamerName}
-                                        className={`${raidSlotAvatarClass} rounded-full object-cover border ${isLocked ? 'border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.35)]' : 'border-gray-700'} bg-gray-950 shrink-0`}
+                                        className={`${raidSlotAvatarClass} rounded-full object-cover border ${isFixedRaidMember ? 'border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.35)]' : 'border-gray-700'} bg-gray-950 shrink-0`}
                                       />
                                     )}
 
@@ -4981,7 +4962,7 @@ export default function App() {
                                   </div>
                                 )}
 
-                                {member && !isLocked && (
+                                {member && !isFixedRaidMember && (
                                   <button
                                     type="button"
                                     data-no-screenshot="true"
