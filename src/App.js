@@ -3715,15 +3715,15 @@ export default function App() {
                 </h3>
                 <button
                   onClick={handleCopyWowApplicantList}
-                  className="bg-green-600/20 text-green-400 border border-green-500/50 hover:bg-green-600 hover:text-white px-3 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                  className="bg-gray-700/35 text-emerald-300 hover:bg-emerald-600/15 hover:text-emerald-200 border border-transparent hover:border-emerald-500/25 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center whitespace-nowrap"
                 >
                   📋 버종리 신청 명단 복사하기
                 </button>
                 <button
                   onClick={() => navigateTo("raid")}
-                  className="relative overflow-hidden bg-gradient-to-r from-fuchsia-700/25 via-violet-700/20 to-blue-700/25 text-fuchsia-200 border border-fuchsia-500/40 hover:border-fuchsia-300 hover:text-white px-3.5 py-1.5 rounded text-sm font-black transition flex items-center shadow-[0_0_24px_rgba(168,85,247,0.18)] whitespace-nowrap"
+                  className="relative overflow-hidden bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 text-white border border-fuchsia-300/25 hover:from-fuchsia-500 hover:via-violet-500 hover:to-indigo-500 px-3.5 py-1.5 rounded-lg text-sm font-black transition-all duration-200 flex items-center shadow-[0_0_28px_rgba(168,85,247,0.28)] hover:shadow-[0_0_36px_rgba(168,85,247,0.38)] whitespace-nowrap"
                 >
-                  <span className="absolute inset-0 bg-gradient-to-r from-fuchsia-500/10 via-violet-500/5 to-blue-500/10 opacity-90 transition"></span>
+                  <span className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-white/5 opacity-90 transition"></span>
                   <span className="relative flex items-center">
                     <Sparkles className="w-4 h-4 mr-1.5 text-fuchsia-300" />
                     WOW 레이드 만들기
@@ -3733,7 +3733,7 @@ export default function App() {
                   href="https://wowak-3edc9.web.app/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-cyan-600/15 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-600/25 hover:border-cyan-300 hover:text-white px-3.5 py-1.5 rounded text-sm font-bold transition flex items-center shadow-sm whitespace-nowrap"
+                  className="bg-cyan-600/5 text-cyan-300 border border-cyan-500/45 hover:bg-cyan-500/20 hover:border-cyan-300 hover:text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center whitespace-nowrap"
                 >
                   <Link2 className="w-4 h-4 mr-1.5" />
                   템 세팅 보러가기
