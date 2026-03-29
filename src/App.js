@@ -3956,29 +3956,29 @@ export default function App() {
 
               <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
+                  <table className="min-w-full text-[17px]">
                     <thead className="bg-gray-900/90 text-gray-300">
                       <tr>
-                        <th className="px-4 py-3 text-left">순위</th>
-                        <th className="px-4 py-3 text-left">참가자</th>
-                        <th className="px-4 py-3 text-left">와우 닉네임</th>
-                        <th className="px-4 py-3 text-left">직업</th>
-                        <th className="px-4 py-3 text-left">특성</th>
-                        <th className="px-4 py-3 text-right">{currentStatMeta?.label}</th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">순위</th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">참가자</th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">와우 닉네임</th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">직업</th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">특성</th>
+                        <th className="px-4 py-3 text-right text-[17px] font-black">{currentStatMeta?.label}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rankings.length > 0 ? rankings.map((participant, index) => (
                         <tr key={participant.id} className="border-t border-gray-700/80 hover:bg-gray-700/20">
-                          <td className="px-4 py-3 font-black text-gray-300">{index + 1}</td>
-                          <td className="px-4 py-3 font-bold text-white">{participant.streamerName}</td>
-                          <td className="px-4 py-3 text-blue-300">{participant.wowNickname}</td>
-                          <td className="px-4 py-3"><span style={getJobBadgeStyle(participant.jobClass)} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-black border whitespace-nowrap">{participant.jobClass}</span></td>
-                          <td className="px-4 py-3">{participant.mainSpec ? <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{participant.mainSpec}</span> : <span className="text-gray-500">-</span>}</td>
-                          <td className="px-4 py-3 text-right font-black text-amber-200">{renderWowRaidValue(participant.value)}</td>
+                          <td className="px-4 py-3 font-black text-gray-300 text-[17px]">{index + 1}</td>
+                          <td className="px-4 py-3 font-bold text-white text-[17px]">{participant.streamerName}</td>
+                          <td className="px-4 py-3 text-blue-300 text-[17px]">{participant.wowNickname}</td>
+                          <td className="px-4 py-3"><span style={getJobBadgeStyle(participant.jobClass)} className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap">{participant.jobClass}</span></td>
+                          <td className="px-4 py-3">{participant.mainSpec ? <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{participant.mainSpec}</span> : <span className="text-gray-500">-</span>}</td>
+                          <td className="px-4 py-3 text-right font-black text-amber-200 text-[21px]">{renderWowRaidValue(participant.value)}</td>
                         </tr>
                       )) : (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</td></tr>
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-[17px]">아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -6152,10 +6152,18 @@ export default function App() {
                       <h3 className="text-sm font-black text-white">WOW 길드원 참가자 선택</h3>
                       <span className="text-xs text-gray-400">{wowRaidForm.rosterParticipantIds.length}명 선택</span>
                     </div>
+                    <div className="relative mb-3">
+                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={wowRaidRosterSearchInput}
+                        onChange={(e) => setWowRaidRosterSearchInput(e.target.value)}
+                        placeholder="참가자 검색 (이름, 닉네임, 직업, 특성)"
+                        className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-violet-500 outline-none"
+                      />
+                    </div>
                     <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                      {wowRoster.length > 0 ? wowRoster
-                        .slice()
-                        .sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'))
+                      {filteredWowRaidRosterCandidates.length > 0 ? filteredWowRaidRosterCandidates
                         .map((member) => {
                           const isSelected = wowRaidForm.rosterParticipantIds.includes(member.id);
                           return (
@@ -6174,7 +6182,7 @@ export default function App() {
                               </div>
                             </button>
                           );
-                        }) : <div className="text-sm text-gray-500 text-center py-8">WOW 길드원이 없습니다.</div>}
+                        }) : <div className="text-sm text-gray-500 text-center py-8">검색 결과가 없거나 등록된 WOW 길드원이 없습니다.</div>}
                     </div>
                   </div>
 
@@ -6184,7 +6192,17 @@ export default function App() {
                       <span className="text-xs text-gray-400">{wowRaidForm.fixedParticipantIds.length}명 선택</span>
                     </div>
                     <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                      {sortedFixedRaidMembers.length > 0 ? sortedFixedRaidMembers.map((member) => {
+                      <div className="relative mb-3">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={wowRaidFixedSearchInput}
+                          onChange={(e) => setWowRaidFixedSearchInput(e.target.value)}
+                          placeholder="고정 길드원 검색 (이름, 닉네임, 직업, 특성)"
+                          className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-amber-500 outline-none"
+                        />
+                      </div>
+                      {filteredWowRaidFixedCandidates.length > 0 ? filteredWowRaidFixedCandidates.map((member) => {
                         const isSelected = wowRaidForm.fixedParticipantIds.includes(member.id);
                         return (
                           <button
@@ -6977,8 +6995,8 @@ export default function App() {
             <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
               <Shield className="w-4 h-4 mr-1" /> WOW
             </button>
-            <button onClick={() => navigateTo("wowraid")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wowraid" ? "bg-violet-900/50 text-violet-300 border border-violet-500/50" : "text-violet-300 hover:text-white hover:bg-gray-800"}`}>
-              <Layers className="w-4 h-4 mr-1" /> WOW레이드
+            <button onClick={() => navigateTo("wowraid")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "wowraid" ? "bg-violet-900/50 text-violet-300 border border-violet-500/50" : "text-violet-300 hover:text-white hover:bg-gray-800"}`}>
+              WOW레이드
             </button>
             <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
               {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
@@ -6987,7 +7005,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : "max-w-6xl px-4"}`}>
+      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
 
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
@@ -7027,7 +7045,7 @@ export default function App() {
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
             { id: "wow", label: "WOW", icon: Shield },
-            { id: "wowraid", label: "WOW레이드", icon: Layers },
+            { id: "wowraid", label: "WOW레이드", icon: null },
             { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
           ].map((item) => (
             <button
@@ -7042,7 +7060,7 @@ export default function App() {
                   : "bg-gray-800/90 border-gray-700/50 text-white font-bold hover:bg-gray-700"
               }`}
             >
-              <item.icon className="w-5 h-5" />
+              {item.icon ? <item.icon className="w-5 h-5" /> : null}
               <span className="text-sm">{item.label}</span>
             </button>
           ))}
