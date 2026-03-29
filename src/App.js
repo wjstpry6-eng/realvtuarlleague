@@ -693,6 +693,9 @@ export default function App() {
   const [wowRaidAdminStatTab, setWowRaidAdminStatTab] = useState('damage');
   const [wowRaidForm, setWowRaidForm] = useState(() => createEmptyWowRaidForm());
   const [isWowRaidSaving, setIsWowRaidSaving] = useState(false);
+  const [wowRaidRosterSearchInput, setWowRaidRosterSearchInput] = useState("");
+  const [wowRaidFixedSearchInput, setWowRaidFixedSearchInput] = useState("");
+  const [wowRaidStatSearchInput, setWowRaidStatSearchInput] = useState("");
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
   const [raidAssignments, setRaidAssignments] = useState(() => createEmptyRaidLayout(getRaidConfig(DEFAULT_RAID_TYPE).groupCount, GUILD_MASTER_ID));
@@ -986,6 +989,22 @@ export default function App() {
     [...fixedRaidMembers].sort((a, b) => (a.streamerName || "").localeCompare(b.streamerName || "", "ko"))
   ), [fixedRaidMembers]);
 
+  const matchesWowRaidSearch = (target, keyword) => {
+    const normalizedKeyword = (keyword || "").trim().toLowerCase();
+    if (!normalizedKeyword) return true;
+    const searchable = [
+      target?.streamerName,
+      target?.wowNickname,
+      target?.jobClass,
+      target?.mainSpec,
+      ...(Array.isArray(target?.availableSpecs) ? target.availableSpecs : []),
+      ...(Array.isArray(target?.preferredPositions) ? target.preferredPositions : []),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return searchable.includes(normalizedKeyword);
+  };
 
   const wowRaidPublishedList = useMemo(() => (
     wowRaids.filter((raid) => raid.isPublished).sort((a, b) => {
@@ -1015,6 +1034,19 @@ export default function App() {
     return [...rosterSnapshots, ...fixedSnapshots].sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'));
   }, [wowRaidForm.rosterParticipantIds, wowRaidForm.fixedParticipantIds, wowRoster, fixedRaidMembers]);
 
+  const filteredWowRaidRosterCandidates = useMemo(() => (
+    [...wowRoster]
+      .sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'))
+      .filter((member) => matchesWowRaidSearch(member, wowRaidRosterSearchInput))
+  ), [wowRoster, wowRaidRosterSearchInput]);
+
+  const filteredWowRaidFixedCandidates = useMemo(() => (
+    sortedFixedRaidMembers.filter((member) => matchesWowRaidSearch(member, wowRaidFixedSearchInput))
+  ), [sortedFixedRaidMembers, wowRaidFixedSearchInput]);
+
+  const filteredWowRaidStatParticipants = useMemo(() => (
+    wowRaidFormParticipants.filter((participant) => matchesWowRaidSearch(participant, wowRaidStatSearchInput))
+  ), [wowRaidFormParticipants, wowRaidStatSearchInput]);
 
   useEffect(() => {
     if (selectedWowRaidId && !wowRaids.some((raid) => raid.id === selectedWowRaidId) && !wowRaidPublishedList.some((raid) => raid.id === selectedWowRaidId)) {
@@ -3811,7 +3843,8 @@ export default function App() {
   };
 
   const renderWowRaidValue = (value) => {
-    const safeValue = Number(value) || 0;
+    const safeValue = Number(value);
+    if (!Number.isFinite(safeValue) || safeValue === 0) return '-';
     return safeValue.toLocaleString('ko-KR');
   };
 
@@ -4468,7 +4501,7 @@ export default function App() {
                               )}
                               {member.isRaidApplied && (
                                 <span className="bg-cyan-900/60 text-cyan-300 border border-cyan-400/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
-                                  ⚔️ 레이드 신청완료
+                                  ⚔️ 줄구룹 신청완료
                                 </span>
                               )}                            </div>
                           </div>
@@ -4885,6 +4918,9 @@ export default function App() {
                           </button>
                         );
                       })}
+                      {filteredWowRaidRosterCandidates.length === 0 && (
+                        <div className="text-sm text-gray-500 text-center py-6">검색 결과가 없습니다.</div>
+                      )}
                     </div>
                   </div>
 
@@ -6166,7 +6202,7 @@ export default function App() {
                             </div>
                           </button>
                         );
-                      }) : <div className="text-sm text-gray-500 text-center py-8">등록된 고정 길드원이 없습니다.</div>}
+                      }) : <div className="text-sm text-gray-500 text-center py-8">검색 결과가 없거나 등록된 고정 길드원이 없습니다.</div>}
                     </div>
                   </div>
                 </div>
@@ -6206,9 +6242,16 @@ export default function App() {
                   </div>
                   <div className="bg-gray-800/60 rounded-xl border border-gray-700 p-4">
                     <div className="text-sm font-black text-white mb-3">{WOW_RAID_STAT_FIELDS.find((field) => field.id === wowRaidAdminStatTab)?.label} 입력</div>
+                    <input
+                      type="text"
+                      value={wowRaidStatSearchInput}
+                      onChange={(e) => setWowRaidStatSearchInput(e.target.value)}
+                      placeholder="통계 입력 대상 검색 (이름, 닉네임, 직업, 특성)"
+                      className="w-full mb-3 bg-gray-900/80 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none"
+                    />
                     {wowRaidFormParticipants.length > 0 ? (
                       <div className="space-y-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                        {wowRaidFormParticipants.map((participant) => (
+                        {filteredWowRaidStatParticipants.map((participant) => (
                           <div key={participant.id} className="grid grid-cols-[minmax(0,1fr)_140px] gap-3 items-center bg-gray-900/70 border border-gray-700 rounded-lg p-2.5">
                             <div className="min-w-0">
                               <div className="font-bold text-white truncate">{participant.streamerName}</div>
@@ -6224,6 +6267,9 @@ export default function App() {
                             />
                           </div>
                         ))}
+                        {filteredWowRaidStatParticipants.length === 0 && (
+                          <div className="text-sm text-gray-500 text-center py-6">검색 결과가 없습니다.</div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-sm text-gray-500 text-center py-6">참가자를 먼저 선택해주세요.</div>
@@ -6941,7 +6987,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-[1480px] px-4 md:px-5 lg:px-6" : "max-w-6xl px-4"}`}>
+      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : "max-w-6xl px-4"}`}>
 
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
