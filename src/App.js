@@ -4252,6 +4252,7 @@ export default function App() {
                   <div className="text-lg font-black text-white mb-2 break-keep">{raid.raidName}</div>
                   <div className="text-sm text-gray-300 mb-1">{raid.raidDate || '-'}</div>
                   <div className="text-sm text-cyan-300 font-black">토벌시간 {raid.clearTime || '-'}</div>
+                  {raid.note && <div className="mt-2 text-xs text-gray-400 break-keep leading-relaxed">{raid.note}</div>}
                 </div>
               </button>
             ))}
