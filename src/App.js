@@ -804,6 +804,7 @@ export default function App() {
   const [raidSelectedLevelFilters, setRaidSelectedLevelFilters] = useState(["50+"]);
   const [raidSelectedSpecFilters, setRaidSelectedSpecFilters] = useState(["전체"]);
   const [raidSelectedPositionFilters, setRaidSelectedPositionFilters] = useState(["전체"]);
+  const [raidRosterViewMode, setRaidRosterViewMode] = useState("all");
   const [isRaidLevelFilterOpen, setIsRaidLevelFilterOpen] = useState(false);
   const [isRaidFilterPanelCollapsed, setIsRaidFilterPanelCollapsed] = useState(true);
   const [selectedRaidTargetSlotKey, setSelectedRaidTargetSlotKey] = useState(null);
@@ -1232,8 +1233,8 @@ export default function App() {
   const raidSelectedMember = selectedRaidMemberId ? raidMemberMap[selectedRaidMemberId] : null;
 
   const raidEligibleRoster = useMemo(() => (
-    wowRoster.filter((member) => member.isRaidApplied && matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
-  ), [wowRoster, raidSelectedLevelFilters]);
+    wowRoster.filter((member) => (raidRosterViewMode === "all" || member.isRaidApplied) && matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
+  ), [wowRoster, raidSelectedLevelFilters, raidRosterViewMode]);
 
   const raidJobStats = useMemo(() => {
     const stats = { "전체": raidEligibleRoster.length };
@@ -4743,7 +4744,7 @@ export default function App() {
                               )}
                               {member.isRaidApplied && (
                                 <span className="bg-cyan-900/60 text-cyan-300 border border-cyan-400/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
-                                  ⚔️ 줄구룹 신청완료
+                                  ⚔️ 레이드 신청완료
                                 </span>
                               )}                            </div>
                           </div>
@@ -5163,6 +5164,26 @@ export default function App() {
                       {filteredWowRaidRosterCandidates.length === 0 && (
                         <div className="text-sm text-gray-500 text-center py-6">검색 결과가 없습니다.</div>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-0.5">
+                    <div className="text-[11px] font-black text-gray-400 pl-0.5">명단 보기</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRaidRosterViewMode("all")}
+                        className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${raidRosterViewMode === "all" ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100 shadow-[0_0_12px_rgba(16,185,129,0.14)]' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                      >
+                        전체
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRaidRosterViewMode("applicants")}
+                        className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${raidRosterViewMode === "applicants" ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,0.14)]' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                      >
+                        신청자
+                      </button>
                     </div>
                   </div>
 
