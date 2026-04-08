@@ -44,7 +44,8 @@ import {
   ArrowLeft,
   Copy,
   Link2,
-  Sparkles
+  Sparkles,
+  Globe
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -263,6 +264,18 @@ const normalizePreferredPositions = (value) => {
   );
 };
 
+const WOW_JOB_OPTIONS = [
+  "전사",
+  "도적",
+  "마법사",
+  "사냥꾼",
+  "흑마법사",
+  "사제",
+  "드루이드",
+  "성기사",
+  "주술사",
+];
+
 const WOW_SPEC_OPTIONS_BY_JOB = {
   전사: ["무기", "분노", "방어"],
   도적: ["암살", "전투", "잠행"],
@@ -453,6 +466,45 @@ const WOW_RAID_DETAIL_TABS = [
   ...WOW_RAID_STAT_FIELDS,
 ];
 
+const getDefaultWowRaidGuestAvatar = (participant) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || 'guest').trim() || 'guest')}`;
+const createWowRaidGuestId = () => `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+const createEmptyWowRaidGuestForm = () => ({
+  id: createWowRaidGuestId(),
+  displayName: '',
+  wowNickname: '',
+  imageMode: 'default',
+  imageUrl: '',
+  jobClass: '',
+  mainSpec: '',
+  availableSpecs: [],
+  preferredPositions: [],
+});
+
+const getRecommendedPreferredPositionsBySpec = (jobClass = '', mainSpec = '') => {
+  const normalizedJob = normalizeWowJobClassKey(jobClass);
+  if (!mainSpec) return [];
+  if (['방어', '수호', '보호'].includes(mainSpec)) return ['tank'];
+  if (['신성', '회복', '복원', '수양'].includes(mainSpec)) return ['heal'];
+  if (['마법사', '사냥꾼', '흑마법사'].includes(normalizedJob)) return ['rangedDealer'];
+  if (normalizedJob === '사제') return mainSpec === '암흑' ? ['rangedDealer'] : ['heal'];
+  if (normalizedJob === '드루이드') {
+    if (mainSpec === '조화') return ['rangedDealer'];
+    if (mainSpec === '야성') return ['meleeDealer'];
+  }
+  if (normalizedJob === '주술사') {
+    if (mainSpec === '정기') return ['rangedDealer'];
+    if (mainSpec === '고양') return ['meleeDealer'];
+  }
+  if (normalizedJob === '성기사') {
+    if (mainSpec === '징벌') return ['meleeDealer'];
+  }
+  if (normalizedJob === '전사') {
+    if (['무기', '분노'].includes(mainSpec)) return ['meleeDealer'];
+  }
+  if (normalizedJob === '도적') return ['meleeDealer'];
+  return [];
+};
+
 const createEmptyWowRaidForm = () => ({
   id: null,
   raidName: '',
@@ -462,8 +514,10 @@ const createEmptyWowRaidForm = () => ({
   isCleared: true,
   isPublished: false,
   note: '',
+  raidGroupNumber: '',
   rosterParticipantIds: [],
   fixedParticipantIds: [],
+  guestParticipants: [],
   stats: {
     damage: {},
     damageTaken: {},
@@ -489,6 +543,47 @@ const createWowRaidParticipantSnapshot = (member = {}, sourceType = 'wow_roster'
     preferredPositions: normalizePreferredPositions(normalizedMember.preferredPositions),
     mainSpec: normalizeWowSpecState(normalizedMember.jobClass, normalizedMember.mainSpec, normalizedMember.availableSpecs).mainSpec,
     availableSpecs: normalizeWowSpecState(normalizedMember.jobClass, normalizedMember.mainSpec, normalizedMember.availableSpecs).availableSpecs,
+    displayName: '',
+  };
+};
+
+const normalizeWowRaidGuestParticipant = (participant = {}) => {
+  const jobClass = normalizeWowJobClassKey(participant?.jobClass || '');
+  const specState = normalizeWowSpecState(jobClass, participant?.mainSpec, participant?.availableSpecs);
+  const recommendedPositions = getRecommendedPreferredPositionsBySpec(jobClass, specState.mainSpec);
+  return {
+    id: participant?.id || createWowRaidGuestId(),
+    displayName: participant?.displayName || '',
+    wowNickname: participant?.wowNickname || '',
+    imageMode: participant?.imageMode === 'custom' ? 'custom' : 'default',
+    imageUrl: participant?.imageUrl || '',
+    jobClass,
+    mainSpec: specState.mainSpec,
+    availableSpecs: specState.availableSpecs,
+    preferredPositions: normalizePreferredPositions(participant?.preferredPositions).length
+      ? normalizePreferredPositions(participant?.preferredPositions)
+      : recommendedPositions,
+  };
+};
+
+const createWowRaidGuestParticipantSnapshot = (participant = {}) => {
+  const normalizedGuest = normalizeWowRaidGuestParticipant(participant);
+  const snapshotId = buildWowRaidParticipantKey('guest', normalizedGuest.id);
+  return {
+    id: snapshotId,
+    sourceType: 'guest',
+    sourceId: normalizedGuest.id,
+    streamerName: normalizedGuest.displayName || normalizedGuest.wowNickname || '일반인',
+    wowNickname: normalizedGuest.wowNickname || normalizedGuest.displayName || '일반인',
+    jobClass: normalizedGuest.jobClass || '',
+    level: 60,
+    imageUrl: normalizedGuest.imageMode === 'custom' && normalizedGuest.imageUrl ? normalizedGuest.imageUrl : getDefaultWowRaidGuestAvatar(normalizedGuest),
+    preferredPositions: normalizePreferredPositions(normalizedGuest.preferredPositions),
+    mainSpec: normalizedGuest.mainSpec,
+    availableSpecs: normalizedGuest.availableSpecs,
+    displayName: normalizedGuest.displayName || '',
+    imageMode: normalizedGuest.imageMode,
+    isGuestParticipant: true,
   };
 };
 
@@ -510,10 +605,13 @@ const normalizeWowRaidDocument = (raid = {}) => ({
   isCleared: raid.isCleared !== false,
   isPublished: !!raid.isPublished,
   note: raid.note || '',
+  raidGroupNumber: `${raid.raidGroupNumber ?? ''}`.replace(/[^0-9]/g, ''),
   rosterParticipantIds: Array.isArray(raid.rosterParticipantIds) ? raid.rosterParticipantIds : [],
   fixedParticipantIds: Array.isArray(raid.fixedParticipantIds) ? raid.fixedParticipantIds : [],
+  guestParticipants: Array.isArray(raid.guestParticipants) ? raid.guestParticipants.map(normalizeWowRaidGuestParticipant) : [],
   participants: Array.isArray(raid.participants) ? raid.participants.map((participant) => ({
     ...participant,
+    displayName: participant?.displayName || '',
     preferredPositions: normalizePreferredPositions(participant?.preferredPositions),
     ...normalizeWowSpecState(participant?.jobClass, participant?.mainSpec, participant?.availableSpecs),
   })) : [],
@@ -663,7 +761,17 @@ export default function App() {
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [draftPlayers, setDraftPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
+  const publishedMatches = useMemo(() => matches.filter((m) => m.isPublished !== false), [matches]);
+  const combinedLeaguePlayers = useMemo(() => {
+    const normalizedPlayers = players.map((player) => ({ ...player, _source: "players" }));
+    const existingNames = new Set(players.map((player) => (player.name || "").trim()).filter(Boolean));
+    const draftOnlyPlayers = draftPlayers
+      .filter((player) => !existingNames.has((player.name || "").trim()))
+      .map((player) => ({ ...player, points: 0, _source: "draft_players" }));
+    return [...normalizedPlayers, ...draftOnlyPlayers];
+  }, [players, draftPlayers]);
   
   // ★ WOW 탭 상태 관리 ★
   const [wowRoster, setWowRoster] = useState([]);
@@ -690,11 +798,13 @@ export default function App() {
   const [wowRaids, setWowRaids] = useState([]);
   const [selectedWowRaidId, setSelectedWowRaidId] = useState(null);
   const [wowRaidDetailTab, setWowRaidDetailTab] = useState('participants');
+  const [wowRaidGroupFilter, setWowRaidGroupFilter] = useState('all');
   const [wowRaidAdminStatTab, setWowRaidAdminStatTab] = useState('damage');
   const [wowRaidForm, setWowRaidForm] = useState(() => createEmptyWowRaidForm());
   const [isWowRaidSaving, setIsWowRaidSaving] = useState(false);
   const [wowRaidRosterSearchInput, setWowRaidRosterSearchInput] = useState("");
   const [wowRaidFixedSearchInput, setWowRaidFixedSearchInput] = useState("");
+  const [wowRaidGuestSearchInput, setWowRaidGuestSearchInput] = useState("");
   const [wowRaidStatSearchInput, setWowRaidStatSearchInput] = useState("");
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
@@ -858,11 +968,13 @@ export default function App() {
 
   const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
   const [matchToEdit, setMatchToEdit] = useState(null);
+  const [selectedMatchId, setSelectedMatchId] = useState(null);
   const [editGameName, setEditGameName] = useState("");
   const [editMatchDate, setEditMatchDate] = useState("");
   const [editMatchMode, setEditMatchMode] = useState("individual");
   const [editHasFunding, setEditHasFunding] = useState(false);
   const [editTotalFunding, setEditTotalFunding] = useState("");
+  const [editIsPublished, setEditIsPublished] = useState(false);
   const [editIndividualResults, setEditIndividualResults] = useState([]);
   const [editTeamResults, setEditTeamResults] = useState([]);
   const [isEditingSubmit, setIsEditingSubmit] = useState(false);
@@ -871,7 +983,7 @@ export default function App() {
     return players.map((p) => {
       let matchCount = 0;
       let winCount = 0;
-      matches.forEach((m) => {
+      publishedMatches.forEach((m) => {
         const res = m.results?.find((r) => r.playerName === p.name);
         if (res) {
           matchCount++;
@@ -881,7 +993,7 @@ export default function App() {
       const avgScore = matchCount > 0 ? (p.points / matchCount) : 0;
       return { ...p, matchCount, winCount, avgScore: Number(avgScore.toFixed(1)) };
     }); 
-  }, [players, matches]);
+  }, [players, publishedMatches]);
 
   const sortedPlayerStats = useMemo(() => {
     let sortableItems = [...playerStatsMap];
@@ -994,6 +1106,7 @@ export default function App() {
     if (!normalizedKeyword) return true;
     const searchable = [
       target?.streamerName,
+      target?.displayName,
       target?.wowNickname,
       target?.jobClass,
       target?.mainSpec,
@@ -1008,12 +1121,26 @@ export default function App() {
 
   const wowRaidPublishedList = useMemo(() => (
     wowRaids.filter((raid) => raid.isPublished).sort((a, b) => {
-      const dateA = new Date(a.raidDate || a.createdAt || 0).getTime();
-      const dateB = new Date(b.raidDate || b.createdAt || 0).getTime();
-      if (dateA !== dateB) return dateB - dateA;
-      return (b.createdAt || '').localeCompare(a.createdAt || '');
+      const createdA = new Date(a.createdAt || a.raidDate || 0).getTime();
+      const createdB = new Date(b.createdAt || b.raidDate || 0).getTime();
+      if (createdA !== createdB) return createdA - createdB;
+      const groupA = Number(a.raidGroupNumber || 9999);
+      const groupB = Number(b.raidGroupNumber || 9999);
+      if (groupA !== groupB) return groupA - groupB;
+      return (a.raidName || '').localeCompare(b.raidName || '', 'ko');
     })
   ), [wowRaids]);
+
+  const filteredWowRaidPublishedList = useMemo(() => (
+    wowRaidPublishedList.filter((raid) => {
+      const groupNum = Number(raid.raidGroupNumber || 0);
+      if (wowRaidGroupFilter === 'all') return true;
+      if (wowRaidGroupFilter === '1') return groupNum === 1;
+      if (wowRaidGroupFilter === '2') return groupNum === 2;
+      if (wowRaidGroupFilter === 'other') return groupNum !== 1 && groupNum !== 2;
+      return true;
+    })
+  ), [wowRaidPublishedList, wowRaidGroupFilter]);
 
   const selectedWowRaid = useMemo(() => {
     const source = wowRaids.find((raid) => raid.id === selectedWowRaidId) || wowRaidPublishedList.find((raid) => raid.id === selectedWowRaidId);
@@ -1031,8 +1158,10 @@ export default function App() {
       .filter(Boolean)
       .map((member) => createWowRaidParticipantSnapshot(member, 'fixed_member'));
 
-    return [...rosterSnapshots, ...fixedSnapshots].sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'));
-  }, [wowRaidForm.rosterParticipantIds, wowRaidForm.fixedParticipantIds, wowRoster, fixedRaidMembers]);
+    const guestSnapshots = (wowRaidForm.guestParticipants || []).map((participant) => createWowRaidGuestParticipantSnapshot(participant));
+
+    return [...rosterSnapshots, ...fixedSnapshots, ...guestSnapshots].sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'));
+  }, [wowRaidForm.rosterParticipantIds, wowRaidForm.fixedParticipantIds, wowRaidForm.guestParticipants, wowRoster, fixedRaidMembers]);
 
   const filteredWowRaidRosterCandidates = useMemo(() => (
     [...wowRoster]
@@ -1043,6 +1172,18 @@ export default function App() {
   const filteredWowRaidFixedCandidates = useMemo(() => (
     sortedFixedRaidMembers.filter((member) => matchesWowRaidSearch(member, wowRaidFixedSearchInput))
   ), [sortedFixedRaidMembers, wowRaidFixedSearchInput]);
+
+  const filteredWowRaidGuestParticipants = useMemo(() => (
+    (wowRaidForm.guestParticipants || []).filter((participant) => matchesWowRaidSearch({
+      streamerName: participant.displayName,
+      displayName: participant.displayName,
+      wowNickname: participant.wowNickname,
+      jobClass: participant.jobClass,
+      mainSpec: participant.mainSpec,
+      availableSpecs: participant.availableSpecs,
+      preferredPositions: participant.preferredPositions,
+    }, wowRaidGuestSearchInput))
+  ), [wowRaidForm.guestParticipants, wowRaidGuestSearchInput]);
 
   const filteredWowRaidStatParticipants = useMemo(() => (
     wowRaidFormParticipants.filter((participant) => matchesWowRaidSearch(participant, wowRaidStatSearchInput))
@@ -1709,6 +1850,17 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (activeTab !== "matches" || !selectedMatchId) return;
+    const timer = setTimeout(() => {
+      const target = document.getElementById(`match-card-${selectedMatchId}`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [activeTab, selectedMatchId, publishedMatches]);
+
+  useEffect(() => {
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
@@ -1727,6 +1879,11 @@ export default function App() {
     const playersRef = collection(db, "artifacts", appId, "public", "data", "players");
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
       setPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+
+    const draftPlayersRef = collection(db, "artifacts", appId, "public", "data", "draft_players");
+    const unsubDraftPlayers = onSnapshot(draftPlayersRef, (snapshot) => {
+      setDraftPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
     const matchesRef = collection(db, "artifacts", appId, "public", "data", "matches");
@@ -1779,7 +1936,7 @@ export default function App() {
       }
     });
 
-    return () => { unsubPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
+    return () => { unsubPlayers(); unsubDraftPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
   }, [user]);
 
 
@@ -1820,6 +1977,9 @@ export default function App() {
           const dateA = new Date(a.raidDate || a.createdAt || 0).getTime();
           const dateB = new Date(b.raidDate || b.createdAt || 0).getTime();
           if (dateA !== dateB) return dateB - dateA;
+          const groupA = Number(a.raidGroupNumber || 9999);
+          const groupB = Number(b.raidGroupNumber || 9999);
+          if (groupA !== groupB) return groupA - groupB;
           return (b.createdAt || '').localeCompare(a.createdAt || '');
         });
       setWowRaids(nextRaids);
@@ -2934,8 +3094,26 @@ export default function App() {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("종겜 리그 프로필 이미지가 저장되었습니다."); } catch (error) {}
   };
 
+  const handleUpdateLeagueParticipantImage = async (participant, url) => {
+    try {
+      const collectionName = participant?._source === "draft_players" ? "draft_players" : "players";
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", collectionName, participant.id), { imageUrl: url || "" });
+      await updateLastModifiedTime();
+      showToast("종겜 리그 프로필 이미지가 저장되었습니다.");
+    } catch (error) {}
+  };
+
   const handleUpdateBroadcastUrl = async (playerId, url) => {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { broadcastUrl: url || "" }); await updateLastModifiedTime(); showToast("방송국 주소가 저장되었습니다."); } catch (error) {}
+  };
+
+  const handleUpdateLeagueParticipantBroadcastUrl = async (participant, url) => {
+    try {
+      const collectionName = participant?._source === "draft_players" ? "draft_players" : "players";
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", collectionName, participant.id), { broadcastUrl: url || "" });
+      await updateLastModifiedTime();
+      showToast("방송국 주소가 저장되었습니다.");
+    } catch (error) {}
   };
 
   const handleUpdateWowImage = async (memberId, url) => {
@@ -3005,6 +3183,78 @@ export default function App() {
     }
   };
 
+  const ensureDraftPlayersExistForMatchResults = async (results = []) => {
+    const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+    for (const playerName of uniqueNames) {
+      const existingPlayer = players.find((p) => p.name === playerName);
+      const existingDraft = draftPlayers.find((p) => p.name === playerName);
+      if (!existingPlayer && !existingDraft) {
+        await addDoc(collection(db, "artifacts", appId, "public", "data", "draft_players"), {
+          name: playerName,
+          imageUrl: "",
+          broadcastUrl: "",
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+  };
+
+  const ensurePlayersExistForPublishedMatchResults = async (results = []) => {
+    const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+    for (const playerName of uniqueNames) {
+      const existing = players.find((p) => p.name === playerName);
+      if (existing) continue;
+      const existingDraft = draftPlayers.find((p) => p.name === playerName);
+      await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), {
+        name: playerName,
+        points: 0,
+        imageUrl: existingDraft?.imageUrl || "",
+        broadcastUrl: existingDraft?.broadcastUrl || "",
+        createdAt: new Date().toISOString(),
+      });
+      if (existingDraft?.id) {
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "draft_players", existingDraft.id));
+      }
+    }
+  };
+
+  const applyMatchScoreDelta = async (oldResults = [], newResults = []) => {
+    const tally = (results) => {
+      const map = new Map();
+      (results || []).forEach((r) => {
+        const name = (r.playerName || "").trim();
+        if (!name) return;
+        map.set(name, (map.get(name) || 0) + (Number(r.scoreChange) || 0));
+      });
+      return map;
+    };
+
+    const oldMap = tally(oldResults);
+    const newMap = tally(newResults);
+    const allNames = new Set([...oldMap.keys(), ...newMap.keys()]);
+
+    for (const playerName of allNames) {
+      const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
+      if (!delta) continue;
+
+      let player = players.find((p) => p.name === playerName);
+      if (!player) {
+        const playerQuery = query(collection(db, "artifacts", appId, "public", "data", "players"), where("name", "==", playerName));
+        const playerSnapshot = await getDocs(playerQuery);
+        if (!playerSnapshot.empty) {
+          const playerDoc = playerSnapshot.docs[0];
+          player = { id: playerDoc.id, ...playerDoc.data() };
+        }
+      }
+
+      if (player) {
+        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
+      } else if (delta > 0) {
+        await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: playerName, points: delta, createdAt: new Date().toISOString() });
+      }
+    }
+  };
+
   const handleOpenEditMatch = (match) => {
     setMatchToEdit({ ...match, originalMatch: match });
     setEditGameName(match.gameName);
@@ -3013,6 +3263,7 @@ export default function App() {
     
     setEditHasFunding(match.hasFunding || false);
     setEditTotalFunding(match.totalFunding || "");
+    setEditIsPublished(match.isPublished !== false);
 
     if (match.matchType === "team") {
       const teamsByRank = {};
@@ -3068,37 +3319,16 @@ export default function App() {
 
     setIsEditingSubmit(true);
     try {
-      for (const origResult of matchToEdit.originalMatch.results) {
-        const p = players.find((p) => p.name === origResult.playerName);
-        if (p) {
-          const isStillInThisMatch = finalResults.some((r) => r.playerName === origResult.playerName);
-          const hasOtherMatches = matches.some(
-            (m) => m.id !== matchToEdit.id && m.results?.some((r) => r.playerName === origResult.playerName)
-          );
-
-          if (!isStillInThisMatch && !hasOtherMatches) {
-            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
-          } else {
-            await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id), { 
-              points: increment(-origResult.scoreChange) 
-            });
-          }
-        }
+      if (editIsPublished) {
+        await ensurePlayersExistForPublishedMatchResults(finalResults);
+      } else {
+        await ensureDraftPlayersExistForMatchResults(finalResults);
       }
 
-      for (const r of finalResults) {
-        const pName = r.playerName.trim();
-        const p = players.find((p) => p.name === pName);
-        if (p) {
-          await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id), { 
-            points: increment(r.scoreChange) 
-          });
-        } else {
-          await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { 
-            name: pName, points: r.scoreChange, createdAt: new Date().toISOString() 
-          });
-        }
-      }
+      const oldPublishedResults = (matchToEdit.originalMatch.isPublished !== false) ? (matchToEdit.originalMatch.results || []) : [];
+      const newPublishedResults = editIsPublished ? finalResults : [];
+
+      await applyMatchScoreDelta(oldPublishedResults, newPublishedResults);
 
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "matches", matchToEdit.id), {
         gameName: editGameName,
@@ -3107,11 +3337,13 @@ export default function App() {
         hasFunding: editHasFunding,
         totalFunding: editHasFunding ? Number(editTotalFunding) || 0 : 0,
         results: finalResults,
+        isPublished: editIsPublished,
+        publishedAt: editIsPublished ? (matchToEdit.originalMatch.publishedAt || new Date().toISOString()) : null,
         updatedAt: new Date().toISOString()
       });
 
       await updateLastModifiedTime();
-      showToast("경기 기록이 성공적으로 수정되었습니다.");
+      showToast(editIsPublished ? "경기 기록이 저장/공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
       setMatchToEdit(null);
     } catch (error) {
       showToast("수정 중 오류 발생", "error");
@@ -3144,10 +3376,18 @@ export default function App() {
           <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
             <Gamepad2 className="w-6 h-6 mr-2 text-green-400" /> 최근 경기
           </h3>
-          {matches.length > 0 ? (
+          {publishedMatches.length > 0 ? (
             <div className="space-y-4">
-              {matches.slice(0, 3).map((match) => (
-                <div key={match.id} className="bg-gray-700/50 p-4 rounded-lg flex justify-between items-center">
+              {publishedMatches.slice(0, 3).map((match) => (
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMatchId(match.id);
+                    navigateTo("matches");
+                  }}
+                  className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
+                >
                   <div>
                     <div className="flex items-center">
                       {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
@@ -3160,7 +3400,7 @@ export default function App() {
                       1위: {match.results?.find((r) => r.rank === 1)?.playerName}
                     </p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -3290,7 +3530,7 @@ export default function App() {
         <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
       </h2>
       <div className="grid gap-6">
-        {matches.map((match) => {
+        {publishedMatches.map((match) => {
           if (match.matchType === "team") {
             const teamsByRank = {};
             (match.results || []).forEach((r) => {
@@ -3300,7 +3540,7 @@ export default function App() {
             const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
 
             return (
-              <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
+              <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                   <div className="flex items-center flex-wrap gap-3">
                     <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
@@ -3321,7 +3561,7 @@ export default function App() {
                   <span className="text-base text-gray-400">{match.date}</span>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 order-3">
                   {sortedTeams.map((team, idx) => (
                     <div key={idx} className={`p-5 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
                       <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
@@ -3343,7 +3583,7 @@ export default function App() {
                 </div>
 
                 {expandedFundingMatchId === match.id && match.hasFunding && (
-                  <div className="mt-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
+                  <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
                      <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
                         <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
                         <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
@@ -3382,7 +3622,7 @@ export default function App() {
           }
 
           return (
-            <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
+            <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div className="flex items-center flex-wrap gap-3">
                   <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
@@ -3403,7 +3643,7 @@ export default function App() {
                 <span className="text-base text-gray-400">{match.date}</span>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 order-3">
                 {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
                     <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
                       <div className="flex justify-between items-center mb-3">
@@ -3421,7 +3661,7 @@ export default function App() {
               </div>
 
               {expandedFundingMatchId === match.id && match.hasFunding && (
-                <div className="mt-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
+                <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
                    <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
                       <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
                       <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
@@ -3449,7 +3689,7 @@ export default function App() {
             </div>
           );
         })}
-        {matches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
+        {publishedMatches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
       </div>
     </div>
   );
@@ -3671,14 +3911,8 @@ export default function App() {
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
                 {tier.players.length > 0 ? (
                   tier.players.map((player) => {
-                    const streak = getPlayerStreak(player.name);
                     return (
                       <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="group relative flex flex-col items-center cursor-pointer">
-                        {streak.count >= 2 && (
-                          <div className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${streak.type === "win" ? "bg-red-900/90 text-red-400 border-red-500/50" : "bg-blue-900/90 text-blue-400 border-blue-500/50"}`}>
-                            {streak.type === "win" ? "🔥" : "🧊"}{streak.count}{streak.type === "win" ? "연승" : "연패"}
-                          </div>
-                        )}
                         <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
                           <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
                         </div>
@@ -3703,6 +3937,10 @@ export default function App() {
   const resetWowRaidForm = () => {
     setWowRaidForm(createEmptyWowRaidForm());
     setWowRaidAdminStatTab('damage');
+    setWowRaidRosterSearchInput('');
+    setWowRaidFixedSearchInput('');
+    setWowRaidGuestSearchInput('');
+    setWowRaidStatSearchInput('');
   };
 
   const handleWowRaidFormFieldChange = (field, value) => {
@@ -3719,6 +3957,64 @@ export default function App() {
         : [...current, sourceId];
       return { ...prev, [key]: nextIds };
     });
+  };
+
+  const handleAddWowRaidGuestParticipant = () => {
+    setWowRaidForm((prev) => ({
+      ...prev,
+      guestParticipants: [...(prev.guestParticipants || []), createEmptyWowRaidGuestForm()],
+    }));
+  };
+
+  const handleRemoveWowRaidGuestParticipant = (guestId) => {
+    setWowRaidForm((prev) => ({
+      ...prev,
+      guestParticipants: (prev.guestParticipants || []).filter((participant) => participant.id !== guestId),
+      stats: WOW_RAID_STAT_FIELDS.reduce((acc, field) => {
+        const nextMap = { ...(prev.stats?.[field.id] || {}) };
+        delete nextMap[buildWowRaidParticipantKey('guest', guestId)];
+        acc[field.id] = nextMap;
+        return acc;
+      }, {}),
+    }));
+  };
+
+  const handleWowRaidGuestFieldChange = (guestId, field, value) => {
+    setWowRaidForm((prev) => ({
+      ...prev,
+      guestParticipants: (prev.guestParticipants || []).map((participant) => {
+        if (participant.id !== guestId) return participant;
+        if (field === 'jobClass') {
+          const nextJobClass = normalizeWowJobClassKey(value);
+          return {
+            ...participant,
+            jobClass: nextJobClass,
+            mainSpec: '',
+            availableSpecs: [],
+            preferredPositions: [],
+          };
+        }
+        if (field === 'mainSpec') {
+          const nextMainSpec = getWowSpecOptions(participant.jobClass).includes(value) ? value : '';
+          return {
+            ...participant,
+            mainSpec: nextMainSpec,
+            availableSpecs: nextMainSpec ? [nextMainSpec] : [],
+            preferredPositions: getRecommendedPreferredPositionsBySpec(participant.jobClass, nextMainSpec),
+          };
+        }
+        if (field === 'preferredPositions') {
+          return { ...participant, preferredPositions: normalizePreferredPositions(value) };
+        }
+        if (field === 'imageMode') {
+          return { ...participant, imageMode: value === 'custom' ? 'custom' : 'default', imageUrl: value === 'custom' ? participant.imageUrl : '' };
+        }
+        if (field === 'raidGroupNumber') {
+          return participant;
+        }
+        return { ...participant, [field]: value };
+      }),
+    }));
   };
 
   const handleWowRaidStatValueChange = (categoryId, participantId, value) => {
@@ -3744,8 +4040,20 @@ export default function App() {
       isCleared: raid.isCleared !== false,
       isPublished: !!raid.isPublished,
       note: raid.note || '',
+      raidGroupNumber: `${raid.raidGroupNumber ?? ''}`.replace(/[^0-9]/g, ''),
       rosterParticipantIds: Array.isArray(raid.rosterParticipantIds) ? raid.rosterParticipantIds : raid.participants.filter((participant) => participant.sourceType === 'wow_roster').map((participant) => participant.sourceId),
       fixedParticipantIds: Array.isArray(raid.fixedParticipantIds) ? raid.fixedParticipantIds : raid.participants.filter((participant) => participant.sourceType === 'fixed_member').map((participant) => participant.sourceId),
+      guestParticipants: Array.isArray(raid.guestParticipants) ? raid.guestParticipants.map(normalizeWowRaidGuestParticipant) : raid.participants.filter((participant) => participant.sourceType === 'guest').map((participant) => normalizeWowRaidGuestParticipant({
+        id: participant.sourceId || participant.id,
+        displayName: participant.displayName || participant.streamerName,
+        wowNickname: participant.wowNickname,
+        imageMode: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? 'custom' : 'default',
+        imageUrl: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? participant.imageUrl : '',
+        jobClass: participant.jobClass,
+        mainSpec: participant.mainSpec,
+        availableSpecs: participant.availableSpecs,
+        preferredPositions: participant.preferredPositions,
+      })),
       stats: {
         damage: { ...(raid.stats?.damage || {}) },
         damageTaken: { ...(raid.stats?.damageTaken || {}) },
@@ -3779,6 +4087,10 @@ export default function App() {
       showToast('진행 날짜를 입력해주세요.', 'error');
       return;
     }
+    if (!`${wowRaidForm.raidGroupNumber || ''}`.replace(/[^0-9]/g, '')) {
+      showToast('군 번호를 입력해주세요.', 'error');
+      return;
+    }
     if (wowRaidFormParticipants.length === 0) {
       showToast('참가자를 한 명 이상 선택해주세요.', 'error');
       return;
@@ -3803,8 +4115,10 @@ export default function App() {
       isCleared: !!wowRaidForm.isCleared,
       isPublished: !!wowRaidForm.isPublished,
       note: wowRaidForm.note.trim(),
+      raidGroupNumber: `${wowRaidForm.raidGroupNumber || ''}`.replace(/[^0-9]/g, ''),
       rosterParticipantIds: [...wowRaidForm.rosterParticipantIds],
       fixedParticipantIds: [...wowRaidForm.fixedParticipantIds],
+      guestParticipants: (wowRaidForm.guestParticipants || []).map((participant) => normalizeWowRaidGuestParticipant(participant)),
       participants: wowRaidFormParticipants,
       stats: nextStats,
       updatedAt: new Date().toISOString(),
@@ -3878,12 +4192,13 @@ export default function App() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     <span className="px-2.5 py-1 rounded-md border border-violet-400/30 bg-violet-500/10 text-violet-200 text-xs font-black">{selectedWowRaid.isCleared ? '토벌 완료' : '진행 기록'}</span>
+                    {selectedWowRaid.raidGroupNumber && <span className="px-2.5 py-1 rounded-md border border-amber-400/40 bg-amber-500/15 text-amber-100 text-xs font-black">{selectedWowRaid.raidGroupNumber}군</span>}
                     {selectedWowRaid.raidDate && <span className="px-2.5 py-1 rounded-md border border-gray-600 bg-gray-900/70 text-gray-200 text-xs font-black">{selectedWowRaid.raidDate}</span>}
                   </div>
                   <h2 className="text-3xl font-black text-white mb-2 break-keep">{selectedWowRaid.raidName}</h2>
                   <p className="text-gray-300 break-keep">{selectedWowRaid.note || '레이드의 기록과 통계를 한눈에 확인할 수 있습니다.'}</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
                     <div className="text-xs font-black text-gray-400 mb-1">진행 날짜</div>
                     <div className="text-lg font-black text-white">{selectedWowRaid.raidDate || '-'}</div>
@@ -3895,6 +4210,10 @@ export default function App() {
                   <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
                     <div className="text-xs font-black text-gray-400 mb-1">참가 인원</div>
                     <div className="text-lg font-black text-amber-200">{selectedWowRaid.participants.length}명</div>
+                  </div>
+                  <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
+                    <div className="text-xs font-black text-gray-400 mb-1">군 구분</div>
+                    <div className="text-lg font-black text-violet-200">{selectedWowRaid.raidGroupNumber ? `${selectedWowRaid.raidGroupNumber}군` : '-'}</div>
                   </div>
                 </div>
               </div>
@@ -3917,7 +4236,7 @@ export default function App() {
               {selectedWowRaid.participants.map((participant) => (
                 <div key={participant.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg">
                   <div className="flex items-center gap-3">
-                    <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover bg-gray-900 border border-gray-600" />
+                    <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover bg-gray-900 border border-gray-600" />
                     <div className="min-w-0">
                       <div className="font-black text-white truncate">{participant.streamerName}</div>
                       <div className="text-sm text-blue-300 truncate">{participant.wowNickname}</div>
@@ -3941,9 +4260,9 @@ export default function App() {
                   <div key={participant.id} className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-5 shadow-lg">
                     <div className="text-xs font-black text-gray-400 mb-2">TOP {index + 1}</div>
                     <div className="flex items-center gap-3">
-                      <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover border border-gray-600 bg-gray-900" />
+                      <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover border border-gray-600 bg-gray-900" />
                       <div className="min-w-0">
-                        <div className="font-black text-white truncate">{participant.streamerName}</div>
+                        <div className="font-black text-white truncate">{participant.displayName || participant.streamerName}</div>
                         <div className="text-sm text-blue-300 truncate">{participant.wowNickname}</div>
                         <div className="text-lg font-black text-amber-300">{renderWowRaidValue(participant.value)}</div>
                       </div>
@@ -3996,27 +4315,53 @@ export default function App() {
           <h2 className="text-3xl font-black text-white mb-2 flex items-center"><Layers className="w-8 h-8 mr-3 text-violet-300" /> WOW레이드</h2>
           <p className="text-gray-300 text-lg break-keep">진행되었던 WOW 레이드의 참가 인원과 통계를 카드형 리포트로 확인할 수 있습니다.</p>
         </div>
-        {wowRaidPublishedList.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {wowRaidPublishedList.map((raid) => (
+        <div className="flex flex-wrap items-center gap-2">
+          {[
+            { id: 'all', label: '전체' },
+            { id: '1', label: '1군' },
+            { id: '2', label: '2군' },
+            { id: 'other', label: '기타' },
+          ].map((option) => {
+            const active = wowRaidGroupFilter === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setWowRaidGroupFilter(option.id)}
+                className={`px-4 py-2 rounded-lg border text-sm font-black transition-all ${active ? 'bg-violet-600/25 border-violet-400/50 text-white shadow-[0_0_0_1px_rgba(167,139,250,0.2)]' : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:border-violet-400/30 hover:text-white'}`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        {filteredWowRaidPublishedList.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            {filteredWowRaidPublishedList.map((raid) => (
               <button key={raid.id} onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); }} className="text-left bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-violet-400/40 hover:-translate-y-0.5 transition-all">
-                <div className="h-56 bg-gray-900/60 overflow-hidden">
+                <div className="relative h-40 bg-gray-900/60 overflow-hidden">
+                  {raid.raidGroupNumber && (
+                    <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md border border-amber-300/45 bg-black/50 backdrop-blur-sm text-amber-100 text-xs font-black shadow-lg">
+                      {raid.raidGroupNumber}군
+                    </span>
+                  )}
                   {raid.imageUrl ? (
                     <img src={raid.imageUrl} alt={raid.raidName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-900/25 to-slate-900 text-violet-200/70 font-black text-2xl">WOW RAID</div>
                   )}
                 </div>
-                <div className="p-5">
-                  <div className="text-xl font-black text-white mb-2 break-keep">{raid.raidName}</div>
+                <div className="p-4">
+                  <div className="text-lg font-black text-white mb-2 break-keep">{raid.raidName}</div>
                   <div className="text-sm text-gray-300 mb-1">{raid.raidDate || '-'}</div>
                   <div className="text-sm text-cyan-300 font-black">토벌시간 {raid.clearTime || '-'}</div>
+                  {raid.note && <div className="mt-2 text-xs text-gray-400 break-keep leading-relaxed">{raid.note}</div>}
                 </div>
               </button>
             ))}
           </div>
         ) : (
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400">아직 공개된 WOW 레이드 기록이 없습니다.</div>
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400">선택한 군에 해당하는 WOW 레이드 기록이 없습니다.</div>
         )}
       </div>
     );
@@ -5467,8 +5812,80 @@ export default function App() {
       }
     };
 
-    const handleSubmitMatch = async (e) => {
-      e.preventDefault();
+    const ensureDraftPlayersExistForMatchResults = async (results = []) => {
+      const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+      for (const playerName of uniqueNames) {
+        const existingPlayer = players.find((p) => p.name === playerName);
+        const existingDraft = draftPlayers.find((p) => p.name === playerName);
+        if (!existingPlayer && !existingDraft) {
+          await addDoc(collection(db, "artifacts", appId, "public", "data", "draft_players"), {
+            name: playerName,
+            imageUrl: "",
+            broadcastUrl: "",
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    };
+
+    const ensurePlayersExistForPublishedMatchResults = async (results = []) => {
+      const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+      for (const playerName of uniqueNames) {
+        const existing = players.find((p) => p.name === playerName);
+        if (existing) continue;
+        const existingDraft = draftPlayers.find((p) => p.name === playerName);
+        await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), {
+          name: playerName,
+          points: 0,
+          imageUrl: existingDraft?.imageUrl || "",
+          broadcastUrl: existingDraft?.broadcastUrl || "",
+          createdAt: new Date().toISOString(),
+        });
+        if (existingDraft?.id) {
+          await deleteDoc(doc(db, "artifacts", appId, "public", "data", "draft_players", existingDraft.id));
+        }
+      }
+    };
+
+    const applyMatchScoreDelta = async (oldResults = [], newResults = []) => {
+      const tally = (results) => {
+        const map = new Map();
+        (results || []).forEach((r) => {
+          const name = (r.playerName || "").trim();
+          if (!name) return;
+          map.set(name, (map.get(name) || 0) + (Number(r.scoreChange) || 0));
+        });
+        return map;
+      };
+
+      const oldMap = tally(oldResults);
+      const newMap = tally(newResults);
+      const allNames = new Set([...oldMap.keys(), ...newMap.keys()]);
+
+      for (const playerName of allNames) {
+        const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
+        if (!delta) continue;
+
+        let player = players.find((p) => p.name === playerName);
+        if (!player) {
+          const playerQuery = query(collection(db, "artifacts", appId, "public", "data", "players"), where("name", "==", playerName));
+          const playerSnapshot = await getDocs(playerQuery);
+          if (!playerSnapshot.empty) {
+            const playerDoc = playerSnapshot.docs[0];
+            player = { id: playerDoc.id, ...playerDoc.data() };
+          }
+        }
+
+        if (player) {
+          await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
+        } else if (delta > 0) {
+          await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: playerName, points: delta, createdAt: new Date().toISOString() });
+        }
+      }
+    };
+
+    const handleSubmitMatch = async (e, publishNow = false) => {
+      e?.preventDefault?.();
       if (!gameName.trim()) return showToast("게임 이름을 입력해주세요.", "error");
 
       let finalResults = [];
@@ -5500,6 +5917,12 @@ export default function App() {
 
       setIsSubmitting(true);
       try {
+        if (publishNow) {
+          await ensurePlayersExistForPublishedMatchResults(finalResults);
+        } else {
+          await ensureDraftPlayersExistForMatchResults(finalResults);
+        }
+
         await addDoc(collection(db, "artifacts", appId, "public", "data", "matches"), {
           date: matchDate, 
           gameName, 
@@ -5508,13 +5931,12 @@ export default function App() {
           hasFunding, 
           totalFunding: hasFunding ? Number(totalFunding) || 0 : 0,
           results: finalResults,
+          isPublished: publishNow,
+          publishedAt: publishNow ? new Date().toISOString() : null,
         });
 
-        for (const r of finalResults) {
-          const pName = r.playerName.trim();
-          const p = players.find((p) => p.name === pName);
-          if (p) await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id), { points: p.points + r.scoreChange });
-          else await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: pName, points: 0 + r.scoreChange, createdAt: new Date().toISOString() });
+        if (publishNow) {
+          await applyMatchScoreDelta([], finalResults);
         }
 
         setGameName("");
@@ -5523,8 +5945,8 @@ export default function App() {
         setIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
         setTeamResults([{ id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" }, { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" }]);
         await updateLastModifiedTime(); 
-        showToast("결과 저장 성공!");
-        navigateTo("tier");
+        showToast(publishNow ? "경기 기록이 공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
+        if (publishNow) navigateTo("tier");
       } catch (error) {
         showToast("오류 발생", "error");
       } finally {
@@ -5598,7 +6020,7 @@ export default function App() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitMatch} className="space-y-6">
+              <form onSubmit={(e) => handleSubmitMatch(e, false)} className="space-y-6">
                 <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
                   <label className="flex items-center gap-3 cursor-pointer w-fit">
                     <input 
@@ -5724,9 +6146,14 @@ export default function App() {
                   </div>
                 )}
 
-                <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
-                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "결과 DB에 저장 및 갱신"}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button type="button" onClick={(e) => handleSubmitMatch(e, false)} disabled={isSubmitting} className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg border border-gray-600">
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "임시 저장"}
+                  </button>
+                  <button type="button" onClick={(e) => handleSubmitMatch(e, true)} disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "공개하기"}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -6124,15 +6551,19 @@ export default function App() {
                 <Layers className="w-5 h-5 mr-2 text-violet-300" /> WOW 레이드 관리
               </h2>
               <p className="text-sm text-gray-400 mb-6 break-keep">
-                WOW레이드 탭에 공개할 레이드 기록을 생성하고, 참가자와 통계 데이터를 수동으로 입력합니다. 참가자는 WOW 길드원 명단과 고정 길드원 목록에서 선택할 수 있습니다.
+                WOW레이드 탭에 공개할 레이드 기록을 생성하고, 참가자와 통계 데이터를 수동으로 입력합니다. 참가자는 WOW 길드원 명단, 고정 길드원 목록, 일반인 참가자 추가하기를 통해 구성할 수 있습니다.
               </p>
 
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-5 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                   <input type="text" value={wowRaidForm.raidName} onChange={(e) => handleWowRaidFormFieldChange('raidName', e.target.value)} placeholder="레이드 이름" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none" />
                   <input type="date" value={wowRaidForm.raidDate} onChange={(e) => handleWowRaidFormFieldChange('raidDate', e.target.value)} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none" />
                   <input type="text" value={wowRaidForm.clearTime} onChange={(e) => handleWowRaidFormFieldChange('clearTime', e.target.value)} placeholder="토벌시간 (예: 14분 22초)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none" />
-                  <input type="text" value={wowRaidForm.imageUrl} onChange={(e) => handleWowRaidFormFieldChange('imageUrl', e.target.value)} placeholder="레이드 이미지 주소" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none md:col-span-2" />
+                  <div className="flex items-center rounded border border-gray-600 bg-gray-800 overflow-hidden">
+                    <input type="number" min="1" step="1" value={wowRaidForm.raidGroupNumber} onChange={(e) => handleWowRaidFormFieldChange('raidGroupNumber', e.target.value.replace(/[^0-9]/g, ''))} placeholder="1" className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none" />
+                    <span className="px-3 text-sm font-black text-violet-200 border-l border-gray-600 bg-gray-900/60">군</span>
+                  </div>
+                  <input type="text" value={wowRaidForm.imageUrl} onChange={(e) => handleWowRaidFormFieldChange('imageUrl', e.target.value)} placeholder="레이드 이미지 주소" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none md:col-span-2 xl:col-span-3" />
                   <div className="flex items-center gap-3 text-sm font-bold text-gray-300">
                     <label className="inline-flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={wowRaidForm.isCleared} onChange={(e) => handleWowRaidFormFieldChange('isCleared', e.target.checked)} className="rounded border-gray-600 bg-gray-800 text-violet-500 focus:ring-violet-500" />
@@ -6225,6 +6656,96 @@ export default function App() {
                   </div>
                 </div>
 
+                <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <h3 className="text-sm font-black text-white">일반인 참가자 추가하기</h3>
+                      <p className="text-xs text-gray-400 mt-1">WOW 길드원 명단과 별개로 레이드에만 포함되는 참가자를 추가합니다.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddWowRaidGuestParticipant}
+                      className="px-3 py-1.5 rounded-lg text-xs font-black border border-emerald-400/35 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20 transition"
+                    >
+                      + 일반인 참가자 추가
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={wowRaidGuestSearchInput}
+                      onChange={(e) => setWowRaidGuestSearchInput(e.target.value)}
+                      placeholder="일반 참가자 검색 (이름, 닉네임, 직업, 특성)"
+                      className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  {filteredWowRaidGuestParticipants.length > 0 ? (
+                    <div className="space-y-3">
+                      {filteredWowRaidGuestParticipants.map((guest) => {
+                        const guestSpecOptions = getWowSpecOptions(guest.jobClass);
+                        return (
+                          <div key={guest.id} className="rounded-xl border border-gray-700 bg-gray-900/70 p-4 space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="text-sm font-black text-white">일반 참가자 정보</div>
+                                <div className="text-xs text-gray-400">이름과 닉네임, 직업/특성을 입력하면 통계 입력 대상에도 자동 포함됩니다.</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveWowRaidGuestParticipant(guest.id)}
+                                className="px-2.5 py-1.5 rounded-lg text-[11px] font-black border border-red-500/35 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                              <input type="text" value={guest.displayName} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'displayName', e.target.value)} placeholder="이름 입력" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
+                              <input type="text" value={guest.wowNickname} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'wowNickname', e.target.value)} placeholder="와우 닉네임 입력" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
+                              <select value={guest.jobClass} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'jobClass', e.target.value)} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
+                                <option value="">직업 선택</option>
+                                {WOW_JOB_OPTIONS.map((jobClass) => <option key={jobClass} value={jobClass}>{jobClass}</option>)}
+                              </select>
+                              <select value={guest.mainSpec} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'mainSpec', e.target.value)} disabled={!guest.jobClass} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none disabled:opacity-50">
+                                <option value="">특성 선택</option>
+                                {guestSpecOptions.map((specId) => <option key={specId} value={specId}>{specId}</option>)}
+                              </select>
+                              <select value={normalizePreferredPositions(guest.preferredPositions)[0] || ''} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'preferredPositions', e.target.value ? [e.target.value] : [])} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
+                                <option value="">선호 포지션 선택</option>
+                                {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-3 rounded-xl border border-gray-700 bg-gray-950/40 p-3">
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <label className="inline-flex items-center gap-2 text-sm font-bold text-gray-200">
+                                  <input type="radio" checked={guest.imageMode !== 'custom'} onChange={() => handleWowRaidGuestFieldChange(guest.id, 'imageMode', 'default')} className="text-emerald-500 focus:ring-emerald-500" />
+                                  기본 이미지
+                                </label>
+                                <label className="inline-flex items-center gap-2 text-sm font-bold text-gray-200">
+                                  <input type="radio" checked={guest.imageMode === 'custom'} onChange={() => handleWowRaidGuestFieldChange(guest.id, 'imageMode', 'custom')} className="text-emerald-500 focus:ring-emerald-500" />
+                                  이미지 주소 입력
+                                </label>
+                              </div>
+                              {guest.imageMode === 'custom' ? (
+                                <input type="text" value={guest.imageUrl} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'imageUrl', e.target.value)} placeholder="이미지 주소 입력" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
+                              ) : null}
+                              <div className="flex items-center gap-3">
+                                <img src={guest.imageMode === 'custom' && guest.imageUrl ? guest.imageUrl : getDefaultWowRaidGuestAvatar(guest)} onError={(e) => { e.target.src = getDefaultWowRaidGuestAvatar(guest); }} alt={guest.displayName || '일반 참가자'} className="w-12 h-12 rounded-full object-cover border border-gray-600 bg-gray-900" />
+                                <div className="min-w-0">
+                                  <div className="text-sm font-black text-white truncate">{guest.displayName || '이름 미입력'}</div>
+                                  <div className="text-xs text-gray-400 truncate">{guest.wowNickname || '와우 닉네임 미입력'}{guest.jobClass ? ` · ${guest.jobClass}` : ''}{guest.mainSpec ? ` · ${guest.mainSpec}` : ''}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500 text-center py-6">추가된 일반 참가자가 없습니다.</div>
+                  )}
+                </div>
+
                 <div className="bg-gray-800/60 rounded-xl border border-gray-700 p-4">
                   <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                     <h3 className="text-sm font-black text-white">레이드 참가자 미리보기</h3>
@@ -6234,10 +6755,10 @@ export default function App() {
                     <div className="flex flex-wrap gap-2">
                       {wowRaidFormParticipants.map((participant) => (
                         <div key={participant.id} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-900/70">
-                          <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.streamerName}`; }} alt={participant.streamerName} className="w-7 h-7 rounded-full object-cover bg-gray-900 border border-gray-600" />
+                          <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-7 h-7 rounded-full object-cover bg-gray-900 border border-gray-600" />
                           <div className="min-w-0">
-                            <div className="text-xs font-black text-white truncate">{participant.streamerName}</div>
-                            <div className="text-[10px] text-gray-400 truncate">{participant.jobClass}{participant.mainSpec ? ` · ${participant.mainSpec}` : ''}</div>
+                            <div className="text-xs font-black text-white truncate">{participant.displayName || participant.streamerName}</div>
+                            <div className="text-[10px] text-gray-400 truncate">{participant.jobClass}{participant.mainSpec ? ` · ${participant.mainSpec}` : ''}{participant.sourceType === 'guest' ? ' · 일반 참가자' : ''}</div>
                           </div>
                         </div>
                       ))}
@@ -6313,6 +6834,7 @@ export default function App() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <p className="font-black text-white text-lg break-keep">{raid.raidName}</p>
+                        {raid.raidGroupNumber ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-100 border border-amber-400/30">{raid.raidGroupNumber}군</span> : null}
                         {raid.isPublished ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-200 border border-emerald-400/30">공개중</span> : <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gray-700 text-gray-200 border border-gray-600">비공개</span>}
                       </div>
                       <p className="text-sm text-gray-400">{raid.raidDate || '-'} · 토벌시간 {raid.clearTime || '-'} · 참가자 {raid.participants.length}명</p>
@@ -6385,21 +6907,24 @@ export default function App() {
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+                {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
                   <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
                     <div className="flex items-center gap-3 w-32 flex-shrink-0 relative group/player">
                       <img 
-                        src={getAvatarSrc(player.name)} 
+                        src={(imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")) || getAvatarSrc(player.name)} 
                         onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
                         alt="avatar" 
                         className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
                       />
                       <div className="flex flex-col">
                         <span className="font-bold text-white truncate w-16" title={player.name}>{player.name}</span>
+                        {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
                         {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
+  {player._source !== "draft_players" && (
                         <button type="button" onClick={() => handleDeletePlayer(player.id, player.name)} className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max">
                           <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
                         </button>
+                      )}
                       </div>
                     </div>
                     <div className="flex flex-1 gap-2">
@@ -6411,7 +6936,7 @@ export default function App() {
                         className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
                       />
                       <button
-                        onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
+                        onClick={() => handleUpdateLeagueParticipantImage(player, imageInputs[player.id])}
                         className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
                       >
                         저장
@@ -6419,7 +6944,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+                {combinedLeaguePlayers.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
               </div>
             </div>
 
@@ -6432,14 +6957,17 @@ export default function App() {
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+                {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
                   <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
                     <div className="flex flex-col justify-center w-28 flex-shrink-0">
                       <span className="font-bold text-white truncate" title={player.name}>{player.name}</span>
+                      {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
                       {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
+{player._source !== "draft_players" && (
                       <button type="button" onClick={() => handleDeletePlayer(player.id, player.name)} className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max">
                         <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
                       </button>
+                    )}
                     </div>
                     <div className="flex flex-1 gap-2">
                       <input
@@ -6450,7 +6978,7 @@ export default function App() {
                         className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
                       />
                       <button
-                        onClick={() => handleUpdateBroadcastUrl(player.id, broadcastUrlInputs[player.id])}
+                        onClick={() => handleUpdateLeagueParticipantBroadcastUrl(player, broadcastUrlInputs[player.id])}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
                       >
                         저장
@@ -6458,7 +6986,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+                {combinedLeaguePlayers.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
               </div>
             </div>
 
@@ -6476,9 +7004,12 @@ export default function App() {
                 ) : (
                   matches.map((match) => (
                     <div key={match.id} className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                      <div>
-                        <span className="font-bold text-white mr-3">{match.gameName}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white">{match.gameName}</span>
                         <span className="text-xs text-gray-400">{match.date}</span>
+                        <span className={`text-[11px] font-black px-2 py-1 rounded border ${match.isPublished !== false ? "bg-green-900/30 text-green-300 border-green-700/50" : "bg-yellow-900/30 text-yellow-300 border-yellow-700/50"}`}>
+                          {match.isPublished !== false ? "공개" : "임시 저장"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => handleOpenEditMatch(match)} className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition">
@@ -6716,7 +7247,17 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <input type="text" value={editGameName} onChange={(e) => setEditGameName(e.target.value)} placeholder="게임 이름" className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
-                <input type="date" value={editMatchDate} onChange={(e) => setMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+                <input type="date" value={editMatchDate} onChange={(e) => setEditMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+              </div>
+
+              <div className="bg-gray-900 border border-blue-700/40 rounded-lg p-4">
+                <label className="flex items-center gap-3 cursor-pointer w-fit">
+                  <input type="checkbox" checked={editIsPublished} onChange={(e) => setEditIsPublished(e.target.checked)} className="w-5 h-5 accent-blue-500 rounded bg-gray-800 border-gray-600 cursor-pointer" />
+                  <span className="text-blue-300 font-bold flex items-center text-base select-none">
+                    <Globe className="w-5 h-5 mr-2" /> 일반 사용자에게 공개하기
+                  </span>
+                </label>
+                <p className="text-xs text-gray-400 mt-2">체크를 끄면 임시 저장 상태로 유지되며, 홈/경기 기록/티어표에는 반영되지 않습니다.</p>
               </div>
 
               {editMatchMode === "individual" && (
@@ -6725,10 +7266,10 @@ export default function App() {
                   {editIndividualResults.map((r, idx) => (
                     <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
                       <div className="flex gap-2">
-                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
+                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
+                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
                       </div>
                       {editHasFunding && (
                         <div className="flex gap-2 items-center sm:pl-[72px]">
@@ -6769,7 +7310,7 @@ export default function App() {
                         </div>
                         <div className="flex flex-col flex-1">
                           <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
-                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
+                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setEditTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
                         </div>
                         <div className="flex flex-col justify-end">
                           <button type="button" onClick={() => { if (editTeamResults.length > 1) setEditTeamResults(editTeamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
@@ -6798,15 +7339,15 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-2">
                         {team.players.map((pName, pIdx) => (
                           <div key={pIdx} className="flex gap-1">
-                            <input type="text" value={pName} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].players[pIdx] = e.target.value; setTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
-                            <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...editTeamResults]; n[tIdx].players.splice(pIdx, 1); setTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <input type="text" value={pName} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].players[pIdx] = e.target.value; setEditTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
+                            <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...editTeamResults]; n[tIdx].players.splice(pIdx, 1); setEditTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         ))}
                       </div>
-                      <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
+                      <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setEditTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                  <button type="button" onClick={() => setEditTeamResults([...editTeamResults, { id: Date.now(), rank: editTeamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
                 </div>
               )}
 
