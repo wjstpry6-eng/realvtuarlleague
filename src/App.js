@@ -44,7 +44,8 @@ import {
   ArrowLeft,
   Copy,
   Link2,
-  Sparkles
+  Sparkles,
+  Globe
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -760,8 +761,17 @@ export default function App() {
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [draftPlayers, setDraftPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
   const publishedMatches = useMemo(() => matches.filter((m) => m.isPublished !== false), [matches]);
+  const combinedLeaguePlayers = useMemo(() => {
+    const normalizedPlayers = players.map((player) => ({ ...player, _source: "players" }));
+    const existingNames = new Set(players.map((player) => (player.name || "").trim()).filter(Boolean));
+    const draftOnlyPlayers = draftPlayers
+      .filter((player) => !existingNames.has((player.name || "").trim()))
+      .map((player) => ({ ...player, points: 0, _source: "draft_players" }));
+    return [...normalizedPlayers, ...draftOnlyPlayers];
+  }, [players, draftPlayers]);
   
   // ★ WOW 탭 상태 관리 ★
   const [wowRoster, setWowRoster] = useState([]);
@@ -1871,6 +1881,11 @@ export default function App() {
       setPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
+    const draftPlayersRef = collection(db, "artifacts", appId, "public", "data", "draft_players");
+    const unsubDraftPlayers = onSnapshot(draftPlayersRef, (snapshot) => {
+      setDraftPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+
     const matchesRef = collection(db, "artifacts", appId, "public", "data", "matches");
     const unsubMatches = onSnapshot(matchesRef, (snapshot) => {
         const matchesData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -1921,7 +1936,7 @@ export default function App() {
       }
     });
 
-    return () => { unsubPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
+    return () => { unsubPlayers(); unsubDraftPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
   }, [user]);
 
 
@@ -3079,8 +3094,26 @@ export default function App() {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("종겜 리그 프로필 이미지가 저장되었습니다."); } catch (error) {}
   };
 
+  const handleUpdateLeagueParticipantImage = async (participant, url) => {
+    try {
+      const collectionName = participant?._source === "draft_players" ? "draft_players" : "players";
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", collectionName, participant.id), { imageUrl: url || "" });
+      await updateLastModifiedTime();
+      showToast("종겜 리그 프로필 이미지가 저장되었습니다.");
+    } catch (error) {}
+  };
+
   const handleUpdateBroadcastUrl = async (playerId, url) => {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { broadcastUrl: url || "" }); await updateLastModifiedTime(); showToast("방송국 주소가 저장되었습니다."); } catch (error) {}
+  };
+
+  const handleUpdateLeagueParticipantBroadcastUrl = async (participant, url) => {
+    try {
+      const collectionName = participant?._source === "draft_players" ? "draft_players" : "players";
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", collectionName, participant.id), { broadcastUrl: url || "" });
+      await updateLastModifiedTime();
+      showToast("방송국 주소가 저장되었습니다.");
+    } catch (error) {}
   };
 
   const handleUpdateWowImage = async (memberId, url) => {
@@ -3158,6 +3191,7 @@ export default function App() {
     
     setEditHasFunding(match.hasFunding || false);
     setEditTotalFunding(match.totalFunding || "");
+    setEditIsPublished(match.isPublished !== false);
 
     if (match.matchType === "team") {
       const teamsByRank = {};
@@ -3213,6 +3247,12 @@ export default function App() {
 
     setIsEditingSubmit(true);
     try {
+      if (editIsPublished) {
+        await ensurePlayersExistForPublishedMatchResults(finalResults);
+      } else {
+        await ensureDraftPlayersExistForMatchResults(finalResults);
+      }
+
       const oldPublishedResults = (matchToEdit.originalMatch.isPublished !== false) ? (matchToEdit.originalMatch.results || []) : [];
       const newPublishedResults = editIsPublished ? finalResults : [];
 
@@ -5700,6 +5740,41 @@ export default function App() {
       }
     };
 
+    const ensureDraftPlayersExistForMatchResults = async (results = []) => {
+      const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+      for (const playerName of uniqueNames) {
+        const existingPlayer = players.find((p) => p.name === playerName);
+        const existingDraft = draftPlayers.find((p) => p.name === playerName);
+        if (!existingPlayer && !existingDraft) {
+          await addDoc(collection(db, "artifacts", appId, "public", "data", "draft_players"), {
+            name: playerName,
+            imageUrl: "",
+            broadcastUrl: "",
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    };
+
+    const ensurePlayersExistForPublishedMatchResults = async (results = []) => {
+      const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+      for (const playerName of uniqueNames) {
+        const existing = players.find((p) => p.name === playerName);
+        if (existing) continue;
+        const existingDraft = draftPlayers.find((p) => p.name === playerName);
+        await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), {
+          name: playerName,
+          points: 0,
+          imageUrl: existingDraft?.imageUrl || "",
+          broadcastUrl: existingDraft?.broadcastUrl || "",
+          createdAt: new Date().toISOString(),
+        });
+        if (existingDraft?.id) {
+          await deleteDoc(doc(db, "artifacts", appId, "public", "data", "draft_players", existingDraft.id));
+        }
+      }
+    };
+
     const applyMatchScoreDelta = async (oldResults = [], newResults = []) => {
       const tally = (results) => {
         const map = new Map();
@@ -5718,7 +5793,17 @@ export default function App() {
       for (const playerName of allNames) {
         const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
         if (!delta) continue;
-        const player = players.find((p) => p.name === playerName);
+
+        let player = players.find((p) => p.name === playerName);
+        if (!player) {
+          const playerQuery = query(collection(db, "artifacts", appId, "public", "data", "players"), where("name", "==", playerName));
+          const playerSnapshot = await getDocs(playerQuery);
+          if (!playerSnapshot.empty) {
+            const playerDoc = playerSnapshot.docs[0];
+            player = { id: playerDoc.id, ...playerDoc.data() };
+          }
+        }
+
         if (player) {
           await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
         } else if (delta > 0) {
@@ -5760,6 +5845,12 @@ export default function App() {
 
       setIsSubmitting(true);
       try {
+        if (publishNow) {
+          await ensurePlayersExistForPublishedMatchResults(finalResults);
+        } else {
+          await ensureDraftPlayersExistForMatchResults(finalResults);
+        }
+
         await addDoc(collection(db, "artifacts", appId, "public", "data", "matches"), {
           date: matchDate, 
           gameName, 
@@ -6744,7 +6835,7 @@ export default function App() {
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+                {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
                   <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
                     <div className="flex items-center gap-3 w-32 flex-shrink-0 relative group/player">
                       <img 
@@ -6755,10 +6846,13 @@ export default function App() {
                       />
                       <div className="flex flex-col">
                         <span className="font-bold text-white truncate w-16" title={player.name}>{player.name}</span>
+                        {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
                         {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
+  {player._source !== "draft_players" && (
                         <button type="button" onClick={() => handleDeletePlayer(player.id, player.name)} className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max">
                           <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
                         </button>
+                      )}
                       </div>
                     </div>
                     <div className="flex flex-1 gap-2">
@@ -6770,7 +6864,7 @@ export default function App() {
                         className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
                       />
                       <button
-                        onClick={() => handleUpdateImage(player.id, imageInputs[player.id])}
+                        onClick={() => handleUpdateLeagueParticipantImage(player, imageInputs[player.id])}
                         className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
                       >
                         저장
@@ -6778,7 +6872,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+                {combinedLeaguePlayers.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
               </div>
             </div>
 
@@ -6791,14 +6885,17 @@ export default function App() {
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
+                {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
                   <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
                     <div className="flex flex-col justify-center w-28 flex-shrink-0">
                       <span className="font-bold text-white truncate" title={player.name}>{player.name}</span>
+                      {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
                       {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
+{player._source !== "draft_players" && (
                       <button type="button" onClick={() => handleDeletePlayer(player.id, player.name)} className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max">
                         <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
                       </button>
+                    )}
                     </div>
                     <div className="flex flex-1 gap-2">
                       <input
@@ -6809,7 +6906,7 @@ export default function App() {
                         className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
                       />
                       <button
-                        onClick={() => handleUpdateBroadcastUrl(player.id, broadcastUrlInputs[player.id])}
+                        onClick={() => handleUpdateLeagueParticipantBroadcastUrl(player, broadcastUrlInputs[player.id])}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
                       >
                         저장
@@ -6817,7 +6914,7 @@ export default function App() {
                     </div>
                   </div>
                 ))}
-                {players.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+                {combinedLeaguePlayers.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
               </div>
             </div>
 
