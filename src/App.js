@@ -761,6 +761,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
+  const publishedMatches = useMemo(() => matches.filter((m) => m.isPublished !== false), [matches]);
   
   // ★ WOW 탭 상태 관리 ★
   const [wowRoster, setWowRoster] = useState([]);
@@ -963,6 +964,7 @@ export default function App() {
   const [editMatchMode, setEditMatchMode] = useState("individual");
   const [editHasFunding, setEditHasFunding] = useState(false);
   const [editTotalFunding, setEditTotalFunding] = useState("");
+  const [editIsPublished, setEditIsPublished] = useState(false);
   const [editIndividualResults, setEditIndividualResults] = useState([]);
   const [editTeamResults, setEditTeamResults] = useState([]);
   const [isEditingSubmit, setIsEditingSubmit] = useState(false);
@@ -971,7 +973,7 @@ export default function App() {
     return players.map((p) => {
       let matchCount = 0;
       let winCount = 0;
-      matches.forEach((m) => {
+      publishedMatches.forEach((m) => {
         const res = m.results?.find((r) => r.playerName === p.name);
         if (res) {
           matchCount++;
@@ -981,7 +983,7 @@ export default function App() {
       const avgScore = matchCount > 0 ? (p.points / matchCount) : 0;
       return { ...p, matchCount, winCount, avgScore: Number(avgScore.toFixed(1)) };
     }); 
-  }, [players, matches]);
+  }, [players, publishedMatches]);
 
   const sortedPlayerStats = useMemo(() => {
     let sortableItems = [...playerStatsMap];
@@ -1846,7 +1848,7 @@ export default function App() {
       }
     }, 80);
     return () => clearTimeout(timer);
-  }, [activeTab, selectedMatchId, matches]);
+  }, [activeTab, selectedMatchId, publishedMatches]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -3211,37 +3213,10 @@ export default function App() {
 
     setIsEditingSubmit(true);
     try {
-      for (const origResult of matchToEdit.originalMatch.results) {
-        const p = players.find((p) => p.name === origResult.playerName);
-        if (p) {
-          const isStillInThisMatch = finalResults.some((r) => r.playerName === origResult.playerName);
-          const hasOtherMatches = matches.some(
-            (m) => m.id !== matchToEdit.id && m.results?.some((r) => r.playerName === origResult.playerName)
-          );
+      const oldPublishedResults = (matchToEdit.originalMatch.isPublished !== false) ? (matchToEdit.originalMatch.results || []) : [];
+      const newPublishedResults = editIsPublished ? finalResults : [];
 
-          if (!isStillInThisMatch && !hasOtherMatches) {
-            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
-          } else {
-            await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id), { 
-              points: increment(-origResult.scoreChange) 
-            });
-          }
-        }
-      }
-
-      for (const r of finalResults) {
-        const pName = r.playerName.trim();
-        const p = players.find((p) => p.name === pName);
-        if (p) {
-          await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id), { 
-            points: increment(r.scoreChange) 
-          });
-        } else {
-          await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { 
-            name: pName, points: r.scoreChange, createdAt: new Date().toISOString() 
-          });
-        }
-      }
+      await applyMatchScoreDelta(oldPublishedResults, newPublishedResults);
 
       await updateDoc(doc(db, "artifacts", appId, "public", "data", "matches", matchToEdit.id), {
         gameName: editGameName,
@@ -3250,11 +3225,13 @@ export default function App() {
         hasFunding: editHasFunding,
         totalFunding: editHasFunding ? Number(editTotalFunding) || 0 : 0,
         results: finalResults,
+        isPublished: editIsPublished,
+        publishedAt: editIsPublished ? (matchToEdit.originalMatch.publishedAt || new Date().toISOString()) : null,
         updatedAt: new Date().toISOString()
       });
 
       await updateLastModifiedTime();
-      showToast("경기 기록이 성공적으로 수정되었습니다.");
+      showToast(editIsPublished ? "경기 기록이 저장/공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
       setMatchToEdit(null);
     } catch (error) {
       showToast("수정 중 오류 발생", "error");
@@ -3287,9 +3264,9 @@ export default function App() {
           <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
             <Gamepad2 className="w-6 h-6 mr-2 text-green-400" /> 최근 경기
           </h3>
-          {matches.length > 0 ? (
+          {publishedMatches.length > 0 ? (
             <div className="space-y-4">
-              {matches.slice(0, 3).map((match) => (
+              {publishedMatches.slice(0, 3).map((match) => (
                 <button
                   key={match.id}
                   type="button"
@@ -3441,7 +3418,7 @@ export default function App() {
         <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
       </h2>
       <div className="grid gap-6">
-        {matches.map((match) => {
+        {publishedMatches.map((match) => {
           if (match.matchType === "team") {
             const teamsByRank = {};
             (match.results || []).forEach((r) => {
@@ -3600,7 +3577,7 @@ export default function App() {
             </div>
           );
         })}
-        {matches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
+        {publishedMatches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
       </div>
     </div>
   );
@@ -5723,8 +5700,35 @@ export default function App() {
       }
     };
 
-    const handleSubmitMatch = async (e) => {
-      e.preventDefault();
+    const applyMatchScoreDelta = async (oldResults = [], newResults = []) => {
+      const tally = (results) => {
+        const map = new Map();
+        (results || []).forEach((r) => {
+          const name = (r.playerName || "").trim();
+          if (!name) return;
+          map.set(name, (map.get(name) || 0) + (Number(r.scoreChange) || 0));
+        });
+        return map;
+      };
+
+      const oldMap = tally(oldResults);
+      const newMap = tally(newResults);
+      const allNames = new Set([...oldMap.keys(), ...newMap.keys()]);
+
+      for (const playerName of allNames) {
+        const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
+        if (!delta) continue;
+        const player = players.find((p) => p.name === playerName);
+        if (player) {
+          await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
+        } else if (delta > 0) {
+          await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: playerName, points: delta, createdAt: new Date().toISOString() });
+        }
+      }
+    };
+
+    const handleSubmitMatch = async (e, publishNow = false) => {
+      e?.preventDefault?.();
       if (!gameName.trim()) return showToast("게임 이름을 입력해주세요.", "error");
 
       let finalResults = [];
@@ -5764,13 +5768,12 @@ export default function App() {
           hasFunding, 
           totalFunding: hasFunding ? Number(totalFunding) || 0 : 0,
           results: finalResults,
+          isPublished: publishNow,
+          publishedAt: publishNow ? new Date().toISOString() : null,
         });
 
-        for (const r of finalResults) {
-          const pName = r.playerName.trim();
-          const p = players.find((p) => p.name === pName);
-          if (p) await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id), { points: p.points + r.scoreChange });
-          else await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: pName, points: 0 + r.scoreChange, createdAt: new Date().toISOString() });
+        if (publishNow) {
+          await applyMatchScoreDelta([], finalResults);
         }
 
         setGameName("");
@@ -5779,8 +5782,8 @@ export default function App() {
         setIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
         setTeamResults([{ id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" }, { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" }]);
         await updateLastModifiedTime(); 
-        showToast("결과 저장 성공!");
-        navigateTo("tier");
+        showToast(publishNow ? "경기 기록이 공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
+        if (publishNow) navigateTo("tier");
       } catch (error) {
         showToast("오류 발생", "error");
       } finally {
@@ -5854,7 +5857,7 @@ export default function App() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitMatch} className="space-y-6">
+              <form onSubmit={(e) => handleSubmitMatch(e, false)} className="space-y-6">
                 <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
                   <label className="flex items-center gap-3 cursor-pointer w-fit">
                     <input 
@@ -5976,13 +5979,18 @@ export default function App() {
                         <button type="button" onClick={() => { const n = [...teamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                       </div>
                     ))}
-                    <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                    <button type="button" onClick={() => setEditTeamResults([...editTeamResults, { id: Date.now(), rank: editTeamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
                   </div>
                 )}
 
-                <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
-                  {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "결과 DB에 저장 및 갱신"}
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button type="button" onClick={(e) => handleSubmitMatch(e, false)} disabled={isSubmitting} className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg border border-gray-600">
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "임시 저장"}
+                  </button>
+                  <button type="button" onClick={(e) => handleSubmitMatch(e, true)} disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "공개하기"}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -6827,9 +6835,12 @@ export default function App() {
                 ) : (
                   matches.map((match) => (
                     <div key={match.id} className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                      <div>
-                        <span className="font-bold text-white mr-3">{match.gameName}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-white">{match.gameName}</span>
                         <span className="text-xs text-gray-400">{match.date}</span>
+                        <span className={`text-[11px] font-black px-2 py-1 rounded border ${match.isPublished !== false ? "bg-green-900/30 text-green-300 border-green-700/50" : "bg-yellow-900/30 text-yellow-300 border-yellow-700/50"}`}>
+                          {match.isPublished !== false ? "공개" : "임시 저장"}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button onClick={() => handleOpenEditMatch(match)} className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition">
@@ -7067,7 +7078,17 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4">
                 <input type="text" value={editGameName} onChange={(e) => setEditGameName(e.target.value)} placeholder="게임 이름" className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
-                <input type="date" value={editMatchDate} onChange={(e) => setMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+                <input type="date" value={editMatchDate} onChange={(e) => setEditMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+              </div>
+
+              <div className="bg-gray-900 border border-blue-700/40 rounded-lg p-4">
+                <label className="flex items-center gap-3 cursor-pointer w-fit">
+                  <input type="checkbox" checked={editIsPublished} onChange={(e) => setEditIsPublished(e.target.checked)} className="w-5 h-5 accent-blue-500 rounded bg-gray-800 border-gray-600 cursor-pointer" />
+                  <span className="text-blue-300 font-bold flex items-center text-base select-none">
+                    <Globe className="w-5 h-5 mr-2" /> 일반 사용자에게 공개하기
+                  </span>
+                </label>
+                <p className="text-xs text-gray-400 mt-2">체크를 끄면 임시 저장 상태로 유지되며, 홈/경기 기록/티어표에는 반영되지 않습니다.</p>
               </div>
 
               {editMatchMode === "individual" && (
@@ -7076,10 +7097,10 @@ export default function App() {
                   {editIndividualResults.map((r, idx) => (
                     <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
                       <div className="flex gap-2">
-                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
+                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
+                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
+                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
                       </div>
                       {editHasFunding && (
                         <div className="flex gap-2 items-center sm:pl-[72px]">
@@ -7120,7 +7141,7 @@ export default function App() {
                         </div>
                         <div className="flex flex-col flex-1">
                           <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
-                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
+                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setEditTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
                         </div>
                         <div className="flex flex-col justify-end">
                           <button type="button" onClick={() => { if (editTeamResults.length > 1) setEditTeamResults(editTeamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
@@ -7149,12 +7170,12 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-2">
                         {team.players.map((pName, pIdx) => (
                           <div key={pIdx} className="flex gap-1">
-                            <input type="text" value={pName} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].players[pIdx] = e.target.value; setTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
-                            <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...editTeamResults]; n[tIdx].players.splice(pIdx, 1); setTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <input type="text" value={pName} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].players[pIdx] = e.target.value; setEditTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
+                            <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...editTeamResults]; n[tIdx].players.splice(pIdx, 1); setEditTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         ))}
                       </div>
-                      <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
+                      <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setEditTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                     </div>
                   ))}
                   <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
