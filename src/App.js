@@ -3866,6 +3866,14 @@ export default function App() {
       return { ...tier, players: playersInTier, rankLabel };
     });
 
+    const tierPointGuide = [
+      { label: "1등", points: "+30pt", accentClass: "border-yellow-500/40 bg-yellow-500/12 text-yellow-200", valueClass: "text-yellow-300" },
+      { label: "2등", points: "+20pt", accentClass: "border-slate-400/40 bg-slate-300/10 text-slate-100", valueClass: "text-slate-200" },
+      { label: "3등", points: "+10pt", accentClass: "border-amber-500/40 bg-amber-500/12 text-amber-100", valueClass: "text-amber-300" },
+      { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-100", valueClass: "text-emerald-300" },
+      { label: "최하위", points: "0pt", accentClass: "border-gray-500/35 bg-gray-500/10 text-gray-200", valueClass: "text-gray-300" },
+    ];
+
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -3874,6 +3882,41 @@ export default function App() {
               <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력 티어표
             </h2>
             <p className="text-sm text-gray-400 mt-1">상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.</p>
+          </div>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-900/20 via-gray-800 to-slate-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.35)]">
+          <div className="absolute -right-8 -top-8 opacity-10 pointer-events-none">
+            <Star className="w-28 h-28 text-amber-300" />
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/12 shadow-[0_0_18px_rgba(251,191,36,0.12)]">
+                <Trophy className="h-5 w-5 text-amber-300" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-lg font-black text-white">티어는 이렇게 정해져요</h3>
+                <p className="mt-1 text-sm leading-6 text-gray-300 break-keep">
+                  경기 결과에 따라 아래 기준으로 포인트가 누적되며, 누적 포인트를 바탕으로 티어가 정해집니다.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              {tierPointGuide.map((rule) => (
+                <div
+                  key={rule.label}
+                  className={`rounded-xl border px-4 py-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${rule.accentClass}`}
+                >
+                  <div className="text-xs font-black tracking-[0.08em] uppercase opacity-80">{rule.label}</div>
+                  <div className={`mt-1 text-xl font-black ${rule.valueClass}`}>{rule.points}</div>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-4 text-xs leading-5 text-gray-400 break-keep">
+              해당 기준은 왁굳님의 의견에 따라 언제든지 변경될 수 있습니다.
+            </p>
           </div>
         </div>
 
