@@ -3183,6 +3183,78 @@ export default function App() {
     }
   };
 
+  const ensureDraftPlayersExistForMatchResults = async (results = []) => {
+    const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+    for (const playerName of uniqueNames) {
+      const existingPlayer = players.find((p) => p.name === playerName);
+      const existingDraft = draftPlayers.find((p) => p.name === playerName);
+      if (!existingPlayer && !existingDraft) {
+        await addDoc(collection(db, "artifacts", appId, "public", "data", "draft_players"), {
+          name: playerName,
+          imageUrl: "",
+          broadcastUrl: "",
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+  };
+
+  const ensurePlayersExistForPublishedMatchResults = async (results = []) => {
+    const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+    for (const playerName of uniqueNames) {
+      const existing = players.find((p) => p.name === playerName);
+      if (existing) continue;
+      const existingDraft = draftPlayers.find((p) => p.name === playerName);
+      await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), {
+        name: playerName,
+        points: 0,
+        imageUrl: existingDraft?.imageUrl || "",
+        broadcastUrl: existingDraft?.broadcastUrl || "",
+        createdAt: new Date().toISOString(),
+      });
+      if (existingDraft?.id) {
+        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "draft_players", existingDraft.id));
+      }
+    }
+  };
+
+  const applyMatchScoreDelta = async (oldResults = [], newResults = []) => {
+    const tally = (results) => {
+      const map = new Map();
+      (results || []).forEach((r) => {
+        const name = (r.playerName || "").trim();
+        if (!name) return;
+        map.set(name, (map.get(name) || 0) + (Number(r.scoreChange) || 0));
+      });
+      return map;
+    };
+
+    const oldMap = tally(oldResults);
+    const newMap = tally(newResults);
+    const allNames = new Set([...oldMap.keys(), ...newMap.keys()]);
+
+    for (const playerName of allNames) {
+      const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
+      if (!delta) continue;
+
+      let player = players.find((p) => p.name === playerName);
+      if (!player) {
+        const playerQuery = query(collection(db, "artifacts", appId, "public", "data", "players"), where("name", "==", playerName));
+        const playerSnapshot = await getDocs(playerQuery);
+        if (!playerSnapshot.empty) {
+          const playerDoc = playerSnapshot.docs[0];
+          player = { id: playerDoc.id, ...playerDoc.data() };
+        }
+      }
+
+      if (player) {
+        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
+      } else if (delta > 0) {
+        await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: playerName, points: delta, createdAt: new Date().toISOString() });
+      }
+    }
+  };
+
   const handleOpenEditMatch = (match) => {
     setMatchToEdit({ ...match, originalMatch: match });
     setEditGameName(match.gameName);
@@ -3468,7 +3540,7 @@ export default function App() {
             const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
 
             return (
-              <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
+              <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                   <div className="flex items-center flex-wrap gap-3">
                     <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
@@ -3489,7 +3561,7 @@ export default function App() {
                   <span className="text-base text-gray-400">{match.date}</span>
                 </div>
 
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 order-3">
                   {sortedTeams.map((team, idx) => (
                     <div key={idx} className={`p-5 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
                       <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
@@ -3511,7 +3583,7 @@ export default function App() {
                 </div>
 
                 {expandedFundingMatchId === match.id && match.hasFunding && (
-                  <div className="mt-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
+                  <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
                      <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
                         <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
                         <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
@@ -3550,7 +3622,7 @@ export default function App() {
           }
 
           return (
-            <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
+            <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div className="flex items-center flex-wrap gap-3">
                   <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
@@ -3571,7 +3643,7 @@ export default function App() {
                 <span className="text-base text-gray-400">{match.date}</span>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 order-3">
                 {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
                     <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
                       <div className="flex justify-between items-center mb-3">
@@ -3589,7 +3661,7 @@ export default function App() {
               </div>
 
               {expandedFundingMatchId === match.id && match.hasFunding && (
-                <div className="mt-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
+                <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
                    <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
                       <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
                       <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
@@ -6070,7 +6142,7 @@ export default function App() {
                         <button type="button" onClick={() => { const n = [...teamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                       </div>
                     ))}
-                    <button type="button" onClick={() => setEditTeamResults([...editTeamResults, { id: Date.now(), rank: editTeamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                    <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
                   </div>
                 )}
 
@@ -7275,7 +7347,7 @@ export default function App() {
                       <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setEditTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                  <button type="button" onClick={() => setEditTeamResults([...editTeamResults, { id: Date.now(), rank: editTeamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
                 </div>
               )}
 
