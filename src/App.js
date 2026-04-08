@@ -465,7 +465,7 @@ const WOW_RAID_DETAIL_TABS = [
   ...WOW_RAID_STAT_FIELDS,
 ];
 
-const DEFAULT_WOW_RAID_GUEST_AVATAR = 'https://pixabay.com/images/download/daweid-icon-7797704_1920.png';
+const getDefaultWowRaidGuestAvatar = (participant) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || 'guest').trim() || 'guest')}`;
 const createWowRaidGuestId = () => `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 const createEmptyWowRaidGuestForm = () => ({
   id: createWowRaidGuestId(),
@@ -576,7 +576,7 @@ const createWowRaidGuestParticipantSnapshot = (participant = {}) => {
     wowNickname: normalizedGuest.wowNickname || normalizedGuest.displayName || '일반인',
     jobClass: normalizedGuest.jobClass || '',
     level: 60,
-    imageUrl: normalizedGuest.imageMode === 'custom' && normalizedGuest.imageUrl ? normalizedGuest.imageUrl : DEFAULT_WOW_RAID_GUEST_AVATAR,
+    imageUrl: normalizedGuest.imageMode === 'custom' && normalizedGuest.imageUrl ? normalizedGuest.imageUrl : getDefaultWowRaidGuestAvatar(normalizedGuest),
     preferredPositions: normalizePreferredPositions(normalizedGuest.preferredPositions),
     mainSpec: normalizedGuest.mainSpec,
     availableSpecs: normalizedGuest.availableSpecs,
@@ -804,7 +804,6 @@ export default function App() {
   const [raidSelectedLevelFilters, setRaidSelectedLevelFilters] = useState(["50+"]);
   const [raidSelectedSpecFilters, setRaidSelectedSpecFilters] = useState(["전체"]);
   const [raidSelectedPositionFilters, setRaidSelectedPositionFilters] = useState(["전체"]);
-  const [raidRosterViewMode, setRaidRosterViewMode] = useState("all");
   const [isRaidLevelFilterOpen, setIsRaidLevelFilterOpen] = useState(false);
   const [isRaidFilterPanelCollapsed, setIsRaidFilterPanelCollapsed] = useState(true);
   const [selectedRaidTargetSlotKey, setSelectedRaidTargetSlotKey] = useState(null);
@@ -958,6 +957,7 @@ export default function App() {
 
   const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
   const [matchToEdit, setMatchToEdit] = useState(null);
+  const [selectedMatchId, setSelectedMatchId] = useState(null);
   const [editGameName, setEditGameName] = useState("");
   const [editMatchDate, setEditMatchDate] = useState("");
   const [editMatchMode, setEditMatchMode] = useState("individual");
@@ -1233,8 +1233,8 @@ export default function App() {
   const raidSelectedMember = selectedRaidMemberId ? raidMemberMap[selectedRaidMemberId] : null;
 
   const raidEligibleRoster = useMemo(() => (
-    wowRoster.filter((member) => (raidRosterViewMode === "all" || member.isRaidApplied) && matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
-  ), [wowRoster, raidSelectedLevelFilters, raidRosterViewMode]);
+    wowRoster.filter((member) => member.isRaidApplied && matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
+  ), [wowRoster, raidSelectedLevelFilters]);
 
   const raidJobStats = useMemo(() => {
     const stats = { "전체": raidEligibleRoster.length };
@@ -1836,6 +1836,17 @@ export default function App() {
   const navigateTo = (tabName) => {
     window.location.hash = tabName;
   };
+
+  useEffect(() => {
+    if (activeTab !== "matches" || !selectedMatchId) return;
+    const timer = setTimeout(() => {
+      const target = document.getElementById(`match-card-${selectedMatchId}`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [activeTab, selectedMatchId, matches]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -3279,7 +3290,15 @@ export default function App() {
           {matches.length > 0 ? (
             <div className="space-y-4">
               {matches.slice(0, 3).map((match) => (
-                <div key={match.id} className="bg-gray-700/50 p-4 rounded-lg flex justify-between items-center">
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMatchId(match.id);
+                    navigateTo("matches");
+                  }}
+                  className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
+                >
                   <div>
                     <div className="flex items-center">
                       {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
@@ -3292,7 +3311,7 @@ export default function App() {
                       1위: {match.results?.find((r) => r.rank === 1)?.playerName}
                     </p>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -3432,7 +3451,7 @@ export default function App() {
             const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
 
             return (
-              <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
+              <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                   <div className="flex items-center flex-wrap gap-3">
                     <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
@@ -3514,7 +3533,7 @@ export default function App() {
           }
 
           return (
-            <div key={match.id} className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-md">
+            <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div className="flex items-center flex-wrap gap-3">
                   <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
@@ -3803,14 +3822,8 @@ export default function App() {
               <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
                 {tier.players.length > 0 ? (
                   tier.players.map((player) => {
-                    const streak = getPlayerStreak(player.name);
                     return (
                       <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="group relative flex flex-col items-center cursor-pointer">
-                        {streak.count >= 2 && (
-                          <div className={`absolute -top-2 -right-3 px-1.5 py-0.5 rounded-full text-[10px] font-black z-10 border shadow-md animate-bounce ${streak.type === "win" ? "bg-red-900/90 text-red-400 border-red-500/50" : "bg-blue-900/90 text-blue-400 border-blue-500/50"}`}>
-                            {streak.type === "win" ? "🔥" : "🧊"}{streak.count}{streak.type === "win" ? "연승" : "연패"}
-                          </div>
-                        )}
                         <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
                           <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
                         </div>
@@ -3945,8 +3958,8 @@ export default function App() {
         id: participant.sourceId || participant.id,
         displayName: participant.displayName || participant.streamerName,
         wowNickname: participant.wowNickname,
-        imageMode: participant.imageUrl && participant.imageUrl !== DEFAULT_WOW_RAID_GUEST_AVATAR ? 'custom' : 'default',
-        imageUrl: participant.imageUrl && participant.imageUrl !== DEFAULT_WOW_RAID_GUEST_AVATAR ? participant.imageUrl : '',
+        imageMode: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? 'custom' : 'default',
+        imageUrl: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? participant.imageUrl : '',
         jobClass: participant.jobClass,
         mainSpec: participant.mainSpec,
         availableSpecs: participant.availableSpecs,
@@ -4744,7 +4757,7 @@ export default function App() {
                               )}
                               {member.isRaidApplied && (
                                 <span className="bg-cyan-900/60 text-cyan-300 border border-cyan-400/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
-                                  ⚔️ 레이드 신청완료
+                                  ⚔️ 줄구룹 신청완료
                                 </span>
                               )}                            </div>
                           </div>
@@ -5164,26 +5177,6 @@ export default function App() {
                       {filteredWowRaidRosterCandidates.length === 0 && (
                         <div className="text-sm text-gray-500 text-center py-6">검색 결과가 없습니다.</div>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 pt-0.5">
-                    <div className="text-[11px] font-black text-gray-400 pl-0.5">명단 보기</div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setRaidRosterViewMode("all")}
-                        className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${raidRosterViewMode === "all" ? 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100 shadow-[0_0_12px_rgba(16,185,129,0.14)]' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                      >
-                        전체
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRaidRosterViewMode("applicants")}
-                        className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${raidRosterViewMode === "applicants" ? 'border-cyan-400/40 bg-cyan-500/15 text-cyan-100 shadow-[0_0_12px_rgba(34,211,238,0.14)]' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                      >
-                        신청자
-                      </button>
                     </div>
                   </div>
 
@@ -6566,7 +6559,7 @@ export default function App() {
                                 <input type="text" value={guest.imageUrl} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'imageUrl', e.target.value)} placeholder="이미지 주소 입력" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
                               ) : null}
                               <div className="flex items-center gap-3">
-                                <img src={guest.imageMode === 'custom' && guest.imageUrl ? guest.imageUrl : DEFAULT_WOW_RAID_GUEST_AVATAR} onError={(e) => { e.target.src = DEFAULT_WOW_RAID_GUEST_AVATAR; }} alt={guest.displayName || '일반 참가자'} className="w-12 h-12 rounded-full object-cover border border-gray-600 bg-gray-900" />
+                                <img src={guest.imageMode === 'custom' && guest.imageUrl ? guest.imageUrl : getDefaultWowRaidGuestAvatar(guest)} onError={(e) => { e.target.src = getDefaultWowRaidGuestAvatar(guest); }} alt={guest.displayName || '일반 참가자'} className="w-12 h-12 rounded-full object-cover border border-gray-600 bg-gray-900" />
                                 <div className="min-w-0">
                                   <div className="text-sm font-black text-white truncate">{guest.displayName || '이름 미입력'}</div>
                                   <div className="text-xs text-gray-400 truncate">{guest.wowNickname || '와우 닉네임 미입력'}{guest.jobClass ? ` · ${guest.jobClass}` : ''}{guest.mainSpec ? ` · ${guest.mainSpec}` : ''}</div>
