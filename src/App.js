@@ -6839,7 +6839,7 @@ export default function App() {
                   <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
                     <div className="flex items-center gap-3 w-32 flex-shrink-0 relative group/player">
                       <img 
-                        src={getAvatarSrc(player.name)} 
+                        src={(imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")) || getAvatarSrc(player.name)} 
                         onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
                         alt="avatar" 
                         className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
