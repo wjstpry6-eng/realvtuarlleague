@@ -3867,11 +3867,11 @@ export default function App() {
     });
 
     const tierPointGuide = [
-      { label: "1등", points: "+30pt", accentClass: "border-yellow-500/40 bg-yellow-500/12 text-yellow-200", valueClass: "text-yellow-300" },
-      { label: "2등", points: "+20pt", accentClass: "border-slate-400/40 bg-slate-300/10 text-slate-100", valueClass: "text-slate-200" },
-      { label: "3등", points: "+10pt", accentClass: "border-amber-500/40 bg-amber-500/12 text-amber-100", valueClass: "text-amber-300" },
-      { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-500/30 bg-emerald-500/10 text-emerald-100", valueClass: "text-emerald-300" },
-      { label: "최하위", points: "0pt", accentClass: "border-gray-500/35 bg-gray-500/10 text-gray-200", valueClass: "text-gray-300" },
+      { label: "1등", points: "+30pt", accentClass: "border-yellow-400/55 bg-yellow-500/10 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.08)]", valueClass: "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.45)]" },
+      { label: "2등", points: "+20pt", accentClass: "border-slate-300/55 bg-slate-200/5 text-slate-100 shadow-[0_0_16px_rgba(226,232,240,0.06)]", valueClass: "text-slate-200" },
+      { label: "3등", points: "+10pt", accentClass: "border-orange-400/55 bg-orange-500/8 text-orange-100 shadow-[0_0_16px_rgba(251,146,60,0.06)]", valueClass: "text-orange-300" },
+      { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-400/35 bg-transparent text-emerald-100", valueClass: "text-emerald-300" },
+      { label: "최하위", points: "0pt", accentClass: "border-gray-600/35 bg-gray-900/40 text-gray-300", valueClass: "text-gray-400" },
     ];
 
     return (
@@ -3909,7 +3909,7 @@ export default function App() {
                   className={`rounded-xl border px-4 py-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${rule.accentClass}`}
                 >
                   <div className="text-xs font-black tracking-[0.08em] uppercase opacity-80">{rule.label}</div>
-                  <div className={`mt-1 text-xl font-black ${rule.valueClass}`}>{rule.points}</div>
+                  <div className={`mt-1 text-2xl font-black ${rule.valueClass}`}>{rule.points}</div>
                 </div>
               ))}
             </div>
