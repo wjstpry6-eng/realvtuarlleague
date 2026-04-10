@@ -15137,7 +15137,7 @@ export default function App() {
                     : "text-amber-200 hover:text-white hover:bg-gray-800"
                 }`}
               >
-                <Sparkles className="w-4 h-4 mr-1" /> 이벤트
+                <Sparkles className="w-4 h-4 mr-1" /> 와농대
               </button>
             )}
             <button
@@ -15232,7 +15232,7 @@ export default function App() {
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
             ...(shouldShowEventTab
-              ? [{ id: "event", label: "이벤트", icon: Sparkles }]
+              ? [{ id: "event", label: "와농대", icon: Sparkles }]
               : []),
             { id: "wow", label: "WOW", icon: Shield },
             { id: "wowraid", label: "WOW레이드", icon: null },
