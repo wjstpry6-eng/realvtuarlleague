@@ -5930,10 +5930,10 @@ export default function App() {
           Champion
         </div>
         {team ? (
-          <div className="mt-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="truncate text-2xl font-black text-white">{team.teamName}</div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-col items-center text-center">
+            <div className="w-full min-w-0">
+              <div className="text-2xl font-black text-white">{team.teamName}</div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                 <span className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black" style={getJobBadgeStyle(team.jobClass)}>
                   {team.jobClass}
                 </span>
@@ -5942,17 +5942,21 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="flex shrink-0 -space-x-2.5">
-              {team.members.slice(0, 4).map((member) => (
-                <img
-                  key={member.id}
-                  src={getEventMemberAvatar(member)}
-                  onError={(e) => {
-                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
-                  }}
-                  alt={member.displayName}
-                  className="h-11 w-11 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover"
-                />
+            <div className="mt-5 flex w-full flex-wrap items-start justify-center gap-4 sm:gap-5">
+              {team.members.slice(0, 5).map((member) => (
+                <div key={member.id} className="flex w-[84px] flex-col items-center text-center sm:w-[96px]">
+                  <img
+                    src={getEventMemberAvatar(member)}
+                    onError={(e) => {
+                      e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
+                    }}
+                    alt={member.displayName || member.wowNickname}
+                    className="h-16 w-16 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover shadow-[0_0_18px_rgba(251,191,36,0.16)] sm:h-[4.5rem] sm:w-[4.5rem]"
+                  />
+                  <div className="mt-2 w-full text-[11px] font-black leading-tight text-amber-50/90 break-keep sm:text-xs">
+                    {member.displayName || member.wowNickname || "참가자"}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -6725,10 +6729,10 @@ export default function App() {
           Champion
         </div>
         {team ? (
-          <div className="relative mt-3 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-xl font-black text-white">{team.teamName}</div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <div className="relative mt-3 flex flex-col items-center text-center">
+            <div className="w-full min-w-0">
+              <div className="text-xl font-black text-white">{team.teamName}</div>
+              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
                 <span
                   className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black"
                   style={getJobBadgeStyle(team.jobClass)}
@@ -6740,17 +6744,21 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="flex shrink-0 -space-x-2.5">
-              {team.members.slice(0, 4).map((member) => (
-                <img
-                  key={member.id}
-                  src={getEventMemberAvatar(member)}
-                  onError={(e) => {
-                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
-                  }}
-                  alt={member.displayName}
-                  className="h-10 w-10 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover shadow-[0_0_14px_rgba(250,204,21,0.14)]"
-                />
+            <div className="mt-4 flex w-full flex-wrap items-start justify-center gap-3 sm:gap-4">
+              {team.members.slice(0, 5).map((member) => (
+                <div key={member.id} className="flex w-[76px] flex-col items-center text-center sm:w-[88px]">
+                  <img
+                    src={getEventMemberAvatar(member)}
+                    onError={(e) => {
+                      e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
+                    }}
+                    alt={member.displayName || member.wowNickname}
+                    className="h-14 w-14 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover shadow-[0_0_16px_rgba(250,204,21,0.16)] sm:h-16 sm:w-16"
+                  />
+                  <div className="mt-2 w-full text-[10px] font-black leading-tight text-amber-50/90 break-keep sm:text-[11px]">
+                    {member.displayName || member.wowNickname || "참가자"}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
