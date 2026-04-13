@@ -34,7 +34,6 @@ import {
   Edit,
   Coins,
   Star,
-  Target,
   Settings,
   Layers,
   Megaphone,
@@ -46,7 +45,6 @@ import {
   Link2,
   Sparkles,
   Globe,
-  CalendarDays
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -70,7 +68,7 @@ import {
   query,
   where,
   runTransaction,
-  writeBatch
+  writeBatch,
 } from "firebase/firestore";
 
 // --- Firebase 초기화 ---
@@ -96,27 +94,83 @@ const appId =
 
 // ★ 실전용 상대평가 티어 설정 (S+ ~ D 총 7단계로 세분화) ★
 const TIER_SETTINGS = [
-  { id: "S+", name: "S+ 티어", color: "bg-red-800", percent: 5, label: "상위 5%" },
-  { id: "S", name: "S 티어", color: "bg-red-500", percent: 15, label: "상위 6% ~ 15%" },
-  { id: "A+", name: "A+ 티어", color: "bg-orange-600", percent: 30, label: "상위 16% ~ 30%" },
-  { id: "A", name: "A 티어", color: "bg-orange-400", percent: 45, label: "상위 31% ~ 45%" },
-  { id: "B", name: "B 티어", color: "bg-yellow-500", percent: 65, label: "상위 46% ~ 65%" },
-  { id: "C", name: "C 티어", color: "bg-green-500", percent: 85, label: "상위 66% ~ 85%" },
-  { id: "D", name: "D 티어", color: "bg-blue-500", percent: 100, label: "하위 15%" },
+  {
+    id: "S+",
+    name: "S+ 티어",
+    color: "bg-red-800",
+    percent: 5,
+    label: "상위 5%",
+  },
+  {
+    id: "S",
+    name: "S 티어",
+    color: "bg-red-500",
+    percent: 15,
+    label: "상위 6% ~ 15%",
+  },
+  {
+    id: "A+",
+    name: "A+ 티어",
+    color: "bg-orange-600",
+    percent: 30,
+    label: "상위 16% ~ 30%",
+  },
+  {
+    id: "A",
+    name: "A 티어",
+    color: "bg-orange-400",
+    percent: 45,
+    label: "상위 31% ~ 45%",
+  },
+  {
+    id: "B",
+    name: "B 티어",
+    color: "bg-yellow-500",
+    percent: 65,
+    label: "상위 46% ~ 65%",
+  },
+  {
+    id: "C",
+    name: "C 티어",
+    color: "bg-green-500",
+    percent: 85,
+    label: "상위 66% ~ 85%",
+  },
+  {
+    id: "D",
+    name: "D 티어",
+    color: "bg-blue-500",
+    percent: 100,
+    label: "하위 15%",
+  },
 ];
 
 // ★ WOW 고유 직업 색상 사전 정의 ★
 const WOW_CLASS_COLORS = {
-  "전사": "#C79C6E", "사제": "#FFFFFF", "도적": "#FFF569", "성기사": "#F58CBA",
-  "사냥꾼": "#ABD473", "주술사": "#0070DE", "마법사": "#69CCF0", "흑마": "#9482C9",
-  "흑마법사": "#9482C9", "드루": "#FF7D0A", "드루이드": "#FF7D0A", "죽음의기사": "#C41E3A", "수도사": "#00FF96", "악마사냥꾼": "#A330C9", "기원사": "#33937F"
+  전사: "#C79C6E",
+  사제: "#FFFFFF",
+  도적: "#FFF569",
+  성기사: "#F58CBA",
+  사냥꾼: "#ABD473",
+  주술사: "#0070DE",
+  마법사: "#69CCF0",
+  흑마: "#9482C9",
+  흑마법사: "#9482C9",
+  드루: "#FF7D0A",
+  드루이드: "#FF7D0A",
+  죽음의기사: "#C41E3A",
+  수도사: "#00FF96",
+  악마사냥꾼: "#A330C9",
+  기원사: "#33937F",
 };
-const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b']; 
+const fallbackColors = ["#94a3b8", "#cbd5e1", "#64748b"];
 
 // ★ 직업 뱃지에 파스텔 톤 반투명 효과를 주는 마법의 함수 ★
 const getJobBadgeStyle = (jobClass) => {
-  const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8"; 
-  let r = 0, g = 0, b = 0;
+  const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8";
+  let r = 0,
+    g = 0,
+    b = 0;
   if (hex.length === 7) {
     r = parseInt(hex.slice(1, 3), 16);
     g = parseInt(hex.slice(3, 5), 16);
@@ -125,7 +179,7 @@ const getJobBadgeStyle = (jobClass) => {
   return {
     color: hex,
     backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`,
-    borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`
+    borderColor: `rgba(${r}, ${g}, ${b}, 0.3)`,
   };
 };
 
@@ -188,7 +242,8 @@ const WOW_POSITION_STYLE_MAP = {
       "bg-sky-500/12 text-sky-100 border-sky-500/30 hover:bg-sky-500/18 hover:border-sky-300/45",
     countSelectedClass: "bg-sky-950/75 text-sky-50",
     countUnselectedClass: "bg-black/20 text-sky-100",
-    tagClass: "border-sky-400/40 bg-sky-500/18 text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    tagClass:
+      "border-sky-400/40 bg-sky-500/18 text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
     menuActiveClass: "border-sky-300/70 bg-sky-500/28 text-sky-50",
     menuInactiveClass:
       "border-sky-500/30 bg-sky-500/12 text-sky-100 hover:border-sky-300/45 hover:bg-sky-500/18",
@@ -200,7 +255,8 @@ const WOW_POSITION_STYLE_MAP = {
       "bg-rose-500/12 text-rose-100 border-rose-500/30 hover:bg-rose-500/18 hover:border-rose-300/45",
     countSelectedClass: "bg-rose-950/75 text-rose-50",
     countUnselectedClass: "bg-black/20 text-rose-100",
-    tagClass: "border-rose-400/40 bg-rose-500/18 text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    tagClass:
+      "border-rose-400/40 bg-rose-500/18 text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
     menuActiveClass: "border-rose-300/70 bg-rose-500/28 text-rose-50",
     menuInactiveClass:
       "border-rose-500/30 bg-rose-500/12 text-rose-100 hover:border-rose-300/45 hover:bg-rose-500/18",
@@ -212,7 +268,8 @@ const WOW_POSITION_STYLE_MAP = {
       "bg-red-500/12 text-red-100 border-red-500/30 hover:bg-red-500/18 hover:border-red-300/45",
     countSelectedClass: "bg-red-950/75 text-red-50",
     countUnselectedClass: "bg-black/20 text-red-100",
-    tagClass: "border-red-400/40 bg-red-500/18 text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    tagClass:
+      "border-red-400/40 bg-red-500/18 text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
     menuActiveClass: "border-red-300/70 bg-red-500/28 text-red-50",
     menuInactiveClass:
       "border-red-500/30 bg-red-500/12 text-red-100 hover:border-red-300/45 hover:bg-red-500/18",
@@ -224,14 +281,17 @@ const WOW_POSITION_STYLE_MAP = {
       "bg-emerald-500/12 text-emerald-100 border-emerald-500/30 hover:bg-emerald-500/18 hover:border-emerald-300/45",
     countSelectedClass: "bg-emerald-950/75 text-emerald-50",
     countUnselectedClass: "bg-black/20 text-emerald-100",
-    tagClass: "border-emerald-400/40 bg-emerald-500/18 text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+    tagClass:
+      "border-emerald-400/40 bg-emerald-500/18 text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
     menuActiveClass: "border-emerald-300/70 bg-emerald-500/28 text-emerald-50",
     menuInactiveClass:
       "border-emerald-500/30 bg-emerald-500/12 text-emerald-100 hover:border-emerald-300/45 hover:bg-emerald-500/18",
   },
 };
 
-const WOW_POSITION_IDS = WOW_POSITION_OPTIONS.filter((option) => option.id !== "전체").map((option) => option.id);
+const WOW_POSITION_IDS = WOW_POSITION_OPTIONS.filter(
+  (option) => option.id !== "전체"
+).map((option) => option.id);
 
 const normalizePreferredPositions = (value) => {
   const raw = Array.isArray(value)
@@ -247,7 +307,9 @@ const normalizePreferredPositions = (value) => {
     if (["meleeDealer", "melee", "근거리 딜러", "근딜"].includes(positionId)) {
       return ["meleeDealer"];
     }
-    if (["rangedDealer", "ranged", "원거리 딜러", "원딜"].includes(positionId)) {
+    if (
+      ["rangedDealer", "ranged", "원거리 딜러", "원딜"].includes(positionId)
+    ) {
       return ["rangedDealer"];
     }
     if (["tank", "탱", "탱커"].includes(positionId)) {
@@ -261,7 +323,8 @@ const normalizePreferredPositions = (value) => {
 
   return expanded.filter(
     (positionId, index) =>
-      WOW_POSITION_IDS.includes(positionId) && expanded.indexOf(positionId) === index
+      WOW_POSITION_IDS.includes(positionId) &&
+      expanded.indexOf(positionId) === index
   );
 };
 
@@ -296,42 +359,86 @@ const normalizeWowJobClassKey = (jobClass = "") => {
   return trimmed;
 };
 
-const getWowSpecOptions = (jobClass = "") => (
-  WOW_SPEC_OPTIONS_BY_JOB[normalizeWowJobClassKey(jobClass)] || []
-);
+const getWowSpecOptions = (jobClass = "") =>
+  WOW_SPEC_OPTIONS_BY_JOB[normalizeWowJobClassKey(jobClass)] || [];
 
 const normalizeAvailableSpecs = (jobClass = "", value = []) => {
   const validSpecs = getWowSpecOptions(jobClass);
-  const raw = Array.isArray(value) ? value : typeof value === "string" && value ? [value] : [];
-  return raw.filter((spec, index) => validSpecs.includes(spec) && raw.indexOf(spec) === index);
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value
+    ? [value]
+    : [];
+  return raw.filter(
+    (spec, index) => validSpecs.includes(spec) && raw.indexOf(spec) === index
+  );
 };
 
-const normalizeWowSpecState = (jobClass = "", mainSpec = "", availableSpecs = []) => {
+const normalizeWowSpecState = (
+  jobClass = "",
+  mainSpec = "",
+  availableSpecs = []
+) => {
   const validSpecs = getWowSpecOptions(jobClass);
-  let normalizedAvailableSpecs = normalizeAvailableSpecs(jobClass, availableSpecs);
-  const normalizedMainSpec = validSpecs.includes(mainSpec) ? mainSpec : (normalizedAvailableSpecs[0] || "");
-  if (normalizedMainSpec && !normalizedAvailableSpecs.includes(normalizedMainSpec)) {
-    normalizedAvailableSpecs = [normalizedMainSpec, ...normalizedAvailableSpecs];
+  let normalizedAvailableSpecs = normalizeAvailableSpecs(
+    jobClass,
+    availableSpecs
+  );
+  const normalizedMainSpec = validSpecs.includes(mainSpec)
+    ? mainSpec
+    : normalizedAvailableSpecs[0] || "";
+  if (
+    normalizedMainSpec &&
+    !normalizedAvailableSpecs.includes(normalizedMainSpec)
+  ) {
+    normalizedAvailableSpecs = [
+      normalizedMainSpec,
+      ...normalizedAvailableSpecs,
+    ];
   }
-  return { mainSpec: normalizedMainSpec, availableSpecs: normalizedAvailableSpecs };
+  return {
+    mainSpec: normalizedMainSpec,
+    availableSpecs: normalizedAvailableSpecs,
+  };
 };
 
-const matchesWowSpecFilters = (jobClass = "", availableSpecs = [], selectedFilters = ["전체"]) => {
-  if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("전체")) {
+const matchesWowSpecFilters = (
+  jobClass = "",
+  availableSpecs = [],
+  selectedFilters = ["전체"]
+) => {
+  if (
+    !Array.isArray(selectedFilters) ||
+    selectedFilters.length === 0 ||
+    selectedFilters.includes("전체")
+  ) {
     return true;
   }
-  const normalizedAvailableSpecs = normalizeAvailableSpecs(jobClass, availableSpecs);
+  const normalizedAvailableSpecs = normalizeAvailableSpecs(
+    jobClass,
+    availableSpecs
+  );
   if (normalizedAvailableSpecs.length === 0) return false;
-  return selectedFilters.some((filterId) => normalizedAvailableSpecs.includes(filterId));
+  return selectedFilters.some((filterId) =>
+    normalizedAvailableSpecs.includes(filterId)
+  );
 };
 
-const getWowSpecTagTitle = (jobClass = "", mainSpec = "", availableSpecs = []) => {
+const getWowSpecTagTitle = (
+  jobClass = "",
+  mainSpec = "",
+  availableSpecs = []
+) => {
   const normalized = normalizeWowSpecState(jobClass, mainSpec, availableSpecs);
   return normalized.availableSpecs.join(", ");
 };
 
 const normalizeFixedRaidMember = (member = {}) => {
-  const specState = normalizeWowSpecState(member?.jobClass, member?.mainSpec, member?.availableSpecs);
+  const specState = normalizeWowSpecState(
+    member?.jobClass,
+    member?.mainSpec,
+    member?.availableSpecs
+  );
   return {
     imageUrl: "",
     streamerName: "",
@@ -369,27 +476,40 @@ const getWowPositionTagClasses = (positionId) =>
   getWowPositionStyleMeta(positionId).tagClass;
 const getWowPositionMenuOptionClasses = (positionId, isActive) => {
   const styleMeta = getWowPositionStyleMeta(positionId);
-  return isActive
-    ? styleMeta.menuActiveClass
-    : styleMeta.menuInactiveClass;
+  return isActive ? styleMeta.menuActiveClass : styleMeta.menuInactiveClass;
 };
 
-const WOW_SPEC_TAG_CLASS = "border-slate-400/35 bg-slate-500/18 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]";
-const WOW_SPEC_EXTRA_TAG_CLASS = "border-slate-500/28 bg-slate-500/10 text-slate-300";
+const WOW_SPEC_TAG_CLASS =
+  "border-slate-400/35 bg-slate-500/18 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]";
+const WOW_SPEC_EXTRA_TAG_CLASS =
+  "border-slate-500/28 bg-slate-500/10 text-slate-300";
 
-const matchesPreferredPositionFilters = (preferredPositions = [], selectedFilters = ["전체"]) => {
-  if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("전체")) {
+const matchesPreferredPositionFilters = (
+  preferredPositions = [],
+  selectedFilters = ["전체"]
+) => {
+  if (
+    !Array.isArray(selectedFilters) ||
+    selectedFilters.length === 0 ||
+    selectedFilters.includes("전체")
+  ) {
     return true;
   }
 
   const normalizedPositions = normalizePreferredPositions(preferredPositions);
   if (normalizedPositions.length === 0) return false;
-  return selectedFilters.some((filterId) => normalizedPositions.includes(filterId));
+  return selectedFilters.some((filterId) =>
+    normalizedPositions.includes(filterId)
+  );
 };
 
 const normalizeWowMember = (member = {}) => {
-  const specState = normalizeWowSpecState(member?.jobClass, member?.mainSpec, member?.availableSpecs);
-  return ({
+  const specState = normalizeWowSpecState(
+    member?.jobClass,
+    member?.mainSpec,
+    member?.availableSpecs
+  );
+  return {
     isApplied: false,
     isWowPartner: false,
     isBuskingParticipant: false,
@@ -398,18 +518,49 @@ const normalizeWowMember = (member = {}) => {
     preferredPositions: normalizePreferredPositions(member?.preferredPositions),
     mainSpec: specState.mainSpec,
     availableSpecs: specState.availableSpecs,
-  });
+  };
 };
 
 const RAID_ROLE_OPTIONS = [
-  { id: "raidLeader", label: "공대장", iconKey: "crown", toneClass: "text-amber-300", chipClass: "border-amber-400/30 bg-amber-500/10 text-amber-200" },
-  { id: "mainTank", label: "메인탱커", iconKey: "shield", toneClass: "text-sky-300", chipClass: "border-sky-400/30 bg-sky-500/10 text-sky-200" },
-  { id: "subTank", label: "서브탱커", iconKey: "swords", toneClass: "text-orange-300", chipClass: "border-orange-400/30 bg-orange-500/10 text-orange-200" },
-  { id: "mainHealer", label: "메인힐러", iconKey: "sparkles", toneClass: "text-violet-300", chipClass: "border-violet-400/30 bg-violet-500/10 text-violet-200" },
-  { id: "subHealer", label: "서브힐러", iconKey: "heart", toneClass: "text-rose-300", chipClass: "border-rose-400/30 bg-rose-500/10 text-rose-200" },
+  {
+    id: "raidLeader",
+    label: "공대장",
+    iconKey: "crown",
+    toneClass: "text-amber-300",
+    chipClass: "border-amber-400/30 bg-amber-500/10 text-amber-200",
+  },
+  {
+    id: "mainTank",
+    label: "메인탱커",
+    iconKey: "shield",
+    toneClass: "text-sky-300",
+    chipClass: "border-sky-400/30 bg-sky-500/10 text-sky-200",
+  },
+  {
+    id: "subTank",
+    label: "서브탱커",
+    iconKey: "swords",
+    toneClass: "text-orange-300",
+    chipClass: "border-orange-400/30 bg-orange-500/10 text-orange-200",
+  },
+  {
+    id: "mainHealer",
+    label: "메인힐러",
+    iconKey: "sparkles",
+    toneClass: "text-violet-300",
+    chipClass: "border-violet-400/30 bg-violet-500/10 text-violet-200",
+  },
+  {
+    id: "subHealer",
+    label: "서브힐러",
+    iconKey: "heart",
+    toneClass: "text-rose-300",
+    chipClass: "border-rose-400/30 bg-rose-500/10 text-rose-200",
+  },
 ];
 
-const getRaidRoleMeta = (roleId) => RAID_ROLE_OPTIONS.find((role) => role.id === roleId) || null;
+const getRaidRoleMeta = (roleId) =>
+  RAID_ROLE_OPTIONS.find((role) => role.id === roleId) || null;
 
 const renderRaidRoleIcon = (roleId, className = "w-3.5 h-3.5") => {
   const roleMeta = getRaidRoleMeta(roleId);
@@ -434,7 +585,11 @@ const renderRaidRoleIcon = (roleId, className = "w-3.5 h-3.5") => {
 const matchesRaidLevelFilter = (levelValue, selectedFilters = ["50+"]) => {
   const level = Number(levelValue) || 0;
   if (level < 50) return false;
-  if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("50+")) {
+  if (
+    !Array.isArray(selectedFilters) ||
+    selectedFilters.length === 0 ||
+    selectedFilters.includes("50+")
+  ) {
     return true;
   }
 
@@ -446,7 +601,6 @@ const matchesRaidLevelFilter = (levelValue, selectedFilters = ["50+"]) => {
   });
 };
 
-
 const BUSKING_VOTE_STORAGE_KEY = "wak_wow_busking_votes_v1";
 const BUSKING_CLIENT_ID_STORAGE_KEY = "wak_wow_busking_client_v1";
 const BUSKING_PUBLIC_REFRESH_MS = 5000;
@@ -454,68 +608,77 @@ const BUSKING_PUBLIC_SUMMARY_DOC_ID = "busking_public";
 const BUSKING_PUBLIC_SHARD_COUNT = 12;
 const BUSKING_PUBLIC_SHARDS_COLLECTION = "public_shards";
 
-
 const WOW_RAID_STAT_FIELDS = [
-  { id: 'damage', label: '피해량', shortLabel: '피해량' },
-  { id: 'damageTaken', label: '받은 피해', shortLabel: '받은 피해' },
-  { id: 'healing', label: '치유량', shortLabel: '치유량' },
-  { id: 'mitigated', label: '막은 피해', shortLabel: '막은 피해' },
+  { id: "damage", label: "피해량", shortLabel: "피해량" },
+  { id: "damageTaken", label: "받은 피해", shortLabel: "받은 피해" },
+  { id: "healing", label: "치유량", shortLabel: "치유량" },
+  { id: "mitigated", label: "막은 피해", shortLabel: "막은 피해" },
 ];
 
 const WOW_RAID_DETAIL_TABS = [
-  { id: 'participants', label: '참가 인원' },
+  { id: "participants", label: "참가 인원" },
   ...WOW_RAID_STAT_FIELDS,
 ];
 
-const getDefaultWowRaidGuestAvatar = (participant) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || 'guest').trim() || 'guest')}`;
-const createWowRaidGuestId = () => `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+const getDefaultWowRaidGuestAvatar = (participant) =>
+  `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(
+    (participant?.displayName || participant?.wowNickname || "guest").trim() ||
+      "guest"
+  )}`;
+const createWowRaidGuestId = () =>
+  `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 const createEmptyWowRaidGuestForm = () => ({
   id: createWowRaidGuestId(),
-  displayName: '',
-  wowNickname: '',
-  imageMode: 'default',
-  imageUrl: '',
-  jobClass: '',
-  mainSpec: '',
+  displayName: "",
+  wowNickname: "",
+  imageMode: "default",
+  imageUrl: "",
+  jobClass: "",
+  mainSpec: "",
   availableSpecs: [],
   preferredPositions: [],
 });
 
-const getRecommendedPreferredPositionsBySpec = (jobClass = '', mainSpec = '') => {
+const getRecommendedPreferredPositionsBySpec = (
+  jobClass = "",
+  mainSpec = ""
+) => {
   const normalizedJob = normalizeWowJobClassKey(jobClass);
   if (!mainSpec) return [];
-  if (['방어', '수호', '보호'].includes(mainSpec)) return ['tank'];
-  if (['신성', '회복', '복원', '수양'].includes(mainSpec)) return ['heal'];
-  if (['마법사', '사냥꾼', '흑마법사'].includes(normalizedJob)) return ['rangedDealer'];
-  if (normalizedJob === '사제') return mainSpec === '암흑' ? ['rangedDealer'] : ['heal'];
-  if (normalizedJob === '드루이드') {
-    if (mainSpec === '조화') return ['rangedDealer'];
-    if (mainSpec === '야성') return ['meleeDealer'];
+  if (["방어", "수호", "보호"].includes(mainSpec)) return ["tank"];
+  if (["신성", "회복", "복원", "수양"].includes(mainSpec)) return ["heal"];
+  if (["마법사", "사냥꾼", "흑마법사"].includes(normalizedJob))
+    return ["rangedDealer"];
+  if (normalizedJob === "사제")
+    return mainSpec === "암흑" ? ["rangedDealer"] : ["heal"];
+  if (normalizedJob === "드루이드") {
+    if (mainSpec === "조화") return ["rangedDealer"];
+    if (mainSpec === "야성") return ["meleeDealer"];
   }
-  if (normalizedJob === '주술사') {
-    if (mainSpec === '정기') return ['rangedDealer'];
-    if (mainSpec === '고양') return ['meleeDealer'];
+  if (normalizedJob === "주술사") {
+    if (mainSpec === "정기") return ["rangedDealer"];
+    if (mainSpec === "고양") return ["meleeDealer"];
   }
-  if (normalizedJob === '성기사') {
-    if (mainSpec === '징벌') return ['meleeDealer'];
+  if (normalizedJob === "성기사") {
+    if (mainSpec === "징벌") return ["meleeDealer"];
   }
-  if (normalizedJob === '전사') {
-    if (['무기', '분노'].includes(mainSpec)) return ['meleeDealer'];
+  if (normalizedJob === "전사") {
+    if (["무기", "분노"].includes(mainSpec)) return ["meleeDealer"];
   }
-  if (normalizedJob === '도적') return ['meleeDealer'];
+  if (normalizedJob === "도적") return ["meleeDealer"];
   return [];
 };
 
 const createEmptyWowRaidForm = () => ({
   id: null,
-  raidName: '',
-  imageUrl: '',
-  raidDate: '',
-  clearTime: '',
+  raidName: "",
+  imageUrl: "",
+  raidDate: "",
+  clearTime: "",
   isCleared: true,
   isPublished: false,
-  note: '',
-  raidGroupNumber: '',
+  note: "",
+  raidGroupNumber: "",
   rosterParticipantIds: [],
   fixedParticipantIds: [],
   guestParticipants: [],
@@ -527,41 +690,71 @@ const createEmptyWowRaidForm = () => ({
   },
 });
 
-const buildWowRaidParticipantKey = (sourceType = 'wow_roster', sourceId = '') => `${sourceType}:${sourceId || ''}`;
+const buildWowRaidParticipantKey = (sourceType = "wow_roster", sourceId = "") =>
+  `${sourceType}:${sourceId || ""}`;
 
-const createWowRaidParticipantSnapshot = (member = {}, sourceType = 'wow_roster') => {
-  const normalizedMember = sourceType === 'fixed_member' ? normalizeFixedRaidMember(member) : normalizeWowMember(member);
-  const snapshotId = buildWowRaidParticipantKey(sourceType, normalizedMember.id);
+const createWowRaidParticipantSnapshot = (
+  member = {},
+  sourceType = "wow_roster"
+) => {
+  const normalizedMember =
+    sourceType === "fixed_member"
+      ? normalizeFixedRaidMember(member)
+      : normalizeWowMember(member);
+  const snapshotId = buildWowRaidParticipantKey(
+    sourceType,
+    normalizedMember.id
+  );
   return {
     id: snapshotId,
     sourceType,
-    sourceId: normalizedMember.id || '',
-    streamerName: normalizedMember.streamerName || '',
-    wowNickname: normalizedMember.wowNickname || normalizedMember.streamerName || '',
-    jobClass: normalizedMember.jobClass || '',
+    sourceId: normalizedMember.id || "",
+    streamerName: normalizedMember.streamerName || "",
+    wowNickname:
+      normalizedMember.wowNickname || normalizedMember.streamerName || "",
+    jobClass: normalizedMember.jobClass || "",
     level: Number(normalizedMember.level) || 0,
-    imageUrl: normalizedMember.imageUrl || '',
-    preferredPositions: normalizePreferredPositions(normalizedMember.preferredPositions),
-    mainSpec: normalizeWowSpecState(normalizedMember.jobClass, normalizedMember.mainSpec, normalizedMember.availableSpecs).mainSpec,
-    availableSpecs: normalizeWowSpecState(normalizedMember.jobClass, normalizedMember.mainSpec, normalizedMember.availableSpecs).availableSpecs,
-    displayName: '',
+    imageUrl: normalizedMember.imageUrl || "",
+    preferredPositions: normalizePreferredPositions(
+      normalizedMember.preferredPositions
+    ),
+    mainSpec: normalizeWowSpecState(
+      normalizedMember.jobClass,
+      normalizedMember.mainSpec,
+      normalizedMember.availableSpecs
+    ).mainSpec,
+    availableSpecs: normalizeWowSpecState(
+      normalizedMember.jobClass,
+      normalizedMember.mainSpec,
+      normalizedMember.availableSpecs
+    ).availableSpecs,
+    displayName: "",
   };
 };
 
 const normalizeWowRaidGuestParticipant = (participant = {}) => {
-  const jobClass = normalizeWowJobClassKey(participant?.jobClass || '');
-  const specState = normalizeWowSpecState(jobClass, participant?.mainSpec, participant?.availableSpecs);
-  const recommendedPositions = getRecommendedPreferredPositionsBySpec(jobClass, specState.mainSpec);
+  const jobClass = normalizeWowJobClassKey(participant?.jobClass || "");
+  const specState = normalizeWowSpecState(
+    jobClass,
+    participant?.mainSpec,
+    participant?.availableSpecs
+  );
+  const recommendedPositions = getRecommendedPreferredPositionsBySpec(
+    jobClass,
+    specState.mainSpec
+  );
   return {
     id: participant?.id || createWowRaidGuestId(),
-    displayName: participant?.displayName || '',
-    wowNickname: participant?.wowNickname || '',
-    imageMode: participant?.imageMode === 'custom' ? 'custom' : 'default',
-    imageUrl: participant?.imageUrl || '',
+    displayName: participant?.displayName || "",
+    wowNickname: participant?.wowNickname || "",
+    imageMode: participant?.imageMode === "custom" ? "custom" : "default",
+    imageUrl: participant?.imageUrl || "",
     jobClass,
     mainSpec: specState.mainSpec,
     availableSpecs: specState.availableSpecs,
-    preferredPositions: normalizePreferredPositions(participant?.preferredPositions).length
+    preferredPositions: normalizePreferredPositions(
+      participant?.preferredPositions
+    ).length
       ? normalizePreferredPositions(participant?.preferredPositions)
       : recommendedPositions,
   };
@@ -569,265 +762,34 @@ const normalizeWowRaidGuestParticipant = (participant = {}) => {
 
 const createWowRaidGuestParticipantSnapshot = (participant = {}) => {
   const normalizedGuest = normalizeWowRaidGuestParticipant(participant);
-  const snapshotId = buildWowRaidParticipantKey('guest', normalizedGuest.id);
+  const snapshotId = buildWowRaidParticipantKey("guest", normalizedGuest.id);
   return {
     id: snapshotId,
-    sourceType: 'guest',
+    sourceType: "guest",
     sourceId: normalizedGuest.id,
-    streamerName: normalizedGuest.displayName || normalizedGuest.wowNickname || '일반인',
-    wowNickname: normalizedGuest.wowNickname || normalizedGuest.displayName || '일반인',
-    jobClass: normalizedGuest.jobClass || '',
+    streamerName:
+      normalizedGuest.displayName || normalizedGuest.wowNickname || "일반인",
+    wowNickname:
+      normalizedGuest.wowNickname || normalizedGuest.displayName || "일반인",
+    jobClass: normalizedGuest.jobClass || "",
     level: 60,
-    imageUrl: normalizedGuest.imageMode === 'custom' && normalizedGuest.imageUrl ? normalizedGuest.imageUrl : getDefaultWowRaidGuestAvatar(normalizedGuest),
-    preferredPositions: normalizePreferredPositions(normalizedGuest.preferredPositions),
+    imageUrl:
+      normalizedGuest.imageMode === "custom" && normalizedGuest.imageUrl
+        ? normalizedGuest.imageUrl
+        : getDefaultWowRaidGuestAvatar(normalizedGuest),
+    preferredPositions: normalizePreferredPositions(
+      normalizedGuest.preferredPositions
+    ),
     mainSpec: normalizedGuest.mainSpec,
     availableSpecs: normalizedGuest.availableSpecs,
-    displayName: normalizedGuest.displayName || '',
+    displayName: normalizedGuest.displayName || "",
     imageMode: normalizedGuest.imageMode,
     isGuestParticipant: true,
   };
 };
 
-const CURRENT_EVENT_DOC_ID = "wow-basketball-2026-04-12";
-
-const EVENT_STATUS_OPTIONS = [
-  { id: "scheduled", label: "진행 예정", badgeClass: "bg-amber-500/15 text-amber-200 border-amber-400/30" },
-  { id: "live", label: "진행 중", badgeClass: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30" },
-  { id: "finished", label: "종료", badgeClass: "bg-slate-500/15 text-slate-200 border-slate-300/25" },
-];
-
-const EVENT_ROUND_LABELS = {
-  quarterfinal: "8강",
-  semifinal: "4강",
-  final: "결승",
-};
-
-const EVENT_MATCH_TEMPLATES = [
-  { id: "qf1", round: "quarterfinal", matchOrder: 1, label: "8강 1경기", nextMatchId: "sf1", nextSlot: "teamA" },
-  { id: "qf2", round: "quarterfinal", matchOrder: 2, label: "8강 2경기", nextMatchId: "sf1", nextSlot: "teamB" },
-  { id: "qf3", round: "quarterfinal", matchOrder: 3, label: "8강 3경기", nextMatchId: "sf2", nextSlot: "teamA" },
-  { id: "qf4", round: "quarterfinal", matchOrder: 4, label: "8강 4경기", nextMatchId: "sf2", nextSlot: "teamB" },
-  { id: "sf1", round: "semifinal", matchOrder: 1, label: "4강 1경기", nextMatchId: "final1", nextSlot: "teamA" },
-  { id: "sf2", round: "semifinal", matchOrder: 2, label: "4강 2경기", nextMatchId: "final1", nextSlot: "teamB" },
-  { id: "final1", round: "final", matchOrder: 1, label: "결승", nextMatchId: null, nextSlot: null },
-];
-
-const EVENT_MATCH_ORDER_MAP = EVENT_MATCH_TEMPLATES.reduce((acc, template, index) => {
-  acc[template.id] = index;
-  return acc;
-}, {});
-
-const createEventTeamId = () => `event_team_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-const createEventGuestId = () => `event_guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-const getDefaultEventGuestAvatar = (participant) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || 'event-guest').trim() || 'event-guest')}`;
-const createDefaultEventTeamName = (jobClass = "") => (jobClass ? `TEAM ${jobClass}` : "");
-const createEmptyEventGuestForm = () => ({ displayName: "", wowNickname: "", imageUrl: "" });
-const createDefaultEventSettings = () => ({
-  eventId: CURRENT_EVENT_DOC_ID,
-  title: "와농대 8강 토너먼트",
-  subtitle: "우왁굳 x 왁타버스 길드 스트리머 특별전",
-  startAt: "2026-04-12T20:00",
-  status: "scheduled",
-  isVisible: false,
-  currentRound: "8강",
-  championTeamId: "",
-  updatedAt: null,
-});
-const createEmptyEventTeam = (sortOrder = 1) => ({
-  id: createEventTeamId(),
-  teamName: "",
-  jobClass: "",
-  themeColor: "",
-  imageUrl: "",
-  note: "",
-  sortOrder,
-  members: [],
-});
-
-const normalizeEventParticipantSnapshot = (participant = {}, fallbackJobClass = "") => {
-  const sourceType = participant?.sourceType === "wowRoster" ? "wowRoster" : "guest";
-  const jobClass = normalizeWowJobClassKey(participant?.jobClass || fallbackJobClass || "");
-  const displayName = `${participant?.displayName || participant?.streamerName || ""}`.trim();
-  const wowNickname = `${participant?.wowNickname || displayName || ""}`.trim();
-  return {
-    id: participant?.id || (sourceType === "wowRoster" ? `event_member_${participant?.sourceMemberId || Date.now().toString(36)}` : createEventGuestId()),
-    sourceType,
-    sourceMemberId: participant?.sourceMemberId || participant?.sourceId || "",
-    displayName: displayName || wowNickname || "이벤트 참가자",
-    wowNickname: wowNickname || displayName || "이벤트 참가자",
-    jobClass,
-    imageUrl: participant?.imageUrl || (sourceType === "guest" ? getDefaultEventGuestAvatar(participant) : ""),
-    isGuestParticipant: sourceType === "guest",
-  };
-};
-
-const createEventParticipantSnapshotFromRoster = (member = {}) => {
-  const normalizedMember = normalizeWowMember(member);
-  return normalizeEventParticipantSnapshot({
-    id: `event_member_${normalizedMember.id || createEventGuestId()}`,
-    sourceType: "wowRoster",
-    sourceMemberId: normalizedMember.id || "",
-    displayName: normalizedMember.streamerName || "",
-    wowNickname: normalizedMember.wowNickname || normalizedMember.streamerName || "",
-    jobClass: normalizedMember.jobClass || "",
-    imageUrl: normalizedMember.imageUrl || "",
-  }, normalizedMember.jobClass);
-};
-
-const createEventGuestParticipantSnapshot = (participant = {}, teamJobClass = "") => (
-  normalizeEventParticipantSnapshot({
-    id: createEventGuestId(),
-    sourceType: "guest",
-    displayName: participant?.displayName || "",
-    wowNickname: participant?.wowNickname || "",
-    jobClass: teamJobClass || participant?.jobClass || "",
-    imageUrl: participant?.imageUrl || getDefaultEventGuestAvatar(participant),
-  }, teamJobClass)
-);
-
-const normalizeEventSettings = (settings = {}) => ({
-  ...createDefaultEventSettings(),
-  ...settings,
-  title: settings?.title || createDefaultEventSettings().title,
-  subtitle: settings?.subtitle || createDefaultEventSettings().subtitle,
-  startAt: settings?.startAt || createDefaultEventSettings().startAt,
-  status: EVENT_STATUS_OPTIONS.some((option) => option.id === settings?.status) ? settings.status : "scheduled",
-  isVisible: !!settings?.isVisible,
-  currentRound: settings?.currentRound || "8강",
-  championTeamId: settings?.championTeamId || "",
-  updatedAt: settings?.updatedAt || null,
-});
-
-const normalizeEventTeamDocument = (team = {}, index = 0) => {
-  const jobClass = normalizeWowJobClassKey(team?.jobClass || "");
-  return {
-    id: team?.id || createEventTeamId(),
-    teamName: `${team?.teamName || ""}`.trim() || createDefaultEventTeamName(jobClass),
-    jobClass,
-    themeColor: team?.themeColor || WOW_CLASS_COLORS[jobClass] || "#94a3b8",
-    imageUrl: team?.imageUrl || "",
-    note: team?.note || "",
-    sortOrder: Number(team?.sortOrder) || index + 1,
-    members: Array.isArray(team?.members)
-      ? team.members.map((member) => normalizeEventParticipantSnapshot(member, jobClass)).slice(0, 5)
-      : [],
-    createdAt: team?.createdAt || null,
-    updatedAt: team?.updatedAt || null,
-  };
-};
-
-const normalizeEventMatchDocument = (match = {}) => {
-  const template = EVENT_MATCH_TEMPLATES.find((item) => item.id === match?.id) || EVENT_MATCH_TEMPLATES[0];
-  return {
-    id: match?.id || template.id,
-    round: match?.round || template.round,
-    matchOrder: Number(match?.matchOrder) || template.matchOrder,
-    label: match?.label || template.label,
-    displayDate: `${match?.displayDate || ""}`.trim(),
-    nextMatchId: match?.nextMatchId ?? template.nextMatchId ?? null,
-    nextSlot: match?.nextSlot ?? template.nextSlot ?? null,
-    teamAId: match?.teamAId || "",
-    teamBId: match?.teamBId || "",
-    teamAScore: match?.teamAScore ?? "",
-    teamBScore: match?.teamBScore ?? "",
-    winnerTeamId: match?.winnerTeamId || "",
-    status: EVENT_STATUS_OPTIONS.some((option) => option.id === match?.status) ? match.status : "scheduled",
-    createdAt: match?.createdAt || null,
-    updatedAt: match?.updatedAt || null,
-  };
-};
-
-const buildDefaultEventMatches = () => (
-  EVENT_MATCH_TEMPLATES.map((template) => normalizeEventMatchDocument(template))
-);
-
-const syncEventMatchesBracket = (matches = []) => {
-  const nextMatches = EVENT_MATCH_TEMPLATES.map((template) => {
-    const rawMatch = (matches || []).find((item) => item?.id === template.id) || {};
-    return normalizeEventMatchDocument({ ...template, ...rawMatch, id: template.id });
-  });
-
-  nextMatches.forEach((match) => {
-    if (match.round !== "quarterfinal") {
-      match.teamAId = "";
-      match.teamBId = "";
-    }
-  });
-
-  nextMatches.forEach((match) => {
-    const participantIds = [match.teamAId, match.teamBId].filter(Boolean);
-    if (match.winnerTeamId && !participantIds.includes(match.winnerTeamId)) {
-      match.winnerTeamId = "";
-      if (match.status === "finished") match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-    }
-
-    if (match.nextMatchId && match.nextSlot && match.winnerTeamId) {
-      const nextMatch = nextMatches.find((item) => item.id === match.nextMatchId);
-      if (nextMatch) {
-        nextMatch[match.nextSlot === "teamB" ? "teamBId" : "teamAId"] = match.winnerTeamId;
-      }
-    }
-  });
-
-  nextMatches.forEach((match) => {
-    const participantIds = [match.teamAId, match.teamBId].filter(Boolean);
-    if (!participantIds.length) {
-      match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-      match.winnerTeamId = "";
-      return;
-    }
-
-    if (match.round !== "quarterfinal" && participantIds.length < 2) {
-      match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-      match.winnerTeamId = "";
-      return;
-    }
-
-    if (match.winnerTeamId && !participantIds.includes(match.winnerTeamId)) {
-      match.winnerTeamId = "";
-      if (match.status === "finished") match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-    }
-  });
-
-  return nextMatches.sort((a, b) => (EVENT_MATCH_ORDER_MAP[a.id] ?? 999) - (EVENT_MATCH_ORDER_MAP[b.id] ?? 999));
-};
-
-const syncEventMatchesWithTeams = (matches = [], teams = []) => {
-  const validTeamIds = new Set((teams || []).map((team) => team.id));
-  const sanitizedMatches = (matches || []).map((match) => ({
-    ...match,
-    teamAId: validTeamIds.has(match?.teamAId) ? match.teamAId : "",
-    teamBId: validTeamIds.has(match?.teamBId) ? match.teamBId : "",
-    winnerTeamId: validTeamIds.has(match?.winnerTeamId) ? match.winnerTeamId : "",
-  }));
-  return syncEventMatchesBracket(sanitizedMatches);
-};
-
-const getEventStatusMeta = (status = "scheduled") => (
-  EVENT_STATUS_OPTIONS.find((option) => option.id === status) || EVENT_STATUS_OPTIONS[0]
-);
-
-const getEventCurrentRoundLabel = (matches = []) => {
-  const syncedMatches = syncEventMatchesBracket(matches);
-  const quarterfinals = syncedMatches.filter((match) => match.round === "quarterfinal");
-  if (quarterfinals.some((match) => match.status !== "finished")) return "8강";
-  const semifinals = syncedMatches.filter((match) => match.round === "semifinal");
-  if (semifinals.some((match) => match.status !== "finished")) return "4강";
-  const finalMatch = syncedMatches.find((match) => match.round === "final");
-  if (!finalMatch || finalMatch.status !== "finished") return "결승";
-  return "대회 종료";
-};
-
 const normalizeWowRaidStatsMap = (value = {}) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.entries(value).reduce((acc, [participantId, statValue]) => {
     const safeValue = Number(statValue) || 0;
     if (participantId) acc[participantId] = safeValue;
@@ -837,23 +799,37 @@ const normalizeWowRaidStatsMap = (value = {}) => {
 
 const normalizeWowRaidDocument = (raid = {}) => ({
   id: raid.id,
-  raidName: raid.raidName || '',
-  imageUrl: raid.imageUrl || '',
-  raidDate: raid.raidDate || '',
-  clearTime: raid.clearTime || '',
+  raidName: raid.raidName || "",
+  imageUrl: raid.imageUrl || "",
+  raidDate: raid.raidDate || "",
+  clearTime: raid.clearTime || "",
   isCleared: raid.isCleared !== false,
   isPublished: !!raid.isPublished,
-  note: raid.note || '',
-  raidGroupNumber: `${raid.raidGroupNumber ?? ''}`.replace(/[^0-9]/g, ''),
-  rosterParticipantIds: Array.isArray(raid.rosterParticipantIds) ? raid.rosterParticipantIds : [],
-  fixedParticipantIds: Array.isArray(raid.fixedParticipantIds) ? raid.fixedParticipantIds : [],
-  guestParticipants: Array.isArray(raid.guestParticipants) ? raid.guestParticipants.map(normalizeWowRaidGuestParticipant) : [],
-  participants: Array.isArray(raid.participants) ? raid.participants.map((participant) => ({
-    ...participant,
-    displayName: participant?.displayName || '',
-    preferredPositions: normalizePreferredPositions(participant?.preferredPositions),
-    ...normalizeWowSpecState(participant?.jobClass, participant?.mainSpec, participant?.availableSpecs),
-  })) : [],
+  note: raid.note || "",
+  raidGroupNumber: `${raid.raidGroupNumber ?? ""}`.replace(/[^0-9]/g, ""),
+  rosterParticipantIds: Array.isArray(raid.rosterParticipantIds)
+    ? raid.rosterParticipantIds
+    : [],
+  fixedParticipantIds: Array.isArray(raid.fixedParticipantIds)
+    ? raid.fixedParticipantIds
+    : [],
+  guestParticipants: Array.isArray(raid.guestParticipants)
+    ? raid.guestParticipants.map(normalizeWowRaidGuestParticipant)
+    : [],
+  participants: Array.isArray(raid.participants)
+    ? raid.participants.map((participant) => ({
+        ...participant,
+        displayName: participant?.displayName || "",
+        preferredPositions: normalizePreferredPositions(
+          participant?.preferredPositions
+        ),
+        ...normalizeWowSpecState(
+          participant?.jobClass,
+          participant?.mainSpec,
+          participant?.availableSpecs
+        ),
+      }))
+    : [],
   stats: {
     damage: normalizeWowRaidStatsMap(raid?.stats?.damage),
     damageTaken: normalizeWowRaidStatsMap(raid?.stats?.damageTaken),
@@ -864,23 +840,31 @@ const normalizeWowRaidDocument = (raid = {}) => ({
   updatedAt: raid.updatedAt || null,
 });
 
-const getRaidConfig = (raidType = DEFAULT_RAID_TYPE) => (
-  RAID_TYPE_OPTIONS.find((option) => option.id === raidType) || RAID_TYPE_OPTIONS[RAID_TYPE_OPTIONS.length - 1]
-);
+const getRaidConfig = (raidType = DEFAULT_RAID_TYPE) =>
+  RAID_TYPE_OPTIONS.find((option) => option.id === raidType) ||
+  RAID_TYPE_OPTIONS[RAID_TYPE_OPTIONS.length - 1];
 
 const createEmptyRaidLayout = (groupCount, leaderId = GUILD_MASTER_ID) => {
-  const layout = Array.from({ length: groupCount }, () => Array(RAID_SLOT_SIZE).fill(null));
+  const layout = Array.from({ length: groupCount }, () =>
+    Array(RAID_SLOT_SIZE).fill(null)
+  );
   if (leaderId && layout[0]?.[0] !== undefined) layout[0][0] = leaderId;
   return layout;
 };
 
 const resizeRaidLayout = (layout, groupCount, leaderId = GUILD_MASTER_ID) => {
   const next = createEmptyRaidLayout(groupCount, leaderId);
-  const memberIds = (layout || []).flat().filter((memberId) => memberId && memberId !== leaderId);
+  const memberIds = (layout || [])
+    .flat()
+    .filter((memberId) => memberId && memberId !== leaderId);
 
   let cursor = 0;
   for (let groupIndex = 0; groupIndex < next.length; groupIndex += 1) {
-    for (let slotIndex = 0; slotIndex < next[groupIndex].length; slotIndex += 1) {
+    for (
+      let slotIndex = 0;
+      slotIndex < next[groupIndex].length;
+      slotIndex += 1
+    ) {
       if (groupIndex === 0 && slotIndex === 0) continue;
       if (cursor >= memberIds.length) return next;
       next[groupIndex][slotIndex] = memberIds[cursor];
@@ -895,7 +879,11 @@ const cloneRaidLayout = (layout) => layout.map((group) => [...group]);
 
 const findRaidSlotByMemberId = (layout, memberId) => {
   for (let groupIndex = 0; groupIndex < layout.length; groupIndex += 1) {
-    for (let slotIndex = 0; slotIndex < layout[groupIndex].length; slotIndex += 1) {
+    for (
+      let slotIndex = 0;
+      slotIndex < layout[groupIndex].length;
+      slotIndex += 1
+    ) {
       if (layout[groupIndex][slotIndex] === memberId) {
         return { groupIndex, slotIndex };
       }
@@ -906,7 +894,11 @@ const findRaidSlotByMemberId = (layout, memberId) => {
 
 const findNextEmptyRaidSlot = (layout, { skipLockedSlot = false } = {}) => {
   for (let groupIndex = 0; groupIndex < layout.length; groupIndex += 1) {
-    for (let slotIndex = 0; slotIndex < layout[groupIndex].length; slotIndex += 1) {
+    for (
+      let slotIndex = 0;
+      slotIndex < layout[groupIndex].length;
+      slotIndex += 1
+    ) {
       if (skipLockedSlot && groupIndex === 0 && slotIndex === 0) continue;
       if (!layout[groupIndex][slotIndex]) return { groupIndex, slotIndex };
     }
@@ -914,47 +906,58 @@ const findNextEmptyRaidSlot = (layout, { skipLockedSlot = false } = {}) => {
   return null;
 };
 
-const sortBuskingParticipants = (participants) => (
+const sortBuskingParticipants = (participants) =>
   [...participants].sort((a, b) => {
     const voteGap = (b.buskingVoteCount || 0) - (a.buskingVoteCount || 0);
     if (voteGap !== 0) return voteGap;
     const levelGap = (Number(b.level) || 0) - (Number(a.level) || 0);
     if (levelGap !== 0) return levelGap;
     return (a.streamerName || "").localeCompare(b.streamerName || "", "ko");
-  })
-);
+  });
 
 const computeBuskingVoteSnapshot = (voteCounts = {}) => {
-  const normalized = Object.entries(voteCounts || {}).reduce((acc, [memberId, count]) => {
-    const safeCount = Number(count) || 0;
-    if (safeCount > 0) acc[memberId] = safeCount;
-    return acc;
-  }, {});
+  const normalized = Object.entries(voteCounts || {}).reduce(
+    (acc, [memberId, count]) => {
+      const safeCount = Number(count) || 0;
+      if (safeCount > 0) acc[memberId] = safeCount;
+      return acc;
+    },
+    {}
+  );
 
   return {
     voteCounts: normalized,
-    totalVotes: Object.values(normalized).reduce((sum, count) => sum + (Number(count) || 0), 0),
+    totalVotes: Object.values(normalized).reduce(
+      (sum, count) => sum + (Number(count) || 0),
+      0
+    ),
   };
 };
 
-const applyBuskingVoteCounts = (roster = [], voteCounts = {}) => (
+const applyBuskingVoteCounts = (roster = [], voteCounts = {}) =>
   roster.map((member) => ({
     ...member,
     buskingVoteCount: Number(voteCounts?.[member.id]) || 0,
-  }))
-);
+  }));
 
-const getBuskingVoteShardIndex = (seed, shardCount = BUSKING_PUBLIC_SHARD_COUNT) => {
+const getBuskingVoteShardIndex = (
+  seed,
+  shardCount = BUSKING_PUBLIC_SHARD_COUNT
+) => {
   const normalizedSeed = `${seed || "busking"}`;
   let hash = 0;
   for (let index = 0; index < normalizedSeed.length; index += 1) {
-    hash = ((hash << 5) - hash) + normalizedSeed.charCodeAt(index);
+    hash = (hash << 5) - hash + normalizedSeed.charCodeAt(index);
     hash |= 0;
   }
   return Math.abs(hash) % shardCount;
 };
 
-const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) => {
+const buildBuskingPublicSummary = (
+  roster = [],
+  settings = {},
+  voteCounts = {}
+) => {
   const normalizedSettings = {
     isVotingOpen: false,
     roundId: "wow-busking-default",
@@ -966,7 +969,9 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
 
   const participants = sortBuskingParticipants(
     roster
-      .filter((member) => member?.isBuskingParticipant && Number(member?.level) >= 40)
+      .filter(
+        (member) => member?.isBuskingParticipant && Number(member?.level) >= 40
+      )
       .map((member) => ({
         id: member.id,
         streamerName: member.streamerName || "",
@@ -987,34 +992,182 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
     noticeUrl: normalizedSettings.noticeUrl || "",
     participants,
     participantCount: participants.length,
-    totalVotes: participants.reduce((sum, member) => sum + (member.buskingVoteCount || 0), 0),
+    totalVotes: participants.reduce(
+      (sum, member) => sum + (member.buskingVoteCount || 0),
+      0
+    ),
     leaderId: participants[0]?.id || null,
     updatedAt: new Date().toISOString(),
   };
 };
 
+const createEmptyTeamMatchResult = (id, rank, scoreChange = 0) => ({
+  id,
+  rank,
+  scoreChange,
+  setWins: "",
+  players: ["", ""],
+  fundingRatio: "",
+  fundingAmount: "",
+});
+
+const createDefaultTeamMatchResults = () => [
+  createEmptyTeamMatchResult(1, 1, 100),
+  createEmptyTeamMatchResult(2, 2, -50),
+];
+
+const normalizeTeamSetWins = (value) =>
+  value === "" || value === null || value === undefined
+    ? ""
+    : Math.max(0, Number(value) || 0);
+
+const getNormalizedTeamMatchResults = (match = {}) => {
+  if (Array.isArray(match.teamResults) && match.teamResults.length > 0) {
+    return [...match.teamResults]
+      .map((team, index) => ({
+        id: team.id || `team_${index + 1}`,
+        rank: Number(team.rank) || index + 1,
+        scoreChange: Number(team.scoreChange) || 0,
+        setWins: normalizeTeamSetWins(team.setWins),
+        players: Array.isArray(team.players)
+          ? team.players
+              .map((playerName) => `${playerName || ""}`.trim())
+              .filter(Boolean)
+          : [],
+        fundingRatio: team.fundingRatio ?? "",
+        fundingAmount: team.fundingAmount ?? "",
+      }))
+      .sort((a, b) => a.rank - b.rank);
+  }
+
+  const teamsByRank = {};
+  (match.results || []).forEach((result, index) => {
+    if (!teamsByRank[result.rank]) {
+      teamsByRank[result.rank] = {
+        id: `fallback_team_${result.rank}_${index}`,
+        rank: result.rank,
+        scoreChange: Number(result.scoreChange) || 0,
+        setWins: "",
+        players: [],
+        fundingRatio: result.fundingRatio || "",
+        fundingAmount: result.fundingAmount || "",
+      };
+    }
+    teamsByRank[result.rank].players.push(`${result.playerName || ""}`.trim());
+  });
+
+  return Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
+};
+
+const buildTeamMatchPayload = (teams = [], hasFunding = false) => {
+  const normalizedTeams = (teams || [])
+    .map((team, index) => {
+      const players = Array.isArray(team.players)
+        ? team.players
+            .map((playerName) => `${playerName || ""}`.trim())
+            .filter(Boolean)
+        : [];
+
+      return {
+        id: team.id || `team_${index + 1}`,
+        rank: Number(team.rank) || index + 1,
+        scoreChange: Number(team.scoreChange) || 0,
+        setWins: normalizeTeamSetWins(team.setWins),
+        players,
+        fundingRatio: hasFunding ? Number(team.fundingRatio) || 0 : 0,
+        fundingAmount: hasFunding ? Number(team.fundingAmount) || 0 : 0,
+      };
+    })
+    .filter((team) => team.players.length > 0)
+    .sort((a, b) => a.rank - b.rank);
+
+  const results = [];
+  normalizedTeams.forEach((team) => {
+    team.players.forEach((playerName) => {
+      results.push({
+        playerName,
+        rank: team.rank,
+        scoreChange: team.scoreChange,
+        ...(hasFunding
+          ? {
+              fundingRatio: team.fundingRatio,
+              fundingAmount: team.fundingAmount,
+            }
+          : {}),
+      });
+    });
+  });
+
+  return { teamResults: normalizedTeams, results };
+};
+
+const getTeamMatchSetScoreLabel = (teams = []) => {
+  if (!Array.isArray(teams) || teams.length !== 2) return "";
+
+  const [firstTeam, secondTeam] = [...teams].sort((a, b) => a.rank - b.rank);
+  if (
+    firstTeam?.setWins === "" ||
+    firstTeam?.setWins === null ||
+    firstTeam?.setWins === undefined ||
+    secondTeam?.setWins === "" ||
+    secondTeam?.setWins === null ||
+    secondTeam?.setWins === undefined
+  ) {
+    return "";
+  }
+
+  const firstScore = Number(firstTeam.setWins);
+  const secondScore = Number(secondTeam.setWins);
+  if (!Number.isFinite(firstScore) || !Number.isFinite(secondScore)) return "";
+
+  return `${firstScore}:${secondScore}`;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "players", "matches", "stats", "tier", "event", "wow", "wowraid", "raid", "admin"].includes(hash) ? hash : "home";
+    return [
+      "home",
+      "players",
+      "matches",
+      "stats",
+      "tier",
+      "wow",
+      "wowraid",
+      "raid",
+      "admin",
+    ].includes(hash)
+      ? hash
+      : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
   const [draftPlayers, setDraftPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
-  const publishedMatches = useMemo(() => matches.filter((m) => m.isPublished !== false), [matches]);
+  const publishedMatches = useMemo(
+    () => matches.filter((m) => m.isPublished !== false),
+    [matches]
+  );
   const combinedLeaguePlayers = useMemo(() => {
-    const normalizedPlayers = players.map((player) => ({ ...player, _source: "players" }));
-    const existingNames = new Set(players.map((player) => (player.name || "").trim()).filter(Boolean));
+    const normalizedPlayers = players.map((player) => ({
+      ...player,
+      _source: "players",
+    }));
+    const existingNames = new Set(
+      players.map((player) => (player.name || "").trim()).filter(Boolean)
+    );
     const draftOnlyPlayers = draftPlayers
       .filter((player) => !existingNames.has((player.name || "").trim()))
       .map((player) => ({ ...player, points: 0, _source: "draft_players" }));
     return [...normalizedPlayers, ...draftOnlyPlayers];
   }, [players, draftPlayers]);
-  
+
   // ★ WOW 탭 상태 관리 ★
   const [wowRoster, setWowRoster] = useState([]);
-  const [wowSortConfig, setWowSortConfig] = useState({ key: 'level', direction: 'desc' });
+  const [wowSortConfig, setWowSortConfig] = useState({
+    key: "level",
+    direction: "desc",
+  });
   const [isWowFaqOpen, setIsWowFaqOpen] = useState(false);
 
   const [wowSearchInput, setWowSearchInput] = useState("");
@@ -1022,24 +1175,42 @@ export default function App() {
   const [wowSearchResults, setWowSearchResults] = useState([]);
   const [currentWowSearchIndex, setCurrentWowSearchIndex] = useState(-1);
   const [highlightedWowMemberId, setHighlightedWowMemberId] = useState(null);
-  
+
   // ★ 직업 필터 상태 관리 ★
   const [selectedJobFilter, setSelectedJobFilter] = useState("전체");
-  const [selectedWowSpecFilters, setSelectedWowSpecFilters] = useState(["전체"]);
-  const [selectedWowPositionFilters, setSelectedWowPositionFilters] = useState(["전체"]);
-  const [showWowRaidApplicantsOnly, setShowWowRaidApplicantsOnly] = useState(false);
+  const [selectedWowSpecFilters, setSelectedWowSpecFilters] = useState([
+    "전체",
+  ]);
+  const [selectedWowPositionFilters, setSelectedWowPositionFilters] = useState([
+    "전체",
+  ]);
+  const [showWowRaidApplicantsOnly, setShowWowRaidApplicantsOnly] =
+    useState(false);
   const [fixedRaidMembers, setFixedRaidMembers] = useState([]);
-  const [raidPublicSettings, setRaidPublicSettings] = useState({ activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID });
-  const [selectedFixedRaidMemberOptionId, setSelectedFixedRaidMemberOptionId] = useState(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
-  const [fixedRaidMemberForm, setFixedRaidMemberForm] = useState({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [], mainSpec: "", availableSpecs: [] });
+  const [raidPublicSettings, setRaidPublicSettings] = useState({
+    activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID,
+  });
+  const [selectedFixedRaidMemberOptionId, setSelectedFixedRaidMemberOptionId] =
+    useState(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
+  const [fixedRaidMemberForm, setFixedRaidMemberForm] = useState({
+    streamerName: "",
+    jobClass: "",
+    level: "60",
+    imageUrl: "",
+    preferredPositions: [],
+    mainSpec: "",
+    availableSpecs: [],
+  });
   const [isFixedRaidMemberSaving, setIsFixedRaidMemberSaving] = useState(false);
 
   const [wowRaids, setWowRaids] = useState([]);
   const [selectedWowRaidId, setSelectedWowRaidId] = useState(null);
-  const [wowRaidDetailTab, setWowRaidDetailTab] = useState('participants');
-  const [wowRaidGroupFilter, setWowRaidGroupFilter] = useState('all');
-  const [wowRaidAdminStatTab, setWowRaidAdminStatTab] = useState('damage');
-  const [wowRaidForm, setWowRaidForm] = useState(() => createEmptyWowRaidForm());
+  const [wowRaidDetailTab, setWowRaidDetailTab] = useState("participants");
+  const [wowRaidGroupFilter, setWowRaidGroupFilter] = useState("all");
+  const [wowRaidAdminStatTab, setWowRaidAdminStatTab] = useState("damage");
+  const [wowRaidForm, setWowRaidForm] = useState(() =>
+    createEmptyWowRaidForm()
+  );
   const [isWowRaidSaving, setIsWowRaidSaving] = useState(false);
   const [wowRaidRosterSearchInput, setWowRaidRosterSearchInput] = useState("");
   const [wowRaidFixedSearchInput, setWowRaidFixedSearchInput] = useState("");
@@ -1047,31 +1218,59 @@ export default function App() {
   const [wowRaidStatSearchInput, setWowRaidStatSearchInput] = useState("");
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
-  const [raidAssignments, setRaidAssignments] = useState(() => createEmptyRaidLayout(getRaidConfig(DEFAULT_RAID_TYPE).groupCount, GUILD_MASTER_ID));
+  const [raidAssignments, setRaidAssignments] = useState(() =>
+    createEmptyRaidLayout(
+      getRaidConfig(DEFAULT_RAID_TYPE).groupCount,
+      GUILD_MASTER_ID
+    )
+  );
   const [selectedRaidMemberId, setSelectedRaidMemberId] = useState(null);
   const [raidSearchInput, setRaidSearchInput] = useState("");
-  const [raidSelectedJobFilters, setRaidSelectedJobFilters] = useState(["전체"]);
-  const [raidSelectedLevelFilters, setRaidSelectedLevelFilters] = useState(["50+"]);
-  const [raidSelectedSpecFilters, setRaidSelectedSpecFilters] = useState(["전체"]);
-  const [raidSelectedPositionFilters, setRaidSelectedPositionFilters] = useState(["전체"]);
+  const [raidSelectedJobFilters, setRaidSelectedJobFilters] = useState([
+    "전체",
+  ]);
+  const [raidSelectedLevelFilters, setRaidSelectedLevelFilters] = useState([
+    "50+",
+  ]);
+  const [raidSelectedSpecFilters, setRaidSelectedSpecFilters] = useState([
+    "전체",
+  ]);
+  const [raidSelectedPositionFilters, setRaidSelectedPositionFilters] =
+    useState(["전체"]);
   const [isRaidLevelFilterOpen, setIsRaidLevelFilterOpen] = useState(false);
-  const [isRaidFilterPanelCollapsed, setIsRaidFilterPanelCollapsed] = useState(true);
-  const [selectedRaidTargetSlotKey, setSelectedRaidTargetSlotKey] = useState(null);
-  const [isRaidWaitingRoomCollapsed, setIsRaidWaitingRoomCollapsed] = useState(false);
+  const [isRaidFilterPanelCollapsed, setIsRaidFilterPanelCollapsed] =
+    useState(true);
+  const [selectedRaidTargetSlotKey, setSelectedRaidTargetSlotKey] =
+    useState(null);
+  const [isRaidWaitingRoomCollapsed, setIsRaidWaitingRoomCollapsed] =
+    useState(false);
   const [raidRoleAssignments, setRaidRoleAssignments] = useState({});
-  const [raidAssignedPreferredPositions, setRaidAssignedPreferredPositions] = useState({});
+  const [raidAssignedPreferredPositions, setRaidAssignedPreferredPositions] =
+    useState({});
   const [raidRoleMenuSlotKey, setRaidRoleMenuSlotKey] = useState(null);
   const [raidPositionMenuSlotKey, setRaidPositionMenuSlotKey] = useState(null);
   const [isRaidRoleGuideOpen, setIsRaidRoleGuideOpen] = useState(false);
-  const [isRaidFixedMemberMenuOpen, setIsRaidFixedMemberMenuOpen] = useState(false);
+  const [isRaidFixedMemberMenuOpen, setIsRaidFixedMemberMenuOpen] =
+    useState(false);
   const [raidDragMemberId, setRaidDragMemberId] = useState(null);
   const [raidDragOverSlot, setRaidDragOverSlot] = useState(null);
   const [isRaidCapturing, setIsRaidCapturing] = useState(false);
-  const [buskingSettings, setBuskingSettings] = useState({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" });
+  const [buskingSettings, setBuskingSettings] = useState({
+    isVotingOpen: false,
+    roundId: "wow-busking-default",
+    startedAt: null,
+    endedAt: null,
+    noticeUrl: "",
+  });
   const [pendingBuskingVoteId, setPendingBuskingVoteId] = useState(null);
   const [buskingLocalVotes, setBuskingLocalVotes] = useState([]);
   const [buskingPublicRoster, setBuskingPublicRoster] = useState([]);
-  const [buskingPublicMeta, setBuskingPublicMeta] = useState({ totalVotes: 0, participantCount: 0, updatedAt: null, leaderId: null });
+  const [buskingPublicMeta, setBuskingPublicMeta] = useState({
+    totalVotes: 0,
+    participantCount: 0,
+    updatedAt: null,
+    leaderId: null,
+  });
   const [buskingShardCounts, setBuskingShardCounts] = useState({});
   const [isBuskingAdminSaving, setIsBuskingAdminSaving] = useState(false);
   const [buskingNoticeLinkInput, setBuskingNoticeLinkInput] = useState("");
@@ -1079,7 +1278,9 @@ export default function App() {
     try {
       const existing = localStorage.getItem(BUSKING_CLIENT_ID_STORAGE_KEY);
       if (existing) return existing;
-      const generated = `busking-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      const generated = `busking-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 12)}`;
       localStorage.setItem(BUSKING_CLIENT_ID_STORAGE_KEY, generated);
       return generated;
     } catch (error) {
@@ -1088,52 +1289,18 @@ export default function App() {
   });
   const raidScreenshotRef = useRef(null);
 
-  const formatEventStartAt = (value) => {
-    if (!value) return "일정 미정";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
-  const cloneEventTeams = (teams = []) => (
-    (teams || []).map((team) => ({
-      ...team,
-      members: Array.isArray(team.members) ? team.members.map((member) => ({ ...member })) : [],
-    }))
-  );
-
-  const getEventTeamStyle = (jobClass = "") => {
-    const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8";
-    let r = 148;
-    let g = 163;
-    let b = 184;
-    if (hex.length === 7) {
-      r = parseInt(hex.slice(1, 3), 16);
-      g = parseInt(hex.slice(3, 5), 16);
-      b = parseInt(hex.slice(5, 7), 16);
-    }
-    return {
-      borderColor: `rgba(${r}, ${g}, ${b}, 0.45)`,
-      background: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.22), rgba(15, 23, 42, 0.92))`,
-      boxShadow: `0 0 24px rgba(${r}, ${g}, ${b}, 0.12)`,
-    };
-  };
-
-  const getEventMemberAvatar = (participant) => {
-    if (participant?.imageUrl?.trim()) return participant.imageUrl;
-    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || "event-member").trim() || "event-member")}`;
-  };
-
   const fetchBuskingShardSnapshot = async (roundId) => {
     const resolvedRoundId = roundId || "wow-busking-default";
-    const shardsRef = collection(db, "artifacts", appId, "public", "data", "busking_rounds", resolvedRoundId, BUSKING_PUBLIC_SHARDS_COLLECTION);
+    const shardsRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "busking_rounds",
+      resolvedRoundId,
+      BUSKING_PUBLIC_SHARDS_COLLECTION
+    );
     const shardsSnap = await getDocs(shardsRef);
 
     const voteCounts = {};
@@ -1143,95 +1310,117 @@ export default function App() {
     shardsSnap.forEach((shardDoc) => {
       const shardData = shardDoc.data() || {};
       totalVotes += Number(shardData.totalVotes) || 0;
-      if (shardData.updatedAt && (!latestUpdatedAt || new Date(shardData.updatedAt).getTime() > new Date(latestUpdatedAt).getTime())) {
+      if (
+        shardData.updatedAt &&
+        (!latestUpdatedAt ||
+          new Date(shardData.updatedAt).getTime() >
+            new Date(latestUpdatedAt).getTime())
+      ) {
         latestUpdatedAt = shardData.updatedAt;
       }
 
       const shardCounts = shardData.counts || {};
       Object.entries(shardCounts).forEach(([memberId, count]) => {
-        voteCounts[memberId] = (voteCounts[memberId] || 0) + (Number(count) || 0);
+        voteCounts[memberId] =
+          (voteCounts[memberId] || 0) + (Number(count) || 0);
       });
 
       Object.entries(shardData).forEach(([fieldKey, count]) => {
         if (!fieldKey.startsWith("counts.")) return;
         const memberId = fieldKey.slice(7);
         if (!memberId) return;
-        voteCounts[memberId] = (voteCounts[memberId] || 0) + (Number(count) || 0);
+        voteCounts[memberId] =
+          (voteCounts[memberId] || 0) + (Number(count) || 0);
       });
     });
 
     return { voteCounts, totalVotes, updatedAt: latestUpdatedAt };
   };
 
-  const persistBuskingPublicSummary = async ({ rosterOverride = null, settingsOverride = null, voteCountsOverride = null } = {}) => {
-    const resolvedRoster = Array.isArray(rosterOverride) ? rosterOverride : wowRoster;
+  const persistBuskingPublicSummary = async ({
+    rosterOverride = null,
+    settingsOverride = null,
+    voteCountsOverride = null,
+  } = {}) => {
+    const resolvedRoster = Array.isArray(rosterOverride)
+      ? rosterOverride
+      : wowRoster;
     let resolvedSettings = settingsOverride;
 
     if (!resolvedSettings) {
-      const settingsSnap = await getDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"));
+      const settingsSnap = await getDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "busking")
+      );
       resolvedSettings = settingsSnap.exists()
-        ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "", ...settingsSnap.data() }
-        : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" };
+        ? {
+            isVotingOpen: false,
+            roundId: "wow-busking-default",
+            startedAt: null,
+            endedAt: null,
+            noticeUrl: "",
+            ...settingsSnap.data(),
+          }
+        : {
+            isVotingOpen: false,
+            roundId: "wow-busking-default",
+            startedAt: null,
+            endedAt: null,
+            noticeUrl: "",
+          };
     }
 
     const resolvedVoteCounts = voteCountsOverride ?? buskingShardCounts;
-    const summary = buildBuskingPublicSummary(resolvedRoster, resolvedSettings, resolvedVoteCounts);
-    await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID), summary);
+    const summary = buildBuskingPublicSummary(
+      resolvedRoster,
+      resolvedSettings,
+      resolvedVoteCounts
+    );
+    await setDoc(
+      doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "settings",
+        BUSKING_PUBLIC_SUMMARY_DOC_ID
+      ),
+      summary
+    );
     return summary;
   };
 
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // ★ 관리자 인증 상태 관리 ★
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
-  const [adminNicknameInput, setAdminNicknameInput] = useState(() => localStorage.getItem("wak_admin_nickname") || "");
+  const [adminNicknameInput, setAdminNicknameInput] = useState(
+    () => localStorage.getItem("wak_admin_nickname") || ""
+  );
   const [currentAdminName, setCurrentAdminName] = useState(null);
-  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false); 
+  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false);
 
   // ★ 관리자 화면 내부 탭 관리 (league: 버종리 설정, wow: 와우 설정, etc: 기타 설정) ★
   const [adminInnerTab, setAdminInnerTab] = useState("league");
 
-  const [eventSettings, setEventSettings] = useState(() => createDefaultEventSettings());
-  const [eventTeams, setEventTeams] = useState([]);
-  const [eventMatches, setEventMatches] = useState(() => buildDefaultEventMatches());
-  const [eventAdminSettings, setEventAdminSettings] = useState(() => createDefaultEventSettings());
-  const [eventAdminTeams, setEventAdminTeams] = useState([]);
-  const [eventAdminMatches, setEventAdminMatches] = useState(() => buildDefaultEventMatches());
-  const [eventRosterSelections, setEventRosterSelections] = useState({});
-  const [eventGuestDrafts, setEventGuestDrafts] = useState({});
-  const [isEventSettingsSaving, setIsEventSettingsSaving] = useState(false);
-  const [isEventTeamsSaving, setIsEventTeamsSaving] = useState(false);
-  const [isEventMatchesSaving, setIsEventMatchesSaving] = useState(false);
-
-  const sortedEventTeams = useMemo(
-    () => [...eventTeams].sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999) || (a.teamName || "").localeCompare(b.teamName || "", "ko")),
-    [eventTeams]
-  );
-  const publicEventMatches = useMemo(() => syncEventMatchesBracket(eventMatches), [eventMatches]);
-  const eventTeamMap = useMemo(
-    () => sortedEventTeams.reduce((acc, team) => {
-      acc[team.id] = team;
-      return acc;
-    }, {}),
-    [sortedEventTeams]
-  );
-  const eventCurrentRoundLabel = useMemo(() => getEventCurrentRoundLabel(publicEventMatches), [publicEventMatches]);
-  const shouldShowEventTab = eventSettings.isVisible || isAdminAuth || activeTab === "event";
-  
   const [rawAdminPresence, setRawAdminPresence] = useState([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
   const [matchToDelete, setMatchToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [isCleaningGhosts, setIsCleaningGhosts] = useState(false); 
+  const [isCleaningGhosts, setIsCleaningGhosts] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [todayVisits, setTodayVisits] = useState(0); 
-  
+  const [todayVisits, setTodayVisits] = useState(0);
+
   // ★ 사이트 전체 팝업 관리 상태 ★
   const [sitePopup, setSitePopup] = useState(null);
   const [showSitePopup, setShowSitePopup] = useState(false);
@@ -1243,6 +1432,11 @@ export default function App() {
 
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
+  const [playerCardSearchInput, setPlayerCardSearchInput] = useState("");
+  const [playerCardSort, setPlayerCardSort] = useState({
+    key: "name",
+    direction: "asc",
+  });
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
@@ -1257,7 +1451,9 @@ export default function App() {
   const [wowNickname, setWowNickname] = useState("");
   const [wowJobClass, setWowJobClass] = useState("");
   const [wowMainSpec, setWowMainSpec] = useState("");
-  const [wowAvailableSpecsSelection, setWowAvailableSpecsSelection] = useState([]);
+  const [wowAvailableSpecsSelection, setWowAvailableSpecsSelection] = useState(
+    []
+  );
   const [wowLevel, setWowLevel] = useState("");
   const [isWowSubmitting, setIsWowSubmitting] = useState(false);
   const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
@@ -1267,17 +1463,32 @@ export default function App() {
   const [totalFunding, setTotalFunding] = useState("");
 
   const [individualResults, setIndividualResults] = useState([
-    { playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" },
-    { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" },
+    {
+      playerName: "",
+      rank: 1,
+      scoreChange: 100,
+      fundingRatio: "",
+      fundingAmount: "",
+    },
+    {
+      playerName: "",
+      rank: 2,
+      scoreChange: 50,
+      fundingRatio: "",
+      fundingAmount: "",
+    },
   ]);
-  const [teamResults, setTeamResults] = useState([
-    { id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" },
-    { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" },
-  ]);
+  const [teamResults, setTeamResults] = useState(() =>
+    createDefaultTeamMatchResults()
+  );
 
-  const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({
+    key: "points",
+    direction: "desc",
+  });
   const [matchToEdit, setMatchToEdit] = useState(null);
   const [selectedMatchId, setSelectedMatchId] = useState(null);
+  const [matchSearchInput, setMatchSearchInput] = useState("");
   const [editGameName, setEditGameName] = useState("");
   const [editMatchDate, setEditMatchDate] = useState("");
   const [editMatchMode, setEditMatchMode] = useState("individual");
@@ -1299,25 +1510,97 @@ export default function App() {
           if (res.rank === 1) winCount++;
         }
       });
-      const avgScore = matchCount > 0 ? (p.points / matchCount) : 0;
-      return { ...p, matchCount, winCount, avgScore: Number(avgScore.toFixed(1)) };
-    }); 
+      const avgScore = matchCount > 0 ? p.points / matchCount : 0;
+      return {
+        ...p,
+        matchCount,
+        winCount,
+        avgScore: Number(avgScore.toFixed(1)),
+      };
+    });
   }, [players, publishedMatches]);
 
   const sortedPlayerStats = useMemo(() => {
     let sortableItems = [...playerStatsMap];
     sortableItems.sort((a, b) => {
-      if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+      if (a[sortConfig.key] < b[sortConfig.key])
+        return sortConfig.direction === "asc" ? -1 : 1;
+      if (a[sortConfig.key] > b[sortConfig.key])
+        return sortConfig.direction === "asc" ? 1 : -1;
       return a.name.localeCompare(b.name);
     });
     return sortableItems;
   }, [playerStatsMap, sortConfig]);
 
+  const filteredPublishedMatches = useMemo(() => {
+    const normalizedKeyword = matchSearchInput.trim().toLowerCase();
+    if (!normalizedKeyword) return publishedMatches;
+
+    return publishedMatches.filter((match) => {
+      const searchableText = [
+        match.gameName,
+        ...(match.results || []).map((result) => result.playerName),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(normalizedKeyword);
+    });
+  }, [publishedMatches, matchSearchInput]);
+
+  const filteredPlayersForGallery = useMemo(() => {
+    const normalizedKeyword = playerCardSearchInput.trim().toLowerCase();
+    let items = [...players];
+
+    if (normalizedKeyword) {
+      items = items.filter((player) => {
+        const searchableText = [player.name, player.broadcastUrl]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedKeyword);
+      });
+    }
+
+    items.sort((a, b) => {
+      if (playerCardSort.key === "name") {
+        const nameCompare = (a.name || "").localeCompare(b.name || "", "ko");
+        if (nameCompare !== 0)
+          return playerCardSort.direction === "asc"
+            ? nameCompare
+            : -nameCompare;
+      } else {
+        const numericField =
+          playerCardSort.key === "points" ? "points" : "hearts";
+        const numericGap =
+          (Number(a[numericField]) || 0) - (Number(b[numericField]) || 0);
+        if (numericGap !== 0)
+          return playerCardSort.direction === "asc" ? numericGap : -numericGap;
+      }
+
+      return (a.name || "").localeCompare(b.name || "", "ko");
+    });
+
+    return items;
+  }, [players, playerCardSearchInput, playerCardSort]);
+
   const requestSort = (key) => {
-    let direction = 'desc'; 
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc'; 
+    let direction = "desc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "desc")
+      direction = "asc";
     setSortConfig({ key, direction });
+  };
+
+  const handlePlayerCardSortChange = (key) => {
+    setPlayerCardSort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+
+      return { key, direction: key === "name" ? "asc" : "desc" };
+    });
   };
 
   const sortedWowRoster = useMemo(() => {
@@ -1326,32 +1609,59 @@ export default function App() {
       filteredItems = filteredItems.filter((member) => member.isRaidApplied);
     }
     if (selectedJobFilter !== "전체") {
-      filteredItems = filteredItems.filter((member) => member.jobClass === selectedJobFilter);
+      filteredItems = filteredItems.filter(
+        (member) => member.jobClass === selectedJobFilter
+      );
     }
     if (!selectedWowSpecFilters.includes("전체")) {
-      filteredItems = filteredItems.filter((member) => matchesWowSpecFilters(member.jobClass, member.availableSpecs, selectedWowSpecFilters));
+      filteredItems = filteredItems.filter((member) =>
+        matchesWowSpecFilters(
+          member.jobClass,
+          member.availableSpecs,
+          selectedWowSpecFilters
+        )
+      );
     }
     if (!selectedWowPositionFilters.includes("전체")) {
-      filteredItems = filteredItems.filter((member) => matchesPreferredPositionFilters(member.preferredPositions, selectedWowPositionFilters));
+      filteredItems = filteredItems.filter((member) =>
+        matchesPreferredPositionFilters(
+          member.preferredPositions,
+          selectedWowPositionFilters
+        )
+      );
     }
 
     const sortableItems = [...filteredItems];
     sortableItems.sort((a, b) => {
-      if (a[wowSortConfig.key] < b[wowSortConfig.key]) return wowSortConfig.direction === 'asc' ? -1 : 1;
-      if (a[wowSortConfig.key] > b[wowSortConfig.key]) return wowSortConfig.direction === 'asc' ? 1 : -1;
-      return a.streamerName.localeCompare(b.streamerName, 'ko');
+      if (a[wowSortConfig.key] < b[wowSortConfig.key])
+        return wowSortConfig.direction === "asc" ? -1 : 1;
+      if (a[wowSortConfig.key] > b[wowSortConfig.key])
+        return wowSortConfig.direction === "asc" ? 1 : -1;
+      return a.streamerName.localeCompare(b.streamerName, "ko");
     });
     return sortableItems;
-  }, [wowRoster, wowSortConfig, selectedJobFilter, selectedWowSpecFilters, selectedWowPositionFilters, showWowRaidApplicantsOnly]);
+  }, [
+    wowRoster,
+    wowSortConfig,
+    selectedJobFilter,
+    selectedWowSpecFilters,
+    selectedWowPositionFilters,
+    showWowRaidApplicantsOnly,
+  ]);
 
   const requestWowSort = (key) => {
-    let direction = 'desc'; 
-    if (wowSortConfig && wowSortConfig.key === key && wowSortConfig.direction === 'desc') direction = 'asc'; 
+    let direction = "desc";
+    if (
+      wowSortConfig &&
+      wowSortConfig.key === key &&
+      wowSortConfig.direction === "desc"
+    )
+      direction = "asc";
     setWowSortConfig({ key, direction });
   };
 
   const wowJobStats = useMemo(() => {
-    const stats = { "전체": wowRoster.length };
+    const stats = { 전체: wowRoster.length };
     wowRoster.forEach((member) => {
       stats[member.jobClass] = (stats[member.jobClass] || 0) + 1;
     });
@@ -1361,54 +1671,90 @@ export default function App() {
     return { stats, sortedJobs: ["전체", ...sortedJobs] };
   }, [wowRoster]);
 
-  const wowAvailableSpecOptions = useMemo(() => (
-    selectedJobFilter === "전체" ? [] : getWowSpecOptions(selectedJobFilter)
-  ), [selectedJobFilter]);
+  const wowAvailableSpecOptions = useMemo(
+    () =>
+      selectedJobFilter === "전체" ? [] : getWowSpecOptions(selectedJobFilter),
+    [selectedJobFilter]
+  );
 
   const wowPositionStats = useMemo(() => {
-    const stats = { 전체: wowRoster.length, tank: 0, meleeDealer: 0, rangedDealer: 0, heal: 0 };
+    const stats = {
+      전체: wowRoster.length,
+      tank: 0,
+      meleeDealer: 0,
+      rangedDealer: 0,
+      heal: 0,
+    };
     wowRoster.forEach((member) => {
-      normalizePreferredPositions(member.preferredPositions).forEach((positionId) => {
-        stats[positionId] = (stats[positionId] || 0) + 1;
-      });
+      normalizePreferredPositions(member.preferredPositions).forEach(
+        (positionId) => {
+          stats[positionId] = (stats[positionId] || 0) + 1;
+        }
+      );
     });
-    return { stats, orderedIds: WOW_POSITION_OPTIONS.map((option) => option.id) };
+    return {
+      stats,
+      orderedIds: WOW_POSITION_OPTIONS.map((option) => option.id),
+    };
   }, [wowRoster]);
 
   useEffect(() => {
     if (selectedJobFilter === "전체") {
-      if (!selectedWowSpecFilters.includes("전체")) setSelectedWowSpecFilters(["전체"]);
+      if (!selectedWowSpecFilters.includes("전체"))
+        setSelectedWowSpecFilters(["전체"]);
       return;
     }
     if (selectedWowSpecFilters.includes("전체")) return;
-    const filtered = selectedWowSpecFilters.filter((specId) => wowAvailableSpecOptions.includes(specId));
+    const filtered = selectedWowSpecFilters.filter((specId) =>
+      wowAvailableSpecOptions.includes(specId)
+    );
     if (filtered.length !== selectedWowSpecFilters.length) {
       setSelectedWowSpecFilters(filtered.length ? filtered : ["전체"]);
     }
   }, [selectedJobFilter, wowAvailableSpecOptions, selectedWowSpecFilters]);
 
   const raidAvailableSpecOptions = useMemo(() => {
-    const selectedJobs = raidSelectedJobFilters.includes("전체") ? [] : raidSelectedJobFilters;
-    return [...new Set(selectedJobs.flatMap((jobClass) => getWowSpecOptions(jobClass)))];
+    const selectedJobs = raidSelectedJobFilters.includes("전체")
+      ? []
+      : raidSelectedJobFilters;
+    return [
+      ...new Set(
+        selectedJobs.flatMap((jobClass) => getWowSpecOptions(jobClass))
+      ),
+    ];
   }, [raidSelectedJobFilters]);
 
   useEffect(() => {
-    if (raidSelectedJobFilters.includes("전체") || raidSelectedJobFilters.length === 0) {
-      if (!raidSelectedSpecFilters.includes("전체")) setRaidSelectedSpecFilters(["전체"]);
+    if (
+      raidSelectedJobFilters.includes("전체") ||
+      raidSelectedJobFilters.length === 0
+    ) {
+      if (!raidSelectedSpecFilters.includes("전체"))
+        setRaidSelectedSpecFilters(["전체"]);
       return;
     }
     if (raidSelectedSpecFilters.includes("전체")) return;
-    const filtered = raidSelectedSpecFilters.filter((specId) => raidAvailableSpecOptions.includes(specId));
+    const filtered = raidSelectedSpecFilters.filter((specId) =>
+      raidAvailableSpecOptions.includes(specId)
+    );
     if (filtered.length !== raidSelectedSpecFilters.length) {
       setRaidSelectedSpecFilters(filtered.length ? filtered : ["전체"]);
     }
-  }, [raidSelectedJobFilters, raidAvailableSpecOptions, raidSelectedSpecFilters]);
+  }, [
+    raidSelectedJobFilters,
+    raidAvailableSpecOptions,
+    raidSelectedSpecFilters,
+  ]);
 
   const raidConfig = useMemo(() => getRaidConfig(raidType), [raidType]);
 
-  const sortedFixedRaidMembers = useMemo(() => (
-    [...fixedRaidMembers].sort((a, b) => (a.streamerName || "").localeCompare(b.streamerName || "", "ko"))
-  ), [fixedRaidMembers]);
+  const sortedFixedRaidMembers = useMemo(
+    () =>
+      [...fixedRaidMembers].sort((a, b) =>
+        (a.streamerName || "").localeCompare(b.streamerName || "", "ko")
+      ),
+    [fixedRaidMembers]
+  );
 
   const matchesWowRaidSearch = (target, keyword) => {
     const normalizedKeyword = (keyword || "").trim().toLowerCase();
@@ -1420,39 +1766,50 @@ export default function App() {
       target?.jobClass,
       target?.mainSpec,
       ...(Array.isArray(target?.availableSpecs) ? target.availableSpecs : []),
-      ...(Array.isArray(target?.preferredPositions) ? target.preferredPositions : []),
+      ...(Array.isArray(target?.preferredPositions)
+        ? target.preferredPositions
+        : []),
     ]
       .filter(Boolean)
-      .join(' ')
+      .join(" ")
       .toLowerCase();
     return searchable.includes(normalizedKeyword);
   };
 
-  const wowRaidPublishedList = useMemo(() => (
-    wowRaids.filter((raid) => raid.isPublished).sort((a, b) => {
-      const createdA = new Date(a.createdAt || a.raidDate || 0).getTime();
-      const createdB = new Date(b.createdAt || b.raidDate || 0).getTime();
-      if (createdA !== createdB) return createdA - createdB;
-      const groupA = Number(a.raidGroupNumber || 9999);
-      const groupB = Number(b.raidGroupNumber || 9999);
-      if (groupA !== groupB) return groupA - groupB;
-      return (a.raidName || '').localeCompare(b.raidName || '', 'ko');
-    })
-  ), [wowRaids]);
+  const wowRaidPublishedList = useMemo(
+    () =>
+      wowRaids
+        .filter((raid) => raid.isPublished)
+        .sort((a, b) => {
+          const createdA = new Date(a.createdAt || a.raidDate || 0).getTime();
+          const createdB = new Date(b.createdAt || b.raidDate || 0).getTime();
+          if (createdA !== createdB) return createdA - createdB;
+          const groupA = Number(a.raidGroupNumber || 9999);
+          const groupB = Number(b.raidGroupNumber || 9999);
+          if (groupA !== groupB) return groupA - groupB;
+          return (a.raidName || "").localeCompare(b.raidName || "", "ko");
+        }),
+    [wowRaids]
+  );
 
-  const filteredWowRaidPublishedList = useMemo(() => (
-    wowRaidPublishedList.filter((raid) => {
-      const groupNum = Number(raid.raidGroupNumber || 0);
-      if (wowRaidGroupFilter === 'all') return true;
-      if (wowRaidGroupFilter === '1') return groupNum === 1;
-      if (wowRaidGroupFilter === '2') return groupNum === 2;
-      if (wowRaidGroupFilter === 'other') return groupNum !== 1 && groupNum !== 2;
-      return true;
-    })
-  ), [wowRaidPublishedList, wowRaidGroupFilter]);
+  const filteredWowRaidPublishedList = useMemo(
+    () =>
+      wowRaidPublishedList.filter((raid) => {
+        const groupNum = Number(raid.raidGroupNumber || 0);
+        if (wowRaidGroupFilter === "all") return true;
+        if (wowRaidGroupFilter === "1") return groupNum === 1;
+        if (wowRaidGroupFilter === "2") return groupNum === 2;
+        if (wowRaidGroupFilter === "other")
+          return groupNum !== 1 && groupNum !== 2;
+        return true;
+      }),
+    [wowRaidPublishedList, wowRaidGroupFilter]
+  );
 
   const selectedWowRaid = useMemo(() => {
-    const source = wowRaids.find((raid) => raid.id === selectedWowRaidId) || wowRaidPublishedList.find((raid) => raid.id === selectedWowRaidId);
+    const source =
+      wowRaids.find((raid) => raid.id === selectedWowRaidId) ||
+      wowRaidPublishedList.find((raid) => raid.id === selectedWowRaidId);
     return source || null;
   }, [wowRaids, wowRaidPublishedList, selectedWowRaidId]);
 
@@ -1460,57 +1817,100 @@ export default function App() {
     const rosterSnapshots = wowRaidForm.rosterParticipantIds
       .map((memberId) => wowRoster.find((member) => member.id === memberId))
       .filter(Boolean)
-      .map((member) => createWowRaidParticipantSnapshot(member, 'wow_roster'));
+      .map((member) => createWowRaidParticipantSnapshot(member, "wow_roster"));
 
     const fixedSnapshots = wowRaidForm.fixedParticipantIds
-      .map((memberId) => fixedRaidMembers.find((member) => member.id === memberId))
+      .map((memberId) =>
+        fixedRaidMembers.find((member) => member.id === memberId)
+      )
       .filter(Boolean)
-      .map((member) => createWowRaidParticipantSnapshot(member, 'fixed_member'));
+      .map((member) =>
+        createWowRaidParticipantSnapshot(member, "fixed_member")
+      );
 
-    const guestSnapshots = (wowRaidForm.guestParticipants || []).map((participant) => createWowRaidGuestParticipantSnapshot(participant));
+    const guestSnapshots = (wowRaidForm.guestParticipants || []).map(
+      (participant) => createWowRaidGuestParticipantSnapshot(participant)
+    );
 
-    return [...rosterSnapshots, ...fixedSnapshots, ...guestSnapshots].sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'));
-  }, [wowRaidForm.rosterParticipantIds, wowRaidForm.fixedParticipantIds, wowRaidForm.guestParticipants, wowRoster, fixedRaidMembers]);
+    return [...rosterSnapshots, ...fixedSnapshots, ...guestSnapshots].sort(
+      (a, b) => (a.streamerName || "").localeCompare(b.streamerName || "", "ko")
+    );
+  }, [
+    wowRaidForm.rosterParticipantIds,
+    wowRaidForm.fixedParticipantIds,
+    wowRaidForm.guestParticipants,
+    wowRoster,
+    fixedRaidMembers,
+  ]);
 
-  const filteredWowRaidRosterCandidates = useMemo(() => (
-    [...wowRoster]
-      .sort((a, b) => (a.streamerName || '').localeCompare(b.streamerName || '', 'ko'))
-      .filter((member) => matchesWowRaidSearch(member, wowRaidRosterSearchInput))
-  ), [wowRoster, wowRaidRosterSearchInput]);
+  const filteredWowRaidRosterCandidates = useMemo(
+    () =>
+      [...wowRoster]
+        .sort((a, b) =>
+          (a.streamerName || "").localeCompare(b.streamerName || "", "ko")
+        )
+        .filter((member) =>
+          matchesWowRaidSearch(member, wowRaidRosterSearchInput)
+        ),
+    [wowRoster, wowRaidRosterSearchInput]
+  );
 
-  const filteredWowRaidFixedCandidates = useMemo(() => (
-    sortedFixedRaidMembers.filter((member) => matchesWowRaidSearch(member, wowRaidFixedSearchInput))
-  ), [sortedFixedRaidMembers, wowRaidFixedSearchInput]);
+  const filteredWowRaidFixedCandidates = useMemo(
+    () =>
+      sortedFixedRaidMembers.filter((member) =>
+        matchesWowRaidSearch(member, wowRaidFixedSearchInput)
+      ),
+    [sortedFixedRaidMembers, wowRaidFixedSearchInput]
+  );
 
-  const filteredWowRaidGuestParticipants = useMemo(() => (
-    (wowRaidForm.guestParticipants || []).filter((participant) => matchesWowRaidSearch({
-      streamerName: participant.displayName,
-      displayName: participant.displayName,
-      wowNickname: participant.wowNickname,
-      jobClass: participant.jobClass,
-      mainSpec: participant.mainSpec,
-      availableSpecs: participant.availableSpecs,
-      preferredPositions: participant.preferredPositions,
-    }, wowRaidGuestSearchInput))
-  ), [wowRaidForm.guestParticipants, wowRaidGuestSearchInput]);
+  const filteredWowRaidGuestParticipants = useMemo(
+    () =>
+      (wowRaidForm.guestParticipants || []).filter((participant) =>
+        matchesWowRaidSearch(
+          {
+            streamerName: participant.displayName,
+            displayName: participant.displayName,
+            wowNickname: participant.wowNickname,
+            jobClass: participant.jobClass,
+            mainSpec: participant.mainSpec,
+            availableSpecs: participant.availableSpecs,
+            preferredPositions: participant.preferredPositions,
+          },
+          wowRaidGuestSearchInput
+        )
+      ),
+    [wowRaidForm.guestParticipants, wowRaidGuestSearchInput]
+  );
 
-  const filteredWowRaidStatParticipants = useMemo(() => (
-    wowRaidFormParticipants.filter((participant) => matchesWowRaidSearch(participant, wowRaidStatSearchInput))
-  ), [wowRaidFormParticipants, wowRaidStatSearchInput]);
+  const filteredWowRaidStatParticipants = useMemo(
+    () =>
+      wowRaidFormParticipants.filter((participant) =>
+        matchesWowRaidSearch(participant, wowRaidStatSearchInput)
+      ),
+    [wowRaidFormParticipants, wowRaidStatSearchInput]
+  );
 
   useEffect(() => {
-    if (selectedWowRaidId && !wowRaids.some((raid) => raid.id === selectedWowRaidId) && !wowRaidPublishedList.some((raid) => raid.id === selectedWowRaidId)) {
+    if (
+      selectedWowRaidId &&
+      !wowRaids.some((raid) => raid.id === selectedWowRaidId) &&
+      !wowRaidPublishedList.some((raid) => raid.id === selectedWowRaidId)
+    ) {
       setSelectedWowRaidId(null);
-      setWowRaidDetailTab('participants');
+      setWowRaidDetailTab("participants");
     }
   }, [selectedWowRaidId, wowRaids, wowRaidPublishedList]);
 
   const currentFixedRaidMember = useMemo(() => {
-    if (selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID) {
+    if (
+      selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+    ) {
       return GUILD_MASTER_MEMBER;
     }
 
-    const matchedMember = fixedRaidMembers.find((member) => member.id === selectedFixedRaidMemberOptionId);
+    const matchedMember = fixedRaidMembers.find(
+      (member) => member.id === selectedFixedRaidMemberOptionId
+    );
     if (!matchedMember) {
       return GUILD_MASTER_MEMBER;
     }
@@ -1518,7 +1918,10 @@ export default function App() {
     return {
       ...matchedMember,
       id: GUILD_MASTER_ID,
-      wowNickname: matchedMember.wowNickname || matchedMember.streamerName || "고정 길드원",
+      wowNickname:
+        matchedMember.wowNickname ||
+        matchedMember.streamerName ||
+        "고정 길드원",
       isGuildMaster: false,
       isFixedRaidMember: true,
     };
@@ -1543,22 +1946,32 @@ export default function App() {
     return positions;
   }, [raidAssignments]);
 
-  const raidAssignedMembers = useMemo(() => (
-    raidAssignments
-      .flat()
-      .filter(Boolean)
-      .map((memberId) => raidMemberMap[memberId])
-      .filter(Boolean)
-  ), [raidAssignments, raidMemberMap]);
+  const raidAssignedMembers = useMemo(
+    () =>
+      raidAssignments
+        .flat()
+        .filter(Boolean)
+        .map((memberId) => raidMemberMap[memberId])
+        .filter(Boolean),
+    [raidAssignments, raidMemberMap]
+  );
 
-  const raidSelectedMember = selectedRaidMemberId ? raidMemberMap[selectedRaidMemberId] : null;
+  const raidSelectedMember = selectedRaidMemberId
+    ? raidMemberMap[selectedRaidMemberId]
+    : null;
 
-  const raidEligibleRoster = useMemo(() => (
-    wowRoster.filter((member) => member.isRaidApplied && matchesRaidLevelFilter(member.level, raidSelectedLevelFilters))
-  ), [wowRoster, raidSelectedLevelFilters]);
+  const raidEligibleRoster = useMemo(
+    () =>
+      wowRoster.filter(
+        (member) =>
+          member.isRaidApplied &&
+          matchesRaidLevelFilter(member.level, raidSelectedLevelFilters)
+      ),
+    [wowRoster, raidSelectedLevelFilters]
+  );
 
   const raidJobStats = useMemo(() => {
-    const stats = { "전체": raidEligibleRoster.length };
+    const stats = { 전체: raidEligibleRoster.length };
     raidEligibleRoster.forEach((member) => {
       stats[member.jobClass] = (stats[member.jobClass] || 0) + 1;
     });
@@ -1569,81 +1982,147 @@ export default function App() {
   }, [raidEligibleRoster]);
 
   const raidPositionStats = useMemo(() => {
-    const stats = { 전체: raidEligibleRoster.length, tank: 0, meleeDealer: 0, rangedDealer: 0, heal: 0 };
+    const stats = {
+      전체: raidEligibleRoster.length,
+      tank: 0,
+      meleeDealer: 0,
+      rangedDealer: 0,
+      heal: 0,
+    };
     raidEligibleRoster.forEach((member) => {
-      normalizePreferredPositions(member.preferredPositions).forEach((positionId) => {
-        stats[positionId] = (stats[positionId] || 0) + 1;
-      });
+      normalizePreferredPositions(member.preferredPositions).forEach(
+        (positionId) => {
+          stats[positionId] = (stats[positionId] || 0) + 1;
+        }
+      );
     });
-    return { stats, orderedIds: WOW_POSITION_OPTIONS.map((option) => option.id) };
+    return {
+      stats,
+      orderedIds: WOW_POSITION_OPTIONS.map((option) => option.id),
+    };
   }, [raidEligibleRoster]);
 
   const raidAvailableMembers = useMemo(() => {
-    let items = raidEligibleRoster.filter((member) => !raidAssignedPositions[member.id]);
+    let items = raidEligibleRoster.filter(
+      (member) => !raidAssignedPositions[member.id]
+    );
 
-    const isAllJobsSelected = raidSelectedJobFilters.includes("전체") || raidSelectedJobFilters.length === 0;
+    const isAllJobsSelected =
+      raidSelectedJobFilters.includes("전체") ||
+      raidSelectedJobFilters.length === 0;
     if (!isAllJobsSelected) {
-      items = items.filter((member) => raidSelectedJobFilters.includes(member.jobClass));
+      items = items.filter((member) =>
+        raidSelectedJobFilters.includes(member.jobClass)
+      );
     }
 
-    const isAllPositionsSelected = raidSelectedPositionFilters.includes("전체") || raidSelectedPositionFilters.length === 0;
+    const isAllPositionsSelected =
+      raidSelectedPositionFilters.includes("전체") ||
+      raidSelectedPositionFilters.length === 0;
     if (!raidSelectedSpecFilters.includes("전체")) {
-      items = items.filter((member) => matchesWowSpecFilters(member.jobClass, member.availableSpecs, raidSelectedSpecFilters));
+      items = items.filter((member) =>
+        matchesWowSpecFilters(
+          member.jobClass,
+          member.availableSpecs,
+          raidSelectedSpecFilters
+        )
+      );
     }
 
     if (!isAllPositionsSelected) {
-      items = items.filter((member) => matchesPreferredPositionFilters(member.preferredPositions, raidSelectedPositionFilters));
+      items = items.filter((member) =>
+        matchesPreferredPositionFilters(
+          member.preferredPositions,
+          raidSelectedPositionFilters
+        )
+      );
     }
 
     if (raidSearchInput.trim()) {
       const term = raidSearchInput.toLowerCase();
-      items = items.filter((member) =>
-        (member.streamerName || "").toLowerCase().includes(term) ||
-        (member.wowNickname || "").toLowerCase().includes(term) ||
-        (member.jobClass || "").toLowerCase().includes(term) ||
-        normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some((spec) => spec.toLowerCase().includes(term)) ||
-        normalizePreferredPositions(member.preferredPositions).some((positionId) => getWowPositionLabel(positionId).toLowerCase().includes(term) || getWowPositionShortLabel(positionId).toLowerCase().includes(term))
+      items = items.filter(
+        (member) =>
+          (member.streamerName || "").toLowerCase().includes(term) ||
+          (member.wowNickname || "").toLowerCase().includes(term) ||
+          (member.jobClass || "").toLowerCase().includes(term) ||
+          normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some(
+            (spec) => spec.toLowerCase().includes(term)
+          ) ||
+          normalizePreferredPositions(member.preferredPositions).some(
+            (positionId) =>
+              getWowPositionLabel(positionId).toLowerCase().includes(term) ||
+              getWowPositionShortLabel(positionId).toLowerCase().includes(term)
+          )
       );
     }
 
     return [...items].sort((a, b) => {
-      if ((Number(b.level) || 0) !== (Number(a.level) || 0)) return (Number(b.level) || 0) - (Number(a.level) || 0);
+      if ((Number(b.level) || 0) !== (Number(a.level) || 0))
+        return (Number(b.level) || 0) - (Number(a.level) || 0);
       return (a.streamerName || "").localeCompare(b.streamerName || "", "ko");
     });
-  }, [raidEligibleRoster, raidAssignedPositions, raidSelectedJobFilters, raidSelectedSpecFilters, raidSelectedPositionFilters, raidSearchInput]);
+  }, [
+    raidEligibleRoster,
+    raidAssignedPositions,
+    raidSelectedJobFilters,
+    raidSelectedSpecFilters,
+    raidSelectedPositionFilters,
+    raidSearchInput,
+  ]);
 
-
-  const buskingEligibleMembers = useMemo(() => (
-    applyBuskingVoteCounts(
-      [...wowRoster].filter((member) => Number(member.level) >= 40),
-      buskingShardCounts
-    ).sort((a, b) => {
-      if (b.level !== a.level) return b.level - a.level;
-      return a.streamerName.localeCompare(b.streamerName, "ko");
-    })
-  ), [wowRoster, buskingShardCounts]);
-
-  const buskingSourceRoster = useMemo(() => (
-    activeTab === "busking" ? buskingPublicRoster : wowRoster
-  ), [activeTab, buskingPublicRoster, wowRoster]);
-
-  const buskingParticipants = useMemo(() => (
-    sortBuskingParticipants(
+  const buskingEligibleMembers = useMemo(
+    () =>
       applyBuskingVoteCounts(
-        [...buskingSourceRoster].filter((member) => Number(member.level) >= 40 && member.isBuskingParticipant),
+        [...wowRoster].filter((member) => Number(member.level) >= 40),
         buskingShardCounts
-      )
-    )
-  ), [buskingSourceRoster, buskingShardCounts]);
+      ).sort((a, b) => {
+        if (b.level !== a.level) return b.level - a.level;
+        return a.streamerName.localeCompare(b.streamerName, "ko");
+      }),
+    [wowRoster, buskingShardCounts]
+  );
 
-  const buskingTopMembers = useMemo(() => buskingParticipants.slice(0, 3), [buskingParticipants]);
-  const buskingTotalVotes = useMemo(() => (
-    Object.values(buskingShardCounts).reduce((sum, count) => sum + (Number(count) || 0), 0)
-  ), [buskingShardCounts]);
+  const buskingSourceRoster = useMemo(
+    () => (activeTab === "busking" ? buskingPublicRoster : wowRoster),
+    [activeTab, buskingPublicRoster, wowRoster]
+  );
+
+  const buskingParticipants = useMemo(
+    () =>
+      sortBuskingParticipants(
+        applyBuskingVoteCounts(
+          [...buskingSourceRoster].filter(
+            (member) =>
+              Number(member.level) >= 40 && member.isBuskingParticipant
+          ),
+          buskingShardCounts
+        )
+      ),
+    [buskingSourceRoster, buskingShardCounts]
+  );
+
+  const buskingTopMembers = useMemo(
+    () => buskingParticipants.slice(0, 3),
+    [buskingParticipants]
+  );
+  const buskingTotalVotes = useMemo(
+    () =>
+      Object.values(buskingShardCounts).reduce(
+        (sum, count) => sum + (Number(count) || 0),
+        0
+      ),
+    [buskingShardCounts]
+  );
   const buskingLeader = buskingParticipants[0] || null;
 
   const raidAssignedPositionStats = useMemo(() => {
-    const stats = { tank: 0, meleeDealer: 0, rangedDealer: 0, heal: 0, undecided: 0 };
+    const stats = {
+      tank: 0,
+      meleeDealer: 0,
+      rangedDealer: 0,
+      heal: 0,
+      undecided: 0,
+    };
     raidAssignedMembers.forEach((member) => {
       if (!member?.id || member.isGuildMaster) return;
       const assignedPosition = raidAssignedPreferredPositions[member.id];
@@ -1685,17 +2164,25 @@ export default function App() {
   }, [selectedRaidMemberId, raidMemberMap]);
 
   useEffect(() => {
-    setRaidAssignments((prev) => resizeRaidLayout(prev, raidConfig.groupCount, GUILD_MASTER_ID));
+    setRaidAssignments((prev) =>
+      resizeRaidLayout(prev, raidConfig.groupCount, GUILD_MASTER_ID)
+    );
   }, [raidConfig.groupCount]);
 
   useEffect(() => {
-    const assignedMemberIds = new Set(raidAssignedMembers.map((member) => member?.id).filter(Boolean));
+    const assignedMemberIds = new Set(
+      raidAssignedMembers.map((member) => member?.id).filter(Boolean)
+    );
     setRaidRoleAssignments((prev) => {
       let changed = false;
       const next = {};
 
       Object.entries(prev).forEach(([memberId, roles]) => {
-        const safeRoles = Array.isArray(roles) ? roles.filter((roleId) => RAID_ROLE_OPTIONS.some((role) => role.id === roleId)) : [];
+        const safeRoles = Array.isArray(roles)
+          ? roles.filter((roleId) =>
+              RAID_ROLE_OPTIONS.some((role) => role.id === roleId)
+            )
+          : [];
         if (!assignedMemberIds.has(memberId) || safeRoles.length === 0) {
           changed = true;
           return;
@@ -1715,10 +2202,15 @@ export default function App() {
 
       raidAssignedMembers.forEach((member) => {
         if (!member?.id || member.isGuildMaster) return;
-        const preferredPositions = normalizePreferredPositions(member.preferredPositions);
+        const preferredPositions = normalizePreferredPositions(
+          member.preferredPositions
+        );
         const currentAssignedPosition = prev[member.id];
 
-        if (currentAssignedPosition && WOW_POSITION_IDS.includes(currentAssignedPosition)) {
+        if (
+          currentAssignedPosition &&
+          WOW_POSITION_IDS.includes(currentAssignedPosition)
+        ) {
           next[member.id] = currentAssignedPosition;
           return;
         }
@@ -1747,7 +2239,12 @@ export default function App() {
   }, [raidAssignedMembers]);
 
   useEffect(() => {
-    if (!raidRoleMenuSlotKey && !raidPositionMenuSlotKey && !isRaidRoleGuideOpen) return undefined;
+    if (
+      !raidRoleMenuSlotKey &&
+      !raidPositionMenuSlotKey &&
+      !isRaidRoleGuideOpen
+    )
+      return undefined;
 
     const handlePointerDown = (event) => {
       if (event.target.closest('[data-raid-floating-layer="true"]')) return;
@@ -1756,14 +2253,16 @@ export default function App() {
       setIsRaidRoleGuideOpen(false);
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [raidRoleMenuSlotKey, raidPositionMenuSlotKey, isRaidRoleGuideOpen]);
 
   useEffect(() => {
     const currentRoundId = buskingSettings.roundId || "wow-busking-default";
     try {
-      const stored = JSON.parse(localStorage.getItem(BUSKING_VOTE_STORAGE_KEY) || "{}");
+      const stored = JSON.parse(
+        localStorage.getItem(BUSKING_VOTE_STORAGE_KEY) || "{}"
+      );
       if (stored.roundId === currentRoundId && Array.isArray(stored.votes)) {
         setBuskingLocalVotes(stored.votes);
       } else {
@@ -1837,7 +2336,9 @@ export default function App() {
         ? current.filter((item) => item !== specId)
         : [...current, specId];
 
-      const filteredNext = next.filter((item) => raidAvailableSpecOptions.includes(item));
+      const filteredNext = next.filter((item) =>
+        raidAvailableSpecOptions.includes(item)
+      );
       return filteredNext.length ? filteredNext : ["전체"];
     });
   };
@@ -1873,7 +2374,9 @@ export default function App() {
 
   const handleToggleFixedRaidMemberPreferredPosition = (positionId) => {
     setFixedRaidMemberForm((prev) => {
-      const current = Array.isArray(prev.preferredPositions) ? prev.preferredPositions : [];
+      const current = Array.isArray(prev.preferredPositions)
+        ? prev.preferredPositions
+        : [];
       const nextPositions = current.includes(positionId)
         ? current.filter((item) => item !== positionId)
         : [...current, positionId];
@@ -1882,7 +2385,15 @@ export default function App() {
   };
 
   const resetFixedRaidMemberForm = () => {
-    setFixedRaidMemberForm({ streamerName: "", jobClass: "", level: "60", imageUrl: "", preferredPositions: [], mainSpec: "", availableSpecs: [] });
+    setFixedRaidMemberForm({
+      streamerName: "",
+      jobClass: "",
+      level: "60",
+      imageUrl: "",
+      preferredPositions: [],
+      mainSpec: "",
+      availableSpecs: [],
+    });
   };
 
   const handleSaveFixedRaidMember = async (event) => {
@@ -1892,9 +2403,18 @@ export default function App() {
     const streamerName = (fixedRaidMemberForm.streamerName || "").trim();
     const jobClass = (fixedRaidMemberForm.jobClass || "").trim();
     const imageUrl = (fixedRaidMemberForm.imageUrl || "").trim();
-    const level = Math.max(1, Math.min(70, Number(fixedRaidMemberForm.level) || 60));
-    const preferredPositions = normalizePreferredPositions(fixedRaidMemberForm.preferredPositions);
-    const fixedSpecState = normalizeWowSpecState(jobClass, fixedRaidMemberForm.mainSpec, fixedRaidMemberForm.availableSpecs);
+    const level = Math.max(
+      1,
+      Math.min(70, Number(fixedRaidMemberForm.level) || 60)
+    );
+    const preferredPositions = normalizePreferredPositions(
+      fixedRaidMemberForm.preferredPositions
+    );
+    const fixedSpecState = normalizeWowSpecState(
+      jobClass,
+      fixedRaidMemberForm.mainSpec,
+      fixedRaidMemberForm.availableSpecs
+    );
 
     if (!streamerName || !jobClass) {
       showToast("고정 길드원의 이름과 직업을 입력해주세요.", "error");
@@ -1903,17 +2423,27 @@ export default function App() {
 
     setIsFixedRaidMemberSaving(true);
     try {
-      await addDoc(collection(db, "artifacts", appId, "public", "data", "fixed_raid_members"), {
-        streamerName,
-        wowNickname: streamerName,
-        jobClass,
-        level,
-        imageUrl,
-        preferredPositions,
-        mainSpec: fixedSpecState.mainSpec,
-        availableSpecs: fixedSpecState.availableSpecs,
-        createdAt: Date.now(),
-      });
+      await addDoc(
+        collection(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "fixed_raid_members"
+        ),
+        {
+          streamerName,
+          wowNickname: streamerName,
+          jobClass,
+          level,
+          imageUrl,
+          preferredPositions,
+          mainSpec: fixedSpecState.mainSpec,
+          availableSpecs: fixedSpecState.availableSpecs,
+          createdAt: Date.now(),
+        }
+      );
       resetFixedRaidMemberForm();
       showToast("고정 길드원을 등록했습니다.");
     } catch (error) {
@@ -1927,8 +2457,20 @@ export default function App() {
     if (!user || !window.confirm("이 고정 길드원을 삭제하시겠습니까?")) return;
 
     try {
-      await deleteDoc(doc(db, "artifacts", appId, "public", "data", "fixed_raid_members", memberId));
-      const shouldResetAppliedMember = selectedFixedRaidMemberOptionId === memberId || raidPublicSettings.activeFixedRaidMemberOptionId === memberId;
+      await deleteDoc(
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "fixed_raid_members",
+          memberId
+        )
+      );
+      const shouldResetAppliedMember =
+        selectedFixedRaidMemberOptionId === memberId ||
+        raidPublicSettings.activeFixedRaidMemberOptionId === memberId;
       if (shouldResetAppliedMember) {
         await setDoc(
           doc(db, "artifacts", appId, "public", "data", "settings", "raid"),
@@ -1976,7 +2518,11 @@ export default function App() {
       delete next[GUILD_MASTER_ID];
       return next;
     });
-    showToast(optionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID ? "고정 길드원을 길드장 우왁굳으로 변경했습니다." : "고정 길드원을 변경했습니다.");
+    showToast(
+      optionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+        ? "고정 길드원을 길드장 우왁굳으로 변경했습니다."
+        : "고정 길드원을 변경했습니다."
+    );
   };
 
   const handleApplyFixedRaidMemberGlobally = async (optionId) => {
@@ -1993,7 +2539,11 @@ export default function App() {
         { merge: true }
       );
       handleSelectFixedRaidMemberOption(nextOptionId);
-      showToast(nextOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID ? "기본 고정 길드원을 레이드에 적용했습니다." : "고정 길드원을 레이드에 적용했습니다.");
+      showToast(
+        nextOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+          ? "기본 고정 길드원을 레이드에 적용했습니다."
+          : "고정 길드원을 레이드에 적용했습니다."
+      );
     } catch (error) {
       showToast("고정 길드원을 레이드에 적용하지 못했습니다.", "error");
     }
@@ -2001,7 +2551,7 @@ export default function App() {
 
   const handleJobFilterClick = (job) => {
     setSelectedJobFilter(job);
-    setWowSortConfig({ key: 'level', direction: 'desc' });
+    setWowSortConfig({ key: "level", direction: "desc" });
   };
 
   const handleWowPositionFilterToggle = (positionId) => {
@@ -2041,12 +2591,19 @@ export default function App() {
       return;
     }
     const term = wowSearchInput.toLowerCase();
-    const results = sortedWowRoster.filter((member) =>
-      member.streamerName.toLowerCase().includes(term) ||
-      member.wowNickname.toLowerCase().includes(term) ||
-      member.jobClass.toLowerCase().includes(term) ||
-      normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some((spec) => spec.toLowerCase().includes(term)) ||
-      normalizePreferredPositions(member.preferredPositions).some((positionId) => getWowPositionLabel(positionId).toLowerCase().includes(term) || getWowPositionShortLabel(positionId).toLowerCase().includes(term))
+    const results = sortedWowRoster.filter(
+      (member) =>
+        member.streamerName.toLowerCase().includes(term) ||
+        member.wowNickname.toLowerCase().includes(term) ||
+        member.jobClass.toLowerCase().includes(term) ||
+        normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some(
+          (spec) => spec.toLowerCase().includes(term)
+        ) ||
+        normalizePreferredPositions(member.preferredPositions).some(
+          (positionId) =>
+            getWowPositionLabel(positionId).toLowerCase().includes(term) ||
+            getWowPositionShortLabel(positionId).toLowerCase().includes(term)
+        )
     );
     setWowSearchResults(results);
   }, [wowSearchInput, sortedWowRoster]);
@@ -2054,7 +2611,7 @@ export default function App() {
   const scrollToWowMember = (memberId) => {
     const element = document.getElementById(`wow-member-${memberId}`);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
       setHighlightedWowMemberId(memberId);
       setTimeout(() => setHighlightedWowMemberId(null), 2000);
     }
@@ -2070,7 +2627,10 @@ export default function App() {
 
   const handleWowSearchPrev = () => {
     if (wowSearchResults.length === 0) return;
-    const prevIndex = currentWowSearchIndex <= 0 ? wowSearchResults.length - 1 : currentWowSearchIndex - 1;
+    const prevIndex =
+      currentWowSearchIndex <= 0
+        ? wowSearchResults.length - 1
+        : currentWowSearchIndex - 1;
     setCurrentWowSearchIndex(prevIndex);
     scrollToWowMember(wowSearchResults[prevIndex].id);
     setShowWowSearchDropdown(false);
@@ -2078,14 +2638,17 @@ export default function App() {
 
   const handleWowSearchSelect = (member) => {
     setShowWowSearchDropdown(false);
-    const idx = wowSearchResults.findIndex(m => m.id === member.id);
+    const idx = wowSearchResults.findIndex((m) => m.id === member.id);
     if (idx !== -1) setCurrentWowSearchIndex(idx);
     scrollToWowMember(member.id);
   };
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+    setTimeout(
+      () => setToast({ show: false, message: "", type: "success" }),
+      3000
+    );
   };
 
   const handleWowJobClassChange = (jobClass) => {
@@ -2100,7 +2663,11 @@ export default function App() {
       const nextAvailableSpecs = prev.includes(specId)
         ? prev.filter((item) => item !== specId)
         : [...prev, specId];
-      const nextSpecState = normalizeWowSpecState(wowJobClass, wowMainSpec, nextAvailableSpecs);
+      const nextSpecState = normalizeWowSpecState(
+        wowJobClass,
+        wowMainSpec,
+        nextAvailableSpecs
+      );
       setWowMainSpec(nextSpecState.mainSpec);
       return nextSpecState.availableSpecs;
     });
@@ -2110,7 +2677,11 @@ export default function App() {
     const nextAvailableSpecs = wowAvailableSpecsSelection.includes(specId)
       ? wowAvailableSpecsSelection
       : [...wowAvailableSpecsSelection, specId];
-    const nextSpecState = normalizeWowSpecState(wowJobClass, specId, nextAvailableSpecs);
+    const nextSpecState = normalizeWowSpecState(
+      wowJobClass,
+      specId,
+      nextAvailableSpecs
+    );
     setWowAvailableSpecsSelection(nextSpecState.availableSpecs);
     setWowMainSpec(nextSpecState.mainSpec);
   };
@@ -2129,8 +2700,16 @@ export default function App() {
       const nextAvailableSpecs = prev.availableSpecs.includes(specId)
         ? prev.availableSpecs.filter((item) => item !== specId)
         : [...prev.availableSpecs, specId];
-      const nextSpecState = normalizeWowSpecState(prev.jobClass, prev.mainSpec, nextAvailableSpecs);
-      return { ...prev, availableSpecs: nextSpecState.availableSpecs, mainSpec: nextSpecState.mainSpec };
+      const nextSpecState = normalizeWowSpecState(
+        prev.jobClass,
+        prev.mainSpec,
+        nextAvailableSpecs
+      );
+      return {
+        ...prev,
+        availableSpecs: nextSpecState.availableSpecs,
+        mainSpec: nextSpecState.mainSpec,
+      };
     });
   };
 
@@ -2139,15 +2718,36 @@ export default function App() {
       const nextAvailableSpecs = prev.availableSpecs.includes(specId)
         ? prev.availableSpecs
         : [...prev.availableSpecs, specId];
-      const nextSpecState = normalizeWowSpecState(prev.jobClass, specId, nextAvailableSpecs);
-      return { ...prev, availableSpecs: nextSpecState.availableSpecs, mainSpec: nextSpecState.mainSpec };
+      const nextSpecState = normalizeWowSpecState(
+        prev.jobClass,
+        specId,
+        nextAvailableSpecs
+      );
+      return {
+        ...prev,
+        availableSpecs: nextSpecState.availableSpecs,
+        mainSpec: nextSpecState.mainSpec,
+      };
     });
   };
 
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "players", "matches", "stats", "tier", "event", "wow", "wowraid", "raid", "admin"].includes(hash)) setActiveTab(hash);
+      if (
+        [
+          "home",
+          "players",
+          "matches",
+          "stats",
+          "tier",
+          "wow",
+          "wowraid",
+          "raid",
+          "admin",
+        ].includes(hash)
+      )
+        setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -2172,11 +2772,21 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
-          try { await signInWithCustomToken(auth, __initial_auth_token); } 
-          catch (tokenError) { await signInAnonymously(auth); }
-        } else { await signInAnonymously(auth); }
-      } catch (error) { console.error(error); }
+        if (
+          typeof __initial_auth_token !== "undefined" &&
+          __initial_auth_token
+        ) {
+          try {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } catch (tokenError) {
+            await signInAnonymously(auth);
+          }
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error(error);
+      }
     };
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, setUser);
@@ -2185,55 +2795,126 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    const playersRef = collection(db, "artifacts", appId, "public", "data", "players");
+    const playersRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "players"
+    );
     const unsubPlayers = onSnapshot(playersRef, (snapshot) => {
       setPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    const draftPlayersRef = collection(db, "artifacts", appId, "public", "data", "draft_players");
+    const draftPlayersRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "draft_players"
+    );
     const unsubDraftPlayers = onSnapshot(draftPlayersRef, (snapshot) => {
-      setDraftPlayers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setDraftPlayers(
+        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
     });
 
-    const matchesRef = collection(db, "artifacts", appId, "public", "data", "matches");
-    const unsubMatches = onSnapshot(matchesRef, (snapshot) => {
-        const matchesData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const matchesRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "matches"
+    );
+    const unsubMatches = onSnapshot(
+      matchesRef,
+      (snapshot) => {
+        const matchesData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         matchesData.sort((a, b) => {
-          const dateA = new Date(a.date).getTime(), dateB = new Date(b.date).getTime();
-          if (dateA === dateB) return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+          const dateA = new Date(a.date).getTime(),
+            dateB = new Date(b.date).getTime();
+          if (dateA === dateB)
+            return (
+              new Date(b.createdAt || 0).getTime() -
+              new Date(a.createdAt || 0).getTime()
+            );
           return dateB - dateA;
         });
         setMatches(matchesData);
         setIsLoading(false);
       },
-      (error) => { console.error(error); setIsLoading(false); }
+      (error) => {
+        console.error(error);
+        setIsLoading(false);
+      }
     );
 
-    const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
+    const metaRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "metadata",
+      "app_info"
+    );
     const unsubMeta = onSnapshot(metaRef, (docSnap) => {
       if (docSnap.exists()) setLastUpdated(docSnap.data().lastUpdated);
     });
 
     const today = new Date();
-    const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+    const todayDocId = `${today.getFullYear()}-${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const visitRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "daily_visits",
+      todayDocId
+    );
     const unsubVisit = onSnapshot(visitRef, (docSnap) => {
       if (docSnap.exists()) setTodayVisits(docSnap.data().count || 0);
     });
 
-    const presenceRef = collection(db, "artifacts", appId, "public", "data", "admin_presence");
+    const presenceRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "admin_presence"
+    );
     const unsubPresence = onSnapshot(presenceRef, (snapshot) => {
-      setRawAdminPresence(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setRawAdminPresence(
+        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+      );
     });
 
-    const popupRef = doc(db, "artifacts", appId, "public", "data", "settings", "popup");
+    const popupRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "settings",
+      "popup"
+    );
     const unsubPopup = onSnapshot(popupRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setSitePopup(data);
         if (data.isActive) {
-          const hideToken = localStorage.getItem('wak_popup_hidden_today');
-          const todayStr = new Date().toISOString().split('T')[0];
+          const hideToken = localStorage.getItem("wak_popup_hidden_today");
+          const todayStr = new Date().toISOString().split("T")[0];
           if (hideToken !== `${todayStr}_${data.updatedAt}`) {
             setShowSitePopup(true);
           } else {
@@ -2245,72 +2926,35 @@ export default function App() {
       }
     });
 
-    return () => { unsubPlayers(); unsubDraftPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-    const unsubEventSettings = onSnapshot(eventDocRef, (docSnap) => {
-      const nextSettings = docSnap.exists()
-        ? normalizeEventSettings({ eventId: docSnap.id, ...docSnap.data() })
-        : createDefaultEventSettings();
-      setEventSettings(nextSettings);
-    });
-
-    return () => unsubEventSettings();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (!["event", "admin"].includes(activeTab)) return;
-
-    const eventTeamsRef = collection(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "teams");
-    const eventMatchesRef = collection(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "matches");
-
-    const unsubEventTeams = onSnapshot(eventTeamsRef, (snapshot) => {
-      const nextTeams = snapshot.docs
-        .map((teamDoc, index) => normalizeEventTeamDocument({ id: teamDoc.id, ...teamDoc.data() }, index))
-        .sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999) || (a.teamName || "").localeCompare(b.teamName || "", "ko"));
-      setEventTeams(nextTeams);
-    });
-
-    const unsubEventMatches = onSnapshot(eventMatchesRef, (snapshot) => {
-      const rawMatches = snapshot.docs.map((matchDoc) => normalizeEventMatchDocument({ id: matchDoc.id, ...matchDoc.data() }));
-      setEventMatches(rawMatches.length > 0 ? syncEventMatchesBracket(rawMatches) : buildDefaultEventMatches());
-    });
-
     return () => {
-      unsubEventTeams();
-      unsubEventMatches();
+      unsubPlayers();
+      unsubDraftPlayers();
+      unsubMatches();
+      unsubMeta();
+      unsubVisit();
+      unsubPresence();
+      unsubPopup();
     };
-  }, [user, activeTab]);
-
-  useEffect(() => {
-    setEventAdminSettings({ ...eventSettings });
-  }, [eventSettings]);
-
-  useEffect(() => {
-    setEventAdminTeams(cloneEventTeams(sortedEventTeams));
-  }, [sortedEventTeams]);
-
-  useEffect(() => {
-    setEventAdminMatches(syncEventMatchesBracket(eventMatches));
-  }, [eventMatches]);
-
-  useEffect(() => {
-    setEventAdminMatches((prev) => syncEventMatchesWithTeams(prev, eventAdminTeams));
-  }, [eventAdminTeams]);
-
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
     if (!["wow", "raid", "admin"].includes(activeTab)) return;
 
-    const wowRef = collection(db, "artifacts", appId, "public", "data", "wow_roster");
+    const wowRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "wow_roster"
+    );
     const unsubWow = onSnapshot(wowRef, (snapshot) => {
-      setWowRoster(snapshot.docs.map((wowDoc) => normalizeWowMember({ id: wowDoc.id, ...wowDoc.data() })));
+      setWowRoster(
+        snapshot.docs.map((wowDoc) =>
+          normalizeWowMember({ id: wowDoc.id, ...wowDoc.data() })
+        )
+      );
     });
 
     return () => unsubWow();
@@ -2320,23 +2964,42 @@ export default function App() {
     if (!user) return;
     if (!["raid", "admin"].includes(activeTab)) return;
 
-    const fixedRaidRef = collection(db, "artifacts", appId, "public", "data", "fixed_raid_members");
+    const fixedRaidRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "fixed_raid_members"
+    );
     const unsubFixedRaidMembers = onSnapshot(fixedRaidRef, (snapshot) => {
-      setFixedRaidMembers(snapshot.docs.map((memberDoc) => normalizeFixedRaidMember({ id: memberDoc.id, ...memberDoc.data() })));
+      setFixedRaidMembers(
+        snapshot.docs.map((memberDoc) =>
+          normalizeFixedRaidMember({ id: memberDoc.id, ...memberDoc.data() })
+        )
+      );
     });
 
     return () => unsubFixedRaidMembers();
   }, [user, activeTab]);
 
-
   useEffect(() => {
     if (!user) return;
     if (!["wowraid", "admin"].includes(activeTab)) return;
 
-    const wowRaidRef = collection(db, "artifacts", appId, "public", "data", "wow_raids");
+    const wowRaidRef = collection(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "wow_raids"
+    );
     const unsubWowRaids = onSnapshot(wowRaidRef, (snapshot) => {
       const nextRaids = snapshot.docs
-        .map((raidDoc) => normalizeWowRaidDocument({ id: raidDoc.id, ...raidDoc.data() }))
+        .map((raidDoc) =>
+          normalizeWowRaidDocument({ id: raidDoc.id, ...raidDoc.data() })
+        )
         .sort((a, b) => {
           const dateA = new Date(a.raidDate || a.createdAt || 0).getTime();
           const dateB = new Date(b.raidDate || b.createdAt || 0).getTime();
@@ -2344,7 +3007,7 @@ export default function App() {
           const groupA = Number(a.raidGroupNumber || 9999);
           const groupB = Number(b.raidGroupNumber || 9999);
           if (groupA !== groupB) return groupA - groupB;
-          return (b.createdAt || '').localeCompare(a.createdAt || '');
+          return (b.createdAt || "").localeCompare(a.createdAt || "");
         });
       setWowRaids(nextRaids);
     });
@@ -2356,11 +3019,24 @@ export default function App() {
     if (!user) return;
     if (!["raid", "admin"].includes(activeTab)) return;
 
-    const raidSettingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "raid");
+    const raidSettingsRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "settings",
+      "raid"
+    );
     const unsubRaidSettings = onSnapshot(raidSettingsRef, (docSnap) => {
       const nextSettings = docSnap.exists()
-        ? { activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID, ...docSnap.data() }
-        : { activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID };
+        ? {
+            activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID,
+            ...docSnap.data(),
+          }
+        : {
+            activeFixedRaidMemberOptionId: DEFAULT_FIXED_RAID_MEMBER_OPTION_ID,
+          };
       setRaidPublicSettings(nextSettings);
     });
 
@@ -2368,12 +3044,20 @@ export default function App() {
   }, [user, activeTab]);
 
   useEffect(() => {
-    setSelectedFixedRaidMemberOptionId(raidPublicSettings.activeFixedRaidMemberOptionId || DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
+    setSelectedFixedRaidMemberOptionId(
+      raidPublicSettings.activeFixedRaidMemberOptionId ||
+        DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+    );
   }, [raidPublicSettings.activeFixedRaidMemberOptionId]);
 
   useEffect(() => {
-    if (selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID) return;
-    if (!fixedRaidMembers.some((member) => member.id === selectedFixedRaidMemberOptionId)) {
+    if (selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID)
+      return;
+    if (
+      !fixedRaidMembers.some(
+        (member) => member.id === selectedFixedRaidMemberOptionId
+      )
+    ) {
       setSelectedFixedRaidMemberOptionId(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID);
       setRaidRoleAssignments((prev) => {
         if (!prev[GUILD_MASTER_ID]) return prev;
@@ -2394,7 +3078,15 @@ export default function App() {
     if (!user) return;
     if (activeTab !== "admin") return;
 
-    const buskingRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
+    const buskingRef = doc(
+      db,
+      "artifacts",
+      appId,
+      "public",
+      "data",
+      "settings",
+      "busking"
+    );
     const unsubBusking = onSnapshot(buskingRef, (docSnap) => {
       if (docSnap.exists()) {
         setBuskingSettings({
@@ -2406,7 +3098,13 @@ export default function App() {
           ...docSnap.data(),
         });
       } else {
-        setBuskingSettings({ isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" });
+        setBuskingSettings({
+          isVotingOpen: false,
+          roundId: "wow-busking-default",
+          startedAt: null,
+          endedAt: null,
+          noticeUrl: "",
+        });
       }
     });
 
@@ -2422,8 +3120,24 @@ export default function App() {
 
     const fetchBuskingData = async () => {
       try {
-        const summaryRef = doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID);
-        const settingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
+        const summaryRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "settings",
+          BUSKING_PUBLIC_SUMMARY_DOC_ID
+        );
+        const settingsRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "settings",
+          "busking"
+        );
         const [summarySnap, settingsSnap] = await Promise.all([
           getDoc(summaryRef),
           getDoc(settingsRef),
@@ -2441,16 +3155,29 @@ export default function App() {
             endedAt: summaryData.endedAt || null,
             noticeUrl: summaryData.noticeUrl || settingsData.noticeUrl || "",
           };
-          const shardSnapshot = await fetchBuskingShardSnapshot(resolvedSettings.roundId);
+          const shardSnapshot = await fetchBuskingShardSnapshot(
+            resolvedSettings.roundId
+          );
           if (isCancelled) return;
 
-          const rosterWithVotes = sortBuskingParticipants(applyBuskingVoteCounts(summaryData.participants || [], shardSnapshot.voteCounts));
+          const rosterWithVotes = sortBuskingParticipants(
+            applyBuskingVoteCounts(
+              summaryData.participants || [],
+              shardSnapshot.voteCounts
+            )
+          );
           setBuskingSettings(resolvedSettings);
           setBuskingShardCounts(shardSnapshot.voteCounts);
-          setBuskingPublicRoster(rosterWithVotes.map((member) => ({ ...member, isBuskingParticipant: true })));
+          setBuskingPublicRoster(
+            rosterWithVotes.map((member) => ({
+              ...member,
+              isBuskingParticipant: true,
+            }))
+          );
           setBuskingPublicMeta({
             totalVotes: shardSnapshot.totalVotes,
-            participantCount: Number(summaryData.participantCount) || rosterWithVotes.length,
+            participantCount:
+              Number(summaryData.participantCount) || rosterWithVotes.length,
             updatedAt: shardSnapshot.updatedAt || summaryData.updatedAt || null,
             leaderId: rosterWithVotes[0]?.id || null,
           });
@@ -2467,17 +3194,44 @@ export default function App() {
         if (isCancelled) return;
 
         const fallbackSettings = settingsSnap.exists()
-          ? { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "", ...settingsSnap.data() }
-          : { isVotingOpen: false, roundId: "wow-busking-default", startedAt: null, endedAt: null, noticeUrl: "" };
-        const shardSnapshot = await fetchBuskingShardSnapshot(fallbackSettings.roundId);
+          ? {
+              isVotingOpen: false,
+              roundId: "wow-busking-default",
+              startedAt: null,
+              endedAt: null,
+              noticeUrl: "",
+              ...settingsSnap.data(),
+            }
+          : {
+              isVotingOpen: false,
+              roundId: "wow-busking-default",
+              startedAt: null,
+              endedAt: null,
+              noticeUrl: "",
+            };
+        const shardSnapshot = await fetchBuskingShardSnapshot(
+          fallbackSettings.roundId
+        );
         if (isCancelled) return;
 
-        const fallbackRoster = participantsSnap.docs.map((wowDoc) => ({ id: wowDoc.id, ...wowDoc.data() }));
-        const fallbackSummary = buildBuskingPublicSummary(fallbackRoster, fallbackSettings, shardSnapshot.voteCounts);
+        const fallbackRoster = participantsSnap.docs.map((wowDoc) => ({
+          id: wowDoc.id,
+          ...wowDoc.data(),
+        }));
+        const fallbackSummary = buildBuskingPublicSummary(
+          fallbackRoster,
+          fallbackSettings,
+          shardSnapshot.voteCounts
+        );
 
         setBuskingSettings(fallbackSettings);
         setBuskingShardCounts(shardSnapshot.voteCounts);
-        setBuskingPublicRoster(fallbackSummary.participants.map((member) => ({ ...member, isBuskingParticipant: true })));
+        setBuskingPublicRoster(
+          fallbackSummary.participants.map((member) => ({
+            ...member,
+            isBuskingParticipant: true,
+          }))
+        );
         setBuskingPublicMeta({
           totalVotes: shardSnapshot.totalVotes,
           participantCount: fallbackSummary.participantCount,
@@ -2490,7 +3244,10 @@ export default function App() {
     };
 
     fetchBuskingData();
-    intervalId = window.setInterval(fetchBuskingData, BUSKING_PUBLIC_REFRESH_MS);
+    intervalId = window.setInterval(
+      fetchBuskingData,
+      BUSKING_PUBLIC_REFRESH_MS
+    );
 
     return () => {
       isCancelled = true;
@@ -2507,7 +3264,9 @@ export default function App() {
 
     const refreshShardCounts = async () => {
       try {
-        const shardSnapshot = await fetchBuskingShardSnapshot(buskingSettings.roundId || "wow-busking-default");
+        const shardSnapshot = await fetchBuskingShardSnapshot(
+          buskingSettings.roundId || "wow-busking-default"
+        );
         if (isCancelled) return;
         setBuskingShardCounts(shardSnapshot.voteCounts);
         setBuskingPublicMeta((prev) => ({
@@ -2521,7 +3280,10 @@ export default function App() {
     };
 
     refreshShardCounts();
-    intervalId = window.setInterval(refreshShardCounts, BUSKING_PUBLIC_REFRESH_MS);
+    intervalId = window.setInterval(
+      refreshShardCounts,
+      BUSKING_PUBLIC_REFRESH_MS
+    );
 
     return () => {
       isCancelled = true;
@@ -2542,40 +3304,75 @@ export default function App() {
   }, []);
 
   const activeAdmins = useMemo(() => {
-    return rawAdminPresence.filter(admin => (currentTime - admin.lastActive) < 300000);
+    return rawAdminPresence.filter(
+      (admin) => currentTime - admin.lastActive < 300000
+    );
   }, [rawAdminPresence, currentTime]);
 
   useEffect(() => {
     if (!isAdminAuth || !currentAdminName || !user) return;
     let lastUpdated = Date.now();
-    setDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName), { lastActive: Date.now(), status: "online" });
+    setDoc(
+      doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "admin_presence",
+        currentAdminName
+      ),
+      { lastActive: Date.now(), status: "online" }
+    );
     const handleActivity = () => {
       const now = Date.now();
       if (now - lastUpdated > 60000) {
         lastUpdated = now;
-        setDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName), { lastActive: now, status: "online" }, { merge: true }).catch(err => console.error(err));
+        setDoc(
+          doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "admin_presence",
+            currentAdminName
+          ),
+          { lastActive: now, status: "online" },
+          { merge: true }
+        ).catch((err) => console.error(err));
       }
     };
-    window.addEventListener('mousemove', handleActivity);
-    window.addEventListener('keydown', handleActivity);
-    window.addEventListener('click', handleActivity);
+    window.addEventListener("mousemove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("click", handleActivity);
     return () => {
-      window.removeEventListener('mousemove', handleActivity);
-      window.removeEventListener('keydown', handleActivity);
-      window.removeEventListener('click', handleActivity);
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("click", handleActivity);
     };
   }, [isAdminAuth, currentAdminName, user]);
 
   useEffect(() => {
     const recordVisit = async () => {
       const today = new Date();
-      const todayDocId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const todayDocId = `${today.getFullYear()}-${String(
+        today.getMonth() + 1
+      ).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
       const storageKey = `wak_visited_${todayDocId}`;
       if (!sessionStorage.getItem(storageKey)) {
         try {
-          const visitRef = doc(db, "artifacts", appId, "public", "data", "daily_visits", todayDocId);
+          const visitRef = doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "daily_visits",
+            todayDocId
+          );
           await setDoc(visitRef, { count: increment(1) }, { merge: true });
-          sessionStorage.setItem(storageKey, "true"); 
+          sessionStorage.setItem(storageKey, "true");
         } catch (error) {}
       }
     };
@@ -2584,17 +3381,33 @@ export default function App() {
 
   const getAvatarSrc = (playerName) => {
     const p = players.find((p) => p.name === playerName);
-    return p?.imageUrl?.trim() ? p.imageUrl : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
+    return p?.imageUrl?.trim()
+      ? p.imageUrl
+      : `https://api.dicebear.com/7.x/adventurer/svg?seed=${playerName}`;
   };
 
   const getWowAvatarSrc = (member) => {
-    return member?.imageUrl?.trim() ? member.imageUrl : `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+    return member?.imageUrl?.trim()
+      ? member.imageUrl
+      : `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
   };
 
   const updateLastModifiedTime = async () => {
     try {
-      const metaRef = doc(db, "artifacts", appId, "public", "data", "metadata", "app_info");
-      await setDoc(metaRef, { lastUpdated: new Date().toISOString() }, { merge: true });
+      const metaRef = doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "metadata",
+        "app_info"
+      );
+      await setDoc(
+        metaRef,
+        { lastUpdated: new Date().toISOString() },
+        { merge: true }
+      );
     } catch (error) {}
   };
 
@@ -2609,17 +3422,25 @@ export default function App() {
   };
 
   const getPlayerStreak = (playerName) => {
-    const playerMatches = matches.filter((m) => m.results?.some((r) => r.playerName === playerName));
+    const playerMatches = matches.filter((m) =>
+      m.results?.some((r) => r.playerName === playerName)
+    );
     if (playerMatches.length === 0) return { type: "none", count: 0 };
-    let streakType = "none", count = 0;
+    let streakType = "none",
+      count = 0;
     for (const match of playerMatches) {
       const result = match.results.find((r) => r.playerName === playerName);
       if (!result) continue;
-      const isWin = result.scoreChange > 0, isLoss = result.scoreChange < 0;
+      const isWin = result.scoreChange > 0,
+        isLoss = result.scoreChange < 0;
       if (count === 0) {
-        if (isWin) { streakType = "win"; count = 1; } 
-        else if (isLoss) { streakType = "lose"; count = 1; } 
-        else break;
+        if (isWin) {
+          streakType = "win";
+          count = 1;
+        } else if (isLoss) {
+          streakType = "lose";
+          count = 1;
+        } else break;
       } else {
         if (streakType === "win" && isWin) count++;
         else if (streakType === "lose" && isLoss) count++;
@@ -2630,113 +3451,178 @@ export default function App() {
   };
 
   const getPlayerStats = (playerName) => {
-    const playerMatches = matches.filter((m) => m.results?.some((r) => r.playerName === playerName));
+    const playerMatches = matches.filter((m) =>
+      m.results?.some((r) => r.playerName === playerName)
+    );
     const totalMatches = playerMatches.length;
     const wins = playerMatches.filter((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return r && r.rank === 1;
     }).length;
-    const winRate = totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
+    const winRate =
+      totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
     const gameCounts = {};
-    playerMatches.forEach((m) => { gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1; });
-    let mostPlayedGame = "전적 없음", maxCount = 0;
+    playerMatches.forEach((m) => {
+      gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1;
+    });
+    let mostPlayedGame = "전적 없음",
+      maxCount = 0;
     for (const [game, count] of Object.entries(gameCounts)) {
-      if (count > maxCount) { maxCount = count; mostPlayedGame = game; }
+      if (count > maxCount) {
+        maxCount = count;
+        mostPlayedGame = game;
+      }
     }
     const recentMatches = playerMatches.slice(0, 5).map((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
-      return { id: m.id, gameName: m.gameName, date: m.date, rank: r.rank, scoreChange: r.scoreChange };
+      return {
+        id: m.id,
+        gameName: m.gameName,
+        date: m.date,
+        rank: r.rank,
+        scoreChange: r.scoreChange,
+      };
     });
     return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
   };
 
   const handleCheerPlayer = async (playerId, playerName) => {
     if (!user) return;
-    if (cheeringPlayerId === playerId) return; 
+    if (cheeringPlayerId === playerId) return;
 
-    setCheeringPlayerId(playerId); 
-    const today = new Date().toISOString().split('T')[0];
-    const storageKey = 'wak_vleague_hearts_v1';
-    let storedData = JSON.parse(localStorage.getItem(storageKey) || '{"date": "", "votes": []}');
+    setCheeringPlayerId(playerId);
+    const today = new Date().toISOString().split("T")[0];
+    const storageKey = "wak_vleague_hearts_v1";
+    let storedData = JSON.parse(
+      localStorage.getItem(storageKey) || '{"date": "", "votes": []}'
+    );
     if (storedData.date !== today) storedData = { date: today, votes: [] };
     const hasVoted = storedData.votes.includes(playerName);
 
     try {
       if (hasVoted) {
-        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { hearts: increment(-1) });
-        storedData.votes = storedData.votes.filter(name => name !== playerName);
+        await updateDoc(
+          doc(db, "artifacts", appId, "public", "data", "players", playerId),
+          { hearts: increment(-1) }
+        );
+        storedData.votes = storedData.votes.filter(
+          (name) => name !== playerName
+        );
         localStorage.setItem(storageKey, JSON.stringify(storedData));
         showToast(`${playerName}님에 대한 응원을 취소했습니다. 💔`);
       } else {
-        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { hearts: increment(1) });
+        await updateDoc(
+          doc(db, "artifacts", appId, "public", "data", "players", playerId),
+          { hearts: increment(1) }
+        );
         storedData.votes.push(playerName);
         localStorage.setItem(storageKey, JSON.stringify(storedData));
         showToast(`${playerName}님을 성공적으로 응원했습니다! 💖`);
       }
-    } catch (error) { 
-      showToast("응원 처리 중 오류가 발생했습니다.", "error"); 
+    } catch (error) {
+      showToast("응원 처리 중 오류가 발생했습니다.", "error");
     } finally {
-      setCheeringPlayerId(null); 
+      setCheeringPlayerId(null);
     }
   };
 
   const handleAddWowMember = async (e) => {
     e.preventDefault();
     if (!user) return;
-    if (!wowStreamerName.trim() || !wowNickname.trim() || !wowJobClass.trim() || !wowLevel) return showToast("모든 와우 캐릭터 정보를 입력해주세요.", "error");
-    const wowSpecState = normalizeWowSpecState(wowJobClass, wowMainSpec, wowAvailableSpecsSelection);
+    if (
+      !wowStreamerName.trim() ||
+      !wowNickname.trim() ||
+      !wowJobClass.trim() ||
+      !wowLevel
+    )
+      return showToast("모든 와우 캐릭터 정보를 입력해주세요.", "error");
+    const wowSpecState = normalizeWowSpecState(
+      wowJobClass,
+      wowMainSpec,
+      wowAvailableSpecsSelection
+    );
     setIsWowSubmitting(true);
     try {
-      await addDoc(collection(db, "artifacts", appId, "public", "data", "wow_roster"), {
-        streamerName: wowStreamerName.trim(), 
-        wowNickname: wowNickname.trim(), 
-        jobClass: wowJobClass.trim(), 
-        mainSpec: wowSpecState.mainSpec,
-        availableSpecs: wowSpecState.availableSpecs,
-        level: Number(wowLevel), 
-        isApplied: false, 
-        isWowPartner: false,
-        isBuskingParticipant: false,
-        isRaidApplied: false,
-            preferredPositions: [],
-        buskingVoteCount: 0,
-        broadcastUrl: "",
-        createdAt: new Date().toISOString()
-      });
-      setWowStreamerName(""); setWowNickname(""); setWowJobClass(""); setWowMainSpec(""); setWowAvailableSpecsSelection([]); setWowLevel("");
+      await addDoc(
+        collection(db, "artifacts", appId, "public", "data", "wow_roster"),
+        {
+          streamerName: wowStreamerName.trim(),
+          wowNickname: wowNickname.trim(),
+          jobClass: wowJobClass.trim(),
+          mainSpec: wowSpecState.mainSpec,
+          availableSpecs: wowSpecState.availableSpecs,
+          level: Number(wowLevel),
+          isApplied: false,
+          isWowPartner: false,
+          isBuskingParticipant: false,
+          isRaidApplied: false,
+          preferredPositions: [],
+          buskingVoteCount: 0,
+          broadcastUrl: "",
+          createdAt: new Date().toISOString(),
+        }
+      );
+      setWowStreamerName("");
+      setWowNickname("");
+      setWowJobClass("");
+      setWowMainSpec("");
+      setWowAvailableSpecsSelection([]);
+      setWowLevel("");
       showToast("와우 길드원이 성공적으로 등록되었습니다!");
-    } catch (error) { showToast("길드원 등록 중 오류 발생", "error"); } finally { setIsWowSubmitting(false); }
+    } catch (error) {
+      showToast("길드원 등록 중 오류 발생", "error");
+    } finally {
+      setIsWowSubmitting(false);
+    }
   };
 
   const handleUpdateWowLevel = async (id, newLevel) => {
     if (!user) return;
-    if (newLevel < 1) newLevel = 1; if (newLevel > 70) newLevel = 70;
-    try { 
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { level: newLevel }); 
-      const nextRoster = wowRoster.map((member) => member.id === id ? { ...member, level: newLevel } : member);
-      await persistBuskingPublicSummary({ rosterOverride: nextRoster, voteCountsOverride: buskingShardCounts });
+    if (newLevel < 1) newLevel = 1;
+    if (newLevel > 70) newLevel = 70;
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id),
+        { level: newLevel }
+      );
+      const nextRoster = wowRoster.map((member) =>
+        member.id === id ? { ...member, level: newLevel } : member
+      );
+      await persistBuskingPublicSummary({
+        rosterOverride: nextRoster,
+        voteCountsOverride: buskingShardCounts,
+      });
       await updateLastModifiedTime();
     } catch (error) {}
   };
 
   const handleToggleWowApply = async (id, currentStatus) => {
     if (!user) return;
-    try { 
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isApplied: !currentStatus }); 
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id),
+        { isApplied: !currentStatus }
+      );
       await updateLastModifiedTime();
     } catch (error) {}
   };
 
   const handleToggleWowPartner = async (id, currentStatus) => {
     if (!user) return;
-    try { 
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isWowPartner: !currentStatus }); 
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id),
+        { isWowPartner: !currentStatus }
+      );
       await updateLastModifiedTime();
     } catch (error) {}
   };
 
-
-  const handleToggleWowPreferredPosition = async (memberId, positionId, currentPositions = []) => {
+  const handleToggleWowPreferredPosition = async (
+    memberId,
+    positionId,
+    currentPositions = []
+  ) => {
     if (!user) return;
     const normalizedPositions = normalizePreferredPositions(currentPositions);
     const nextPositions = normalizedPositions.includes(positionId)
@@ -2744,78 +3630,140 @@ export default function App() {
       : [...normalizedPositions, positionId];
 
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { preferredPositions: nextPositions });
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        { preferredPositions: nextPositions }
+      );
       await updateLastModifiedTime();
     } catch (error) {
       showToast("선호 포지션을 저장하지 못했습니다.", "error");
     }
   };
 
-  const handleToggleWowAvailableSpec = async (memberId, specId, jobClass, currentAvailableSpecs = [], currentMainSpec = "") => {
+  const handleToggleWowAvailableSpec = async (
+    memberId,
+    specId,
+    jobClass,
+    currentAvailableSpecs = [],
+    currentMainSpec = ""
+  ) => {
     if (!user) return;
-    const baseState = normalizeWowSpecState(jobClass, currentMainSpec, currentAvailableSpecs);
+    const baseState = normalizeWowSpecState(
+      jobClass,
+      currentMainSpec,
+      currentAvailableSpecs
+    );
     const nextAvailableSpecs = baseState.availableSpecs.includes(specId)
       ? baseState.availableSpecs.filter((item) => item !== specId)
       : [...baseState.availableSpecs, specId];
-    const nextSpecState = normalizeWowSpecState(jobClass, baseState.mainSpec, nextAvailableSpecs);
+    const nextSpecState = normalizeWowSpecState(
+      jobClass,
+      baseState.mainSpec,
+      nextAvailableSpecs
+    );
 
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), {
-        availableSpecs: nextSpecState.availableSpecs,
-        mainSpec: nextSpecState.mainSpec,
-      });
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        {
+          availableSpecs: nextSpecState.availableSpecs,
+          mainSpec: nextSpecState.mainSpec,
+        }
+      );
       await updateLastModifiedTime();
     } catch (error) {
       showToast("특성을 저장하지 못했습니다.", "error");
     }
   };
 
-  const handleSelectWowMainSpec = async (memberId, specId, jobClass, currentAvailableSpecs = []) => {
+  const handleSelectWowMainSpec = async (
+    memberId,
+    specId,
+    jobClass,
+    currentAvailableSpecs = []
+  ) => {
     if (!user) return;
     const nextAvailableSpecs = currentAvailableSpecs.includes(specId)
       ? currentAvailableSpecs
       : [...currentAvailableSpecs, specId];
-    const nextSpecState = normalizeWowSpecState(jobClass, specId, nextAvailableSpecs);
+    const nextSpecState = normalizeWowSpecState(
+      jobClass,
+      specId,
+      nextAvailableSpecs
+    );
 
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), {
-        availableSpecs: nextSpecState.availableSpecs,
-        mainSpec: nextSpecState.mainSpec,
-      });
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        {
+          availableSpecs: nextSpecState.availableSpecs,
+          mainSpec: nextSpecState.mainSpec,
+        }
+      );
       await updateLastModifiedTime();
     } catch (error) {
       showToast("주 특성을 저장하지 못했습니다.", "error");
     }
   };
 
-
   const handleToggleRaidApply = async (id, currentStatus, level) => {
     if (!user) return;
     if (Number(level) < 50) {
-      showToast("50레벨 이상 길드원만 레이드 신청자로 지정할 수 있습니다.", "error");
+      showToast(
+        "50레벨 이상 길드원만 레이드 신청자로 지정할 수 있습니다.",
+        "error"
+      );
       return;
     }
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isRaidApplied: !currentStatus });
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id),
+        { isRaidApplied: !currentStatus }
+      );
       await updateLastModifiedTime();
-      showToast(!currentStatus ? "레이드 신청자로 등록했습니다." : "레이드 신청 상태를 해제했습니다.");
+      showToast(
+        !currentStatus
+          ? "레이드 신청자로 등록했습니다."
+          : "레이드 신청 상태를 해제했습니다."
+      );
     } catch (error) {
       showToast("레이드 신청 상태를 변경하지 못했습니다.", "error");
     }
   };
 
-  const handleToggleBuskingParticipant = async (memberId, currentStatus, memberLevel) => {
+  const handleToggleBuskingParticipant = async (
+    memberId,
+    currentStatus,
+    memberLevel
+  ) => {
     if (!user) return;
     if (Number(memberLevel) < 40) {
-      showToast("40레벨 이상 길드원만 버스킹 참가자로 지정할 수 있습니다.", "error");
+      showToast(
+        "40레벨 이상 길드원만 버스킹 참가자로 지정할 수 있습니다.",
+        "error"
+      );
       return;
     }
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { isBuskingParticipant: !currentStatus });
-      const nextRoster = wowRoster.map((member) => member.id === memberId ? { ...member, isBuskingParticipant: !currentStatus } : member);
-      await persistBuskingPublicSummary({ rosterOverride: nextRoster, voteCountsOverride: buskingShardCounts });
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        { isBuskingParticipant: !currentStatus }
+      );
+      const nextRoster = wowRoster.map((member) =>
+        member.id === memberId
+          ? { ...member, isBuskingParticipant: !currentStatus }
+          : member
+      );
+      await persistBuskingPublicSummary({
+        rosterOverride: nextRoster,
+        voteCountsOverride: buskingShardCounts,
+      });
       await updateLastModifiedTime();
-      showToast(!currentStatus ? "버스킹 참가자로 등록했습니다." : "버스킹 참가자에서 제외했습니다.");
+      showToast(
+        !currentStatus
+          ? "버스킹 참가자로 등록했습니다."
+          : "버스킹 참가자에서 제외했습니다."
+      );
     } catch (error) {
       showToast("버스킹 참가 상태를 변경하지 못했습니다.", "error");
     }
@@ -2824,9 +3772,17 @@ export default function App() {
   const handleUpdateWowBroadcastUrl = async (memberId, url) => {
     if (!user) return;
     try {
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { broadcastUrl: url || "" });
-      const nextRoster = wowRoster.map((member) => member.id === memberId ? { ...member, broadcastUrl: url || "" } : member);
-      await persistBuskingPublicSummary({ rosterOverride: nextRoster, voteCountsOverride: buskingShardCounts });
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        { broadcastUrl: url || "" }
+      );
+      const nextRoster = wowRoster.map((member) =>
+        member.id === memberId ? { ...member, broadcastUrl: url || "" } : member
+      );
+      await persistBuskingPublicSummary({
+        rosterOverride: nextRoster,
+        voteCountsOverride: buskingShardCounts,
+      });
       await updateLastModifiedTime();
       showToast("WOW 방송국 주소가 저장되었습니다.");
     } catch (error) {
@@ -2845,8 +3801,15 @@ export default function App() {
         startedAt: new Date().toISOString(),
         endedAt: null,
       };
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
-      await persistBuskingPublicSummary({ settingsOverride: nextSettings, voteCountsOverride: buskingShardCounts });
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "busking"),
+        nextSettings,
+        { merge: true }
+      );
+      await persistBuskingPublicSummary({
+        settingsOverride: nextSettings,
+        voteCountsOverride: buskingShardCounts,
+      });
       showToast("와우 버스킹 투표를 시작했습니다.");
     } catch (error) {
       showToast("투표 시작 처리 중 오류가 발생했습니다.", "error");
@@ -2864,8 +3827,15 @@ export default function App() {
         isVotingOpen: false,
         endedAt: new Date().toISOString(),
       };
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
-      await persistBuskingPublicSummary({ settingsOverride: nextSettings, voteCountsOverride: buskingShardCounts });
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "busking"),
+        nextSettings,
+        { merge: true }
+      );
+      await persistBuskingPublicSummary({
+        settingsOverride: nextSettings,
+        voteCountsOverride: buskingShardCounts,
+      });
       showToast("와우 버스킹 투표를 종료했습니다.");
     } catch (error) {
       showToast("투표 종료 처리 중 오류가 발생했습니다.", "error");
@@ -2887,17 +3857,41 @@ export default function App() {
         endedAt: null,
         resetAt: new Date().toISOString(),
       };
-      batch.set(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
-      const resetSummary = buildBuskingPublicSummary(wowRoster, nextSettings, {});
       batch.set(
-        doc(db, "artifacts", appId, "public", "data", "settings", BUSKING_PUBLIC_SUMMARY_DOC_ID),
+        doc(db, "artifacts", appId, "public", "data", "settings", "busking"),
+        nextSettings,
+        { merge: true }
+      );
+      const resetSummary = buildBuskingPublicSummary(
+        wowRoster,
+        nextSettings,
+        {}
+      );
+      batch.set(
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "settings",
+          BUSKING_PUBLIC_SUMMARY_DOC_ID
+        ),
         resetSummary
       );
       await batch.commit();
-      localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: nextRoundId, votes: [] }));
+      localStorage.setItem(
+        BUSKING_VOTE_STORAGE_KEY,
+        JSON.stringify({ roundId: nextRoundId, votes: [] })
+      );
       setBuskingLocalVotes([]);
       setBuskingShardCounts({});
-      setBuskingPublicRoster(resetSummary.participants.map((member) => ({ ...member, isBuskingParticipant: true })));
+      setBuskingPublicRoster(
+        resetSummary.participants.map((member) => ({
+          ...member,
+          isBuskingParticipant: true,
+        }))
+      );
       setBuskingPublicMeta({
         totalVotes: 0,
         participantCount: resetSummary.participantCount,
@@ -2921,9 +3915,17 @@ export default function App() {
         ...buskingSettings,
         noticeUrl: (buskingNoticeLinkInput || "").trim(),
       };
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "busking"),
+        nextSettings,
+        { merge: true }
+      );
       setBuskingSettings(nextSettings);
-      showToast(nextSettings.noticeUrl ? "와우 버스킹 공지사항 링크를 저장했습니다." : "공지사항 링크를 비웠습니다.");
+      showToast(
+        nextSettings.noticeUrl
+          ? "와우 버스킹 공지사항 링크를 저장했습니다."
+          : "공지사항 링크를 비웠습니다."
+      );
     } catch (error) {
       showToast("공지사항 링크 저장 중 오류가 발생했습니다.", "error");
     } finally {
@@ -2939,7 +3941,11 @@ export default function App() {
         ...buskingSettings,
         noticeUrl: "",
       };
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "busking"), nextSettings, { merge: true });
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "busking"),
+        nextSettings,
+        { merge: true }
+      );
       setBuskingSettings(nextSettings);
       setBuskingNoticeLinkInput("");
       showToast("와우 버스킹 공지사항 링크를 삭제했습니다.");
@@ -2964,15 +3970,53 @@ export default function App() {
 
     const currentRoundId = buskingSettings.roundId || "wow-busking-default";
     const voteEntryId = `${buskingClientId}__${member.id}`;
-    const shardIndex = getBuskingVoteShardIndex(`${buskingClientId}:${member.id}:${Date.now()}`);
+    const shardIndex = getBuskingVoteShardIndex(
+      `${buskingClientId}:${member.id}:${Date.now()}`
+    );
 
     setPendingBuskingVoteId(member.id);
     try {
       await runTransaction(db, async (transaction) => {
-        const settingsRef = doc(db, "artifacts", appId, "public", "data", "settings", "busking");
-        const memberRef = doc(db, "artifacts", appId, "public", "data", "wow_roster", member.id);
-        const voteRef = doc(db, "artifacts", appId, "public", "data", "busking_rounds", currentRoundId, "votes", voteEntryId);
-        const shardRef = doc(db, "artifacts", appId, "public", "data", "busking_rounds", currentRoundId, BUSKING_PUBLIC_SHARDS_COLLECTION, `shard_${shardIndex}`);
+        const settingsRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "settings",
+          "busking"
+        );
+        const memberRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "wow_roster",
+          member.id
+        );
+        const voteRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "busking_rounds",
+          currentRoundId,
+          "votes",
+          voteEntryId
+        );
+        const shardRef = doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "busking_rounds",
+          currentRoundId,
+          BUSKING_PUBLIC_SHARDS_COLLECTION,
+          `shard_${shardIndex}`
+        );
 
         const [settingsSnap, memberSnap, voteSnap] = await Promise.all([
           transaction.get(settingsRef),
@@ -2981,7 +4025,10 @@ export default function App() {
         ]);
 
         const settingsData = settingsSnap.exists() ? settingsSnap.data() : null;
-        if (!settingsData?.isVotingOpen || (settingsData.roundId || "wow-busking-default") !== currentRoundId) {
+        if (
+          !settingsData?.isVotingOpen ||
+          (settingsData.roundId || "wow-busking-default") !== currentRoundId
+        ) {
           throw new Error("VOTING_CLOSED");
         }
 
@@ -2994,7 +4041,10 @@ export default function App() {
         }
 
         const memberData = memberSnap.data();
-        if (!memberData?.isBuskingParticipant || Number(memberData?.level) < 40) {
+        if (
+          !memberData?.isBuskingParticipant ||
+          Number(memberData?.level) < 40
+        ) {
           throw new Error("MEMBER_NOT_ELIGIBLE");
         }
 
@@ -3007,19 +4057,26 @@ export default function App() {
           createdAt: new Date().toISOString(),
         });
 
-        transaction.set(shardRef, {
-          shardIndex,
-          roundId: currentRoundId,
-          totalVotes: increment(1),
-          updatedAt: new Date().toISOString(),
-          counts: {
-            [member.id]: increment(1),
+        transaction.set(
+          shardRef,
+          {
+            shardIndex,
+            roundId: currentRoundId,
+            totalVotes: increment(1),
+            updatedAt: new Date().toISOString(),
+            counts: {
+              [member.id]: increment(1),
+            },
           },
-        }, { merge: true });
+          { merge: true }
+        );
       });
 
       const nextVotes = [...buskingLocalVotes, member.id];
-      localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: currentRoundId, votes: nextVotes }));
+      localStorage.setItem(
+        BUSKING_VOTE_STORAGE_KEY,
+        JSON.stringify({ roundId: currentRoundId, votes: nextVotes })
+      );
       setBuskingLocalVotes(nextVotes);
 
       const nextCounts = {
@@ -3030,7 +4087,9 @@ export default function App() {
 
       let optimisticRoster = [];
       setBuskingPublicRoster((prev) => {
-        optimisticRoster = sortBuskingParticipants(applyBuskingVoteCounts(prev, nextCounts));
+        optimisticRoster = sortBuskingParticipants(
+          applyBuskingVoteCounts(prev, nextCounts)
+        );
         return optimisticRoster;
       });
       setBuskingPublicMeta((prev) => ({
@@ -3042,8 +4101,13 @@ export default function App() {
       showToast(`${member.streamerName}님에게 응원 투표를 반영했습니다!`);
     } catch (error) {
       if (error?.message === "ALREADY_VOTED") {
-        const nextVotes = buskingLocalVotes.includes(member.id) ? buskingLocalVotes : [...buskingLocalVotes, member.id];
-        localStorage.setItem(BUSKING_VOTE_STORAGE_KEY, JSON.stringify({ roundId: currentRoundId, votes: nextVotes }));
+        const nextVotes = buskingLocalVotes.includes(member.id)
+          ? buskingLocalVotes
+          : [...buskingLocalVotes, member.id];
+        localStorage.setItem(
+          BUSKING_VOTE_STORAGE_KEY,
+          JSON.stringify({ roundId: currentRoundId, votes: nextVotes })
+        );
         setBuskingLocalVotes(nextVotes);
         showToast(`${member.streamerName}님에게는 이미 투표를 완료했습니다.`);
       } else if (error?.message === "VOTING_CLOSED") {
@@ -3078,8 +4142,8 @@ export default function App() {
 
   const handleCopyWowApplicantList = () => {
     const applicants = wowRoster
-      .filter(m => m.level >= 40 && m.isApplied)
-      .map(m => m.streamerName)
+      .filter((m) => m.level >= 40 && m.isApplied)
+      .map((m) => m.streamerName)
       .join(", ");
 
     if (!applicants) {
@@ -3087,12 +4151,19 @@ export default function App() {
       return;
     }
 
-    copyTextToClipboard(applicants, `참가 신청 명단(${applicants.split(', ').length}명) 복사 완료!`);
+    copyTextToClipboard(
+      applicants,
+      `참가 신청 명단(${applicants.split(", ").length}명) 복사 완료!`
+    );
   };
 
   const isFixedRaidMemberId = (memberId) => memberId === GUILD_MASTER_ID;
 
-  const assignMemberToRaidSlot = (memberId, targetGroupIndex, targetSlotIndex) => {
+  const assignMemberToRaidSlot = (
+    memberId,
+    targetGroupIndex,
+    targetSlotIndex
+  ) => {
     const member = raidMemberMap[memberId];
     if (!member) return;
 
@@ -3103,7 +4174,11 @@ export default function App() {
       const sourceSlot = findRaidSlotByMemberId(next, memberId);
       const targetMemberId = next[targetGroupIndex][targetSlotIndex];
 
-      if (sourceSlot && sourceSlot.groupIndex === targetGroupIndex && sourceSlot.slotIndex === targetSlotIndex) {
+      if (
+        sourceSlot &&
+        sourceSlot.groupIndex === targetGroupIndex &&
+        sourceSlot.slotIndex === targetSlotIndex
+      ) {
         return prev;
       }
 
@@ -3148,23 +4223,31 @@ export default function App() {
     }
 
     setSelectedRaidMemberId(null);
-    setSelectedRaidTargetSlotKey((prev) => prev === slotKey ? null : slotKey);
+    setSelectedRaidTargetSlotKey((prev) => (prev === slotKey ? null : slotKey));
   };
 
   const handleQuickAddRaidMember = (memberId) => {
     let targetSlot = null;
     if (selectedRaidTargetSlotKey) {
-      const [groupIndexText, slotIndexText] = selectedRaidTargetSlotKey.split('-');
+      const [groupIndexText, slotIndexText] =
+        selectedRaidTargetSlotKey.split("-");
       const groupIndex = Number(groupIndexText);
       const slotIndex = Number(slotIndexText);
-      if (Number.isInteger(groupIndex) && Number.isInteger(slotIndex) && !raidAssignments[groupIndex]?.[slotIndex]) {
+      if (
+        Number.isInteger(groupIndex) &&
+        Number.isInteger(slotIndex) &&
+        !raidAssignments[groupIndex]?.[slotIndex]
+      ) {
         targetSlot = { groupIndex, slotIndex };
       }
     }
 
     const emptySlot = targetSlot || findNextEmptyRaidSlot(raidAssignments);
     if (!emptySlot) {
-      showToast(`${raidConfig.label} 레이드 자리가 모두 채워졌습니다.`, "error");
+      showToast(
+        `${raidConfig.label} 레이드 자리가 모두 채워졌습니다.`,
+        "error"
+      );
       return;
     }
 
@@ -3175,7 +4258,10 @@ export default function App() {
     const removedMemberId = raidAssignments[groupIndex]?.[slotIndex] || null;
 
     if (removedMemberId === GUILD_MASTER_ID) {
-      showToast("고정 길드원은 제거할 수 없지만 다른 슬롯으로 옮길 수 있습니다.", "error");
+      showToast(
+        "고정 길드원은 제거할 수 없지만 다른 슬롯으로 옮길 수 있습니다.",
+        "error"
+      );
       return;
     }
 
@@ -3200,7 +4286,9 @@ export default function App() {
   };
 
   const handleResetRaid = () => {
-    setRaidAssignments(createEmptyRaidLayout(raidConfig.groupCount, GUILD_MASTER_ID));
+    setRaidAssignments(
+      createEmptyRaidLayout(raidConfig.groupCount, GUILD_MASTER_ID)
+    );
     setSelectedRaidMemberId(null);
     setSelectedRaidTargetSlotKey(null);
     setRaidDragMemberId(null);
@@ -3214,7 +4302,10 @@ export default function App() {
   };
 
   const handleCopyRaidLink = () => {
-    copyTextToClipboard(`${window.location.origin}${window.location.pathname}#raid`, "공유용 #raid 링크를 복사했습니다.");
+    copyTextToClipboard(
+      `${window.location.origin}${window.location.pathname}#raid`,
+      "공유용 #raid 링크를 복사했습니다."
+    );
   };
 
   const handleCopyRaidSummary = () => {
@@ -3227,7 +4318,11 @@ export default function App() {
       group.forEach((memberId, slotIndex) => {
         const member = memberId ? raidMemberMap[memberId] : null;
         lines.push(
-          `${slotIndex + 1}. ${member ? `${member.streamerName} / ${member.wowNickname} / ${member.jobClass} / Lv.${member.level}` : "빈자리"}`
+          `${slotIndex + 1}. ${
+            member
+              ? `${member.streamerName} / ${member.wowNickname} / ${member.jobClass} / Lv.${member.level}`
+              : "빈자리"
+          }`
         );
       });
     });
@@ -3244,7 +4339,9 @@ export default function App() {
 
     if (!window.__raidHtml2CanvasPromise) {
       window.__raidHtml2CanvasPromise = new Promise((resolve, reject) => {
-        const existingScript = document.querySelector('script[data-raid-html2canvas="true"]');
+        const existingScript = document.querySelector(
+          'script[data-raid-html2canvas="true"]'
+        );
 
         const handleResolve = () => {
           if (window.html2canvas) {
@@ -3254,16 +4351,20 @@ export default function App() {
           }
         };
 
-        const handleError = () => reject(new Error("스크린샷 라이브러리를 불러오지 못했습니다."));
+        const handleError = () =>
+          reject(new Error("스크린샷 라이브러리를 불러오지 못했습니다."));
 
         if (existingScript) {
-          existingScript.addEventListener("load", handleResolve, { once: true });
+          existingScript.addEventListener("load", handleResolve, {
+            once: true,
+          });
           existingScript.addEventListener("error", handleError, { once: true });
           return;
         }
 
         const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+        script.src =
+          "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
         script.async = true;
         script.dataset.raidHtml2canvas = "true";
         script.onload = handleResolve;
@@ -3295,11 +4396,17 @@ export default function App() {
         logging: false,
         imageTimeout: 12000,
         onclone: (clonedDocument) => {
-          clonedDocument.querySelectorAll('[data-no-screenshot="true"], [data-raid-role-panel="true"]').forEach((element) => {
-            element.style.display = "none";
-          });
+          clonedDocument
+            .querySelectorAll(
+              '[data-no-screenshot="true"], [data-raid-role-panel="true"]'
+            )
+            .forEach((element) => {
+              element.style.display = "none";
+            });
 
-          const captureRoot = clonedDocument.querySelector('[data-raid-screenshot-root="true"]');
+          const captureRoot = clonedDocument.querySelector(
+            '[data-raid-screenshot-root="true"]'
+          );
           if (captureRoot) {
             captureRoot.style.boxShadow = "none";
             captureRoot.style.borderColor = "rgba(148, 163, 184, 0.28)";
@@ -3308,13 +4415,19 @@ export default function App() {
       });
 
       const downloadLink = document.createElement("a");
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+      const timestamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[T:]/g, "-");
       downloadLink.href = canvas.toDataURL("image/png");
       downloadLink.download = `wow-raid-${raidType}raid-${timestamp}.png`;
       downloadLink.click();
       showToast("레이드 스크린샷 저장이 시작되었습니다.");
     } catch (error) {
-      showToast("스크린샷 저장에 실패했습니다. 잠시 후 다시 시도해주세요.", "error");
+      showToast(
+        "스크린샷 저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
+        "error"
+      );
     } finally {
       setIsRaidCapturing(false);
     }
@@ -3344,7 +4457,8 @@ export default function App() {
 
   const handleRaidSlotDrop = (event, groupIndex, slotIndex) => {
     event.preventDefault();
-    const memberId = event.dataTransfer.getData("text/plain") || raidDragMemberId;
+    const memberId =
+      event.dataTransfer.getData("text/plain") || raidDragMemberId;
     if (memberId) {
       assignMemberToRaidSlot(memberId, groupIndex, slotIndex);
     }
@@ -3353,45 +4467,85 @@ export default function App() {
 
   const handleDeleteWowMember = async (id) => {
     if (!user || !window.confirm("정말 이 길드원을 삭제하시겠습니까?")) return;
-    try { await deleteDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id)); showToast("길드원이 삭제되었습니다."); } catch (error) {}
+    try {
+      await deleteDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", id)
+      );
+      showToast("길드원이 삭제되었습니다.");
+    } catch (error) {}
   };
 
   const handleResetDatabase = async () => {
     if (!user) return;
     setIsResetting(true);
     try {
-      for (const m of matches) await deleteDoc(doc(db, "artifacts", appId, "public", "data", "matches", m.id));
-      for (const p of players) await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
+      for (const m of matches)
+        await deleteDoc(
+          doc(db, "artifacts", appId, "public", "data", "matches", m.id)
+        );
+      for (const p of players)
+        await deleteDoc(
+          doc(db, "artifacts", appId, "public", "data", "players", p.id)
+        );
       await updateLastModifiedTime();
       showToast("데이터가 초기화되고 백지상태로 시작됩니다!", "success");
       setShowResetModal(false);
-    } catch (error) { showToast("초기화 중 오류가 발생했습니다.", "error"); } finally { setIsResetting(false); navigateTo("tier"); }
+    } catch (error) {
+      showToast("초기화 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsResetting(false);
+      navigateTo("tier");
+    }
   };
 
   const hashPassword = async (password) => {
     const msgBuffer = new TextEncoder().encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
     return hashHex;
   };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
-    if (!adminNicknameInput.trim()) { showToast("닉네임을 입력해주세요.", "error"); return; }
-    if (!passwordInput.trim()) { showToast("비밀번호를 입력해주세요.", "error"); return; }
-    if (!user) { showToast("서버와 연결 중입니다. 잠시만 기다려주세요.", "error"); return; }
+    if (!adminNicknameInput.trim()) {
+      showToast("닉네임을 입력해주세요.", "error");
+      return;
+    }
+    if (!passwordInput.trim()) {
+      showToast("비밀번호를 입력해주세요.", "error");
+      return;
+    }
+    if (!user) {
+      showToast("서버와 연결 중입니다. 잠시만 기다려주세요.", "error");
+      return;
+    }
 
     setIsAdminLoggingIn(true);
     try {
-      const authDocRef = doc(db, "artifacts", appId, "public", "data", "admin_auth", "config");
+      const authDocRef = doc(
+        db,
+        "artifacts",
+        appId,
+        "public",
+        "data",
+        "admin_auth",
+        "config"
+      );
       const authDocSnap = await getDoc(authDocRef);
       const inputHash = await hashPassword(passwordInput);
 
       if (!authDocSnap.exists()) {
         if (adminNicknameInput.trim() === "딸기세팅") {
-          await setDoc(authDocRef, { hash: inputHash, createdAt: new Date().toISOString() });
-          showToast(`🔒 [최초 등록 완료] 이제부터 이 비밀번호로만 접속 가능합니다! 다시 로그인해주세요.`);
+          await setDoc(authDocRef, {
+            hash: inputHash,
+            createdAt: new Date().toISOString(),
+          });
+          showToast(
+            `🔒 [최초 등록 완료] 이제부터 이 비밀번호로만 접속 가능합니다! 다시 로그인해주세요.`
+          );
           setPasswordInput("");
           setAdminNicknameInput("");
         } else {
@@ -3403,7 +4557,9 @@ export default function App() {
           localStorage.setItem("wak_admin_nickname", adminNicknameInput.trim());
           setCurrentAdminName(adminNicknameInput.trim());
           setIsAdminAuth(true);
-          showToast(`${adminNicknameInput.trim()}님, 관리자 모드에 접속하셨습니다.`);
+          showToast(
+            `${adminNicknameInput.trim()}님, 관리자 모드에 접속하셨습니다.`
+          );
           setPasswordInput("");
         } else {
           showToast("비밀번호가 일치하지 않습니다.", "error");
@@ -3419,9 +4575,23 @@ export default function App() {
 
   const handleAdminLogout = async () => {
     if (currentAdminName) {
-      try { await deleteDoc(doc(db, "artifacts", appId, "public", "data", "admin_presence", currentAdminName)); } catch (error) {}
+      try {
+        await deleteDoc(
+          doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "admin_presence",
+            currentAdminName
+          )
+        );
+      } catch (error) {}
     }
-    setIsAdminAuth(false); setCurrentAdminName(null); showToast("성공적으로 로그아웃 되었습니다.");
+    setIsAdminAuth(false);
+    setCurrentAdminName(null);
+    showToast("성공적으로 로그아웃 되었습니다.");
   };
 
   const handleSavePopup = async (e) => {
@@ -3430,12 +4600,15 @@ export default function App() {
       return showToast("팝업 제목과 내용을 모두 입력해주세요.", "error");
     }
     try {
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "popup"), {
-        title: popupTitleInput.trim(),
-        content: popupContentInput.trim(),
-        isActive: true,
-        updatedAt: Date.now()
-      });
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "popup"),
+        {
+          title: popupTitleInput.trim(),
+          content: popupContentInput.trim(),
+          isActive: true,
+          updatedAt: Date.now(),
+        }
+      );
       showToast("팝업 공지가 유저들에게 띄워집니다!");
     } catch (error) {
       showToast("팝업 저장 중 오류가 발생했습니다.", "error");
@@ -3444,10 +4617,14 @@ export default function App() {
 
   const handleDeletePopup = async () => {
     try {
-      await setDoc(doc(db, "artifacts", appId, "public", "data", "settings", "popup"), {
-        isActive: false,
-        updatedAt: Date.now()
-      }, { merge: true });
+      await setDoc(
+        doc(db, "artifacts", appId, "public", "data", "settings", "popup"),
+        {
+          isActive: false,
+          updatedAt: Date.now(),
+        },
+        { merge: true }
+      );
       showToast("팝업 공지가 사이트에서 즉시 내려갔습니다.");
     } catch (error) {
       showToast("팝업 삭제 중 오류가 발생했습니다.", "error");
@@ -3455,374 +4632,81 @@ export default function App() {
   };
 
   const handleUpdateImage = async (playerId, url) => {
-    try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("종겜 리그 프로필 이미지가 저장되었습니다."); } catch (error) {}
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "players", playerId),
+        { imageUrl: url || "" }
+      );
+      await updateLastModifiedTime();
+      showToast("종겜 리그 프로필 이미지가 저장되었습니다.");
+    } catch (error) {}
   };
 
   const handleUpdateLeagueParticipantImage = async (participant, url) => {
     try {
-      const collectionName = participant?._source === "draft_players" ? "draft_players" : "players";
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", collectionName, participant.id), { imageUrl: url || "" });
+      const collectionName =
+        participant?._source === "draft_players" ? "draft_players" : "players";
+      await updateDoc(
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          collectionName,
+          participant.id
+        ),
+        { imageUrl: url || "" }
+      );
       await updateLastModifiedTime();
       showToast("종겜 리그 프로필 이미지가 저장되었습니다.");
     } catch (error) {}
   };
 
   const handleUpdateBroadcastUrl = async (playerId, url) => {
-    try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId), { broadcastUrl: url || "" }); await updateLastModifiedTime(); showToast("방송국 주소가 저장되었습니다."); } catch (error) {}
+    try {
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "players", playerId),
+        { broadcastUrl: url || "" }
+      );
+      await updateLastModifiedTime();
+      showToast("방송국 주소가 저장되었습니다.");
+    } catch (error) {}
   };
 
-  const handleUpdateLeagueParticipantBroadcastUrl = async (participant, url) => {
+  const handleUpdateLeagueParticipantBroadcastUrl = async (
+    participant,
+    url
+  ) => {
     try {
-      const collectionName = participant?._source === "draft_players" ? "draft_players" : "players";
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", collectionName, participant.id), { broadcastUrl: url || "" });
+      const collectionName =
+        participant?._source === "draft_players" ? "draft_players" : "players";
+      await updateDoc(
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          collectionName,
+          participant.id
+        ),
+        { broadcastUrl: url || "" }
+      );
       await updateLastModifiedTime();
       showToast("방송국 주소가 저장되었습니다.");
     } catch (error) {}
   };
 
   const handleUpdateWowImage = async (memberId, url) => {
-    try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("와우 길드원 프로필 이미지가 저장되었습니다."); } catch (error) {}
-  };
-
-  const handleEventSettingsFieldChange = (field, value) => {
-    setEventAdminSettings((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleFillEventTeamsDraft = () => {
-    setEventAdminTeams((prev) => {
-      if (prev.length >= 8) return prev;
-      const nextTeams = cloneEventTeams(prev);
-      while (nextTeams.length < 8) {
-        nextTeams.push(createEmptyEventTeam(nextTeams.length + 1));
-      }
-      return nextTeams.map((team, index) => ({ ...team, sortOrder: index + 1 }));
-    });
-  };
-
-  const handleRemoveEventTeamDraft = (teamId) => {
-    setEventAdminTeams((prev) => prev.filter((team) => team.id !== teamId).map((team, index) => ({ ...team, sortOrder: index + 1 })));
-    setEventRosterSelections((prev) => {
-      const next = { ...prev };
-      delete next[teamId];
-      return next;
-    });
-    setEventGuestDrafts((prev) => {
-      const next = { ...prev };
-      delete next[teamId];
-      return next;
-    });
-  };
-
-  const handleEventTeamFieldChange = (teamId, field, value) => {
-    setEventAdminTeams((prev) => prev.map((team) => {
-      if (team.id !== teamId) return team;
-      if (field === "jobClass") {
-        const nextJobClass = normalizeWowJobClassKey(value);
-        const currentDefaultName = createDefaultEventTeamName(team.jobClass);
-        const nextDefaultName = createDefaultEventTeamName(nextJobClass);
-        return {
-          ...team,
-          jobClass: nextJobClass,
-          teamName: !team.teamName || team.teamName === currentDefaultName ? nextDefaultName : team.teamName,
-          themeColor: WOW_CLASS_COLORS[nextJobClass] || "#94a3b8",
-          members: [],
-        };
-      }
-
-      if (field === "teamName") {
-        return { ...team, teamName: value };
-      }
-
-      return { ...team, [field]: value };
-    }));
-
-    if (field === "jobClass") {
-      setEventRosterSelections((prev) => ({ ...prev, [teamId]: "" }));
-      setEventGuestDrafts((prev) => ({ ...prev, [teamId]: createEmptyEventGuestForm() }));
-    }
-  };
-
-  const handleAddEventRosterMemberToTeam = (teamId) => {
-    const selectedMemberId = eventRosterSelections[teamId];
-    if (!selectedMemberId) {
-      showToast("추가할 WOW 길드원을 먼저 선택해주세요.", "error");
-      return;
-    }
-
-    const targetTeam = eventAdminTeams.find((team) => team.id === teamId);
-    if (!targetTeam) return;
-    if (!targetTeam.jobClass) {
-      showToast("팀 직업을 먼저 선택해주세요.", "error");
-      return;
-    }
-    if (targetTeam.members.length >= 5) {
-      showToast("한 팀에는 최대 5명까지만 등록할 수 있습니다.", "error");
-      return;
-    }
-
-    const selectedMember = wowRoster.find((member) => member.id === selectedMemberId);
-    if (!selectedMember) {
-      showToast("선택한 WOW 길드원을 찾지 못했습니다.", "error");
-      return;
-    }
-
-    if (normalizeWowJobClassKey(selectedMember.jobClass) !== targetTeam.jobClass) {
-      showToast("팀 직업과 같은 직업의 길드원만 추가할 수 있습니다.", "error");
-      return;
-    }
-
-    const isAlreadyAssigned = eventAdminTeams.some((team) => team.members.some((member) => member.sourceType === "wowRoster" && member.sourceMemberId === selectedMember.id));
-    if (isAlreadyAssigned) {
-      showToast("해당 WOW 길드원은 이미 다른 팀에 등록되어 있습니다.", "error");
-      return;
-    }
-
-    const nextParticipant = createEventParticipantSnapshotFromRoster(selectedMember);
-    setEventAdminTeams((prev) => prev.map((team) => (
-      team.id === teamId ? { ...team, members: [...team.members, nextParticipant].slice(0, 5) } : team
-    )));
-    setEventRosterSelections((prev) => ({ ...prev, [teamId]: "" }));
-  };
-
-  const handleEventGuestDraftChange = (teamId, field, value) => {
-    setEventGuestDrafts((prev) => ({
-      ...prev,
-      [teamId]: {
-        ...(prev[teamId] || createEmptyEventGuestForm()),
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleAddEventGuestToTeam = (teamId) => {
-    const targetTeam = eventAdminTeams.find((team) => team.id === teamId);
-    if (!targetTeam) return;
-    if (!targetTeam.jobClass) {
-      showToast("팀 직업을 먼저 선택해주세요.", "error");
-      return;
-    }
-    if (targetTeam.members.length >= 5) {
-      showToast("한 팀에는 최대 5명까지만 등록할 수 있습니다.", "error");
-      return;
-    }
-
-    const guestDraft = eventGuestDrafts[teamId] || createEmptyEventGuestForm();
-    if (!guestDraft.displayName.trim() && !guestDraft.wowNickname.trim()) {
-      showToast("이벤트 참가자의 표시 이름 또는 와우 닉네임을 입력해주세요.", "error");
-      return;
-    }
-
-    const nextGuest = createEventGuestParticipantSnapshot(guestDraft, targetTeam.jobClass);
-    setEventAdminTeams((prev) => prev.map((team) => (
-      team.id === teamId ? { ...team, members: [...team.members, nextGuest].slice(0, 5) } : team
-    )));
-    setEventGuestDrafts((prev) => ({ ...prev, [teamId]: createEmptyEventGuestForm() }));
-  };
-
-  const handleRemoveEventTeamMember = (teamId, memberId) => {
-    setEventAdminTeams((prev) => prev.map((team) => (
-      team.id === teamId ? { ...team, members: team.members.filter((member) => member.id !== memberId) } : team
-    )));
-  };
-
-  const validateEventTeams = (teams = []) => {
-    if (teams.length !== 8) return "이벤트 팀은 정확히 8개여야 합니다.";
-
-    const jobClasses = teams.map((team) => team.jobClass).filter(Boolean);
-    if (jobClasses.length !== teams.length) return "모든 팀에 직업을 지정해주세요.";
-    if (new Set(jobClasses).size !== jobClasses.length) return "팀 직업은 중복 없이 8개여야 합니다.";
-
-    const assignedWowMemberIds = new Set();
-    for (const team of teams) {
-      if (team.members.length !== 5) return `[${team.teamName || createDefaultEventTeamName(team.jobClass)}] 팀은 정확히 5명의 참가자가 필요합니다.`;
-      for (const member of team.members) {
-        if ((member.jobClass || team.jobClass) !== team.jobClass) {
-          return `[${team.teamName || createDefaultEventTeamName(team.jobClass)}] 팀의 참가 직업이 팀 직업과 맞지 않습니다.`;
-        }
-        if (member.sourceType === "wowRoster" && member.sourceMemberId) {
-          if (assignedWowMemberIds.has(member.sourceMemberId)) {
-            return "동일한 WOW 길드원을 여러 팀에 동시에 넣을 수 없습니다.";
-          }
-          assignedWowMemberIds.add(member.sourceMemberId);
-        }
-      }
-    }
-
-    return null;
-  };
-
-  const handleSaveEventSettings = async () => {
-    if (!user) return;
-    if (!eventAdminSettings.title.trim()) {
-      showToast("이벤트 제목을 입력해주세요.", "error");
-      return;
-    }
-
-    setIsEventSettingsSaving(true);
     try {
-      const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-      const payload = {
-        ...normalizeEventSettings(eventAdminSettings),
-        eventId: CURRENT_EVENT_DOC_ID,
-        updatedAt: new Date().toISOString(),
-      };
-      await setDoc(eventDocRef, payload, { merge: true });
-      await updateLastModifiedTime();
-      showToast("이벤트 기본 설정이 저장되었습니다.");
-    } catch (error) {
-      console.error(error);
-      showToast("이벤트 기본 설정 저장 중 오류가 발생했습니다.", "error");
-    } finally {
-      setIsEventSettingsSaving(false);
-    }
-  };
-
-  const handleSaveEventTeams = async () => {
-    if (!user) return;
-
-    const normalizedTeams = eventAdminTeams
-      .map((team, index) => normalizeEventTeamDocument({ ...team, sortOrder: index + 1 }, index))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-
-    const validationMessage = validateEventTeams(normalizedTeams);
-    if (validationMessage) {
-      showToast(validationMessage, "error");
-      return;
-    }
-
-    setIsEventTeamsSaving(true);
-    try {
-      const batch = writeBatch(db);
-      const teamIds = new Set(normalizedTeams.map((team) => team.id));
-      const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-
-      eventTeams.forEach((team) => {
-        if (!teamIds.has(team.id)) {
-          batch.delete(doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "teams", team.id));
-        }
-      });
-
-      normalizedTeams.forEach((team, index) => {
-        batch.set(
-          doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "teams", team.id),
-          {
-            ...team,
-            sortOrder: index + 1,
-            updatedAt: new Date().toISOString(),
-            createdAt: team.createdAt || new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      });
-
-      batch.set(eventDocRef, { eventId: CURRENT_EVENT_DOC_ID, updatedAt: new Date().toISOString() }, { merge: true });
-      await batch.commit();
-      await updateLastModifiedTime();
-      showToast("이벤트 참가 팀 구성이 저장되었습니다.");
-    } catch (error) {
-      console.error(error);
-      showToast("이벤트 팀 저장 중 오류가 발생했습니다.", "error");
-    } finally {
-      setIsEventTeamsSaving(false);
-    }
-  };
-
-  const handleResetEventMatchesDraft = () => {
-    setEventAdminMatches(buildDefaultEventMatches());
-  };
-
-  const handleEventMatchFieldChange = (matchId, field, value) => {
-    setEventAdminMatches((prev) => {
-      const nextMatches = prev.map((match) => {
-        if (match.id !== matchId) return match;
-        const nextMatch = { ...match, [field]: value };
-        if (field === "teamAId" || field === "teamBId") {
-          nextMatch.status = "scheduled";
-          nextMatch.teamAScore = "";
-          nextMatch.teamBScore = "";
-          nextMatch.winnerTeamId = "";
-        }
-        if (field === "winnerTeamId") {
-          nextMatch.status = value ? "finished" : match.status === "finished" ? "scheduled" : match.status;
-        }
-        if (field === "status" && value === "scheduled") {
-          nextMatch.winnerTeamId = "";
-          nextMatch.teamAScore = "";
-          nextMatch.teamBScore = "";
-        }
-        if (field === "status" && value === "live") {
-          nextMatch.winnerTeamId = "";
-        }
-        return nextMatch;
-      });
-      return syncEventMatchesWithTeams(nextMatches, eventAdminTeams);
-    });
-  };
-
-  const handleSaveEventMatches = async () => {
-    if (!user) return;
-
-    const syncedMatches = syncEventMatchesWithTeams(eventAdminMatches, eventAdminTeams);
-    const quarterfinals = syncedMatches.filter((match) => match.round === "quarterfinal");
-    const quarterfinalTeamIds = quarterfinals.flatMap((match) => [match.teamAId, match.teamBId]).filter(Boolean);
-
-    if (quarterfinals.some((match) => !match.teamAId || !match.teamBId)) {
-      showToast("8강 4경기의 양쪽 팀을 모두 지정해주세요.", "error");
-      return;
-    }
-
-    if (quarterfinalTeamIds.length !== 8 || new Set(quarterfinalTeamIds).size !== 8) {
-      showToast("8강에는 중복 없이 정확히 8개의 팀이 배정되어야 합니다.", "error");
-      return;
-    }
-
-    for (const match of syncedMatches) {
-      const participantIds = [match.teamAId, match.teamBId].filter(Boolean);
-      if (match.status === "finished" && (!match.winnerTeamId || !participantIds.includes(match.winnerTeamId))) {
-        showToast(`${match.label}의 승리 팀을 올바르게 지정해주세요.`, "error");
-        return;
-      }
-    }
-
-    setIsEventMatchesSaving(true);
-    try {
-      const batch = writeBatch(db);
-      const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-      const currentRound = getEventCurrentRoundLabel(syncedMatches);
-      const championTeamId = syncedMatches.find((match) => match.id === "final1" && match.status === "finished")?.winnerTeamId || "";
-
-      syncedMatches.forEach((match) => {
-        batch.set(
-          doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "matches", match.id),
-          {
-            ...match,
-            updatedAt: new Date().toISOString(),
-            createdAt: match.createdAt || new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      });
-
-      batch.set(
-        eventDocRef,
-        {
-          eventId: CURRENT_EVENT_DOC_ID,
-          currentRound,
-          championTeamId,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
+      await updateDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId),
+        { imageUrl: url || "" }
       );
-
-      await batch.commit();
       await updateLastModifiedTime();
-      showToast("이벤트 대진표와 경기 결과가 저장되었습니다.");
-    } catch (error) {
-      console.error(error);
-      showToast("이벤트 대진표 저장 중 오류가 발생했습니다.", "error");
-    } finally {
-      setIsEventMatchesSaving(false);
-    }
+      showToast("와우 길드원 프로필 이미지가 저장되었습니다.");
+    } catch (error) {}
   };
 
   // ★ 경기 삭제 시 유령 선수 제거 로직 ★
@@ -3834,27 +4718,73 @@ export default function App() {
         const player = players.find((p) => p.name === result.playerName);
         if (player) {
           const hasOtherMatches = matches.some(
-            (m) => m.id !== matchToDelete.id && m.results?.some((r) => r.playerName === player.name)
+            (m) =>
+              m.id !== matchToDelete.id &&
+              m.results?.some((r) => r.playerName === player.name)
           );
           if (hasOtherMatches) {
-            await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(-result.scoreChange) });
+            await updateDoc(
+              doc(
+                db,
+                "artifacts",
+                appId,
+                "public",
+                "data",
+                "players",
+                player.id
+              ),
+              { points: increment(-result.scoreChange) }
+            );
           } else {
-            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id));
+            await deleteDoc(
+              doc(
+                db,
+                "artifacts",
+                appId,
+                "public",
+                "data",
+                "players",
+                player.id
+              )
+            );
           }
         }
       }
-      await deleteDoc(doc(db, "artifacts", appId, "public", "data", "matches", matchToDelete.id));
+      await deleteDoc(
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "matches",
+          matchToDelete.id
+        )
+      );
       await updateLastModifiedTime();
-      showToast("경기가 삭제되고 남은 기록이 없는 선수가 명단에서 제외되었습니다.");
+      showToast(
+        "경기가 삭제되고 남은 기록이 없는 선수가 명단에서 제외되었습니다."
+      );
       setMatchToDelete(null);
-    } catch (error) {} finally { setIsDeleting(false); }
+    } catch (error) {
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // ★ 관리자가 수동으로 선수를 영구 삭제하는 기능 ★
   const handleDeletePlayer = async (playerId, playerName) => {
-    if (!user || !window.confirm(`정말 [${playerName}] 선수를 명단에서 강제 삭제하시겠습니까?\n\n(주의: 이 선수가 참여한 경기 기록이 남아있다면 데이터가 꼬일 수 있으니, 경기 기록이 없는 '유령 선수'만 삭제해주세요!)`)) return;
+    if (
+      !user ||
+      !window.confirm(
+        `정말 [${playerName}] 선수를 명단에서 강제 삭제하시겠습니까?\n\n(주의: 이 선수가 참여한 경기 기록이 남아있다면 데이터가 꼬일 수 있으니, 경기 기록이 없는 '유령 선수'만 삭제해주세요!)`
+      )
+    )
+      return;
     try {
-      await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId));
+      await deleteDoc(
+        doc(db, "artifacts", appId, "public", "data", "players", playerId)
+      );
       await updateLastModifiedTime();
       showToast(`[${playerName}] 선수가 명단에서 영구 삭제되었습니다.`);
     } catch (error) {
@@ -3864,20 +4794,32 @@ export default function App() {
 
   // ★ 유령 데이터 일괄 청소 버튼 기능 ★
   const handleCleanGhostData = async () => {
-    if (!user || !window.confirm("경기 기록이 전혀 없는 '유령 선수'들을 찾아 명단에서 모두 삭제하시겠습니까?")) return;
+    if (
+      !user ||
+      !window.confirm(
+        "경기 기록이 전혀 없는 '유령 선수'들을 찾아 명단에서 모두 삭제하시겠습니까?"
+      )
+    )
+      return;
     setIsCleaningGhosts(true);
     try {
       let deletedCount = 0;
       for (const p of players) {
-        const hasMatch = matches.some((m) => m.results?.some((r) => r.playerName === p.name));
+        const hasMatch = matches.some((m) =>
+          m.results?.some((r) => r.playerName === p.name)
+        );
         if (!hasMatch) {
-          await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
+          await deleteDoc(
+            doc(db, "artifacts", appId, "public", "data", "players", p.id)
+          );
           deletedCount++;
         }
       }
       await updateLastModifiedTime();
       if (deletedCount > 0) {
-        showToast(`총 ${deletedCount}명의 유령 데이터를 성공적으로 청소했습니다!`);
+        showToast(
+          `총 ${deletedCount}명의 유령 데이터를 성공적으로 청소했습니다!`
+        );
       } else {
         showToast("삭제할 유령 데이터가 없습니다. (모두 정상입니다)");
       }
@@ -3889,36 +4831,60 @@ export default function App() {
   };
 
   const ensureDraftPlayersExistForMatchResults = async (results = []) => {
-    const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+    const uniqueNames = [
+      ...new Set(
+        (results || []).map((r) => (r.playerName || "").trim()).filter(Boolean)
+      ),
+    ];
     for (const playerName of uniqueNames) {
       const existingPlayer = players.find((p) => p.name === playerName);
       const existingDraft = draftPlayers.find((p) => p.name === playerName);
       if (!existingPlayer && !existingDraft) {
-        await addDoc(collection(db, "artifacts", appId, "public", "data", "draft_players"), {
-          name: playerName,
-          imageUrl: "",
-          broadcastUrl: "",
-          createdAt: new Date().toISOString(),
-        });
+        await addDoc(
+          collection(db, "artifacts", appId, "public", "data", "draft_players"),
+          {
+            name: playerName,
+            imageUrl: "",
+            broadcastUrl: "",
+            createdAt: new Date().toISOString(),
+          }
+        );
       }
     }
   };
 
   const ensurePlayersExistForPublishedMatchResults = async (results = []) => {
-    const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+    const uniqueNames = [
+      ...new Set(
+        (results || []).map((r) => (r.playerName || "").trim()).filter(Boolean)
+      ),
+    ];
     for (const playerName of uniqueNames) {
       const existing = players.find((p) => p.name === playerName);
       if (existing) continue;
       const existingDraft = draftPlayers.find((p) => p.name === playerName);
-      await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), {
-        name: playerName,
-        points: 0,
-        imageUrl: existingDraft?.imageUrl || "",
-        broadcastUrl: existingDraft?.broadcastUrl || "",
-        createdAt: new Date().toISOString(),
-      });
+      await addDoc(
+        collection(db, "artifacts", appId, "public", "data", "players"),
+        {
+          name: playerName,
+          points: 0,
+          imageUrl: existingDraft?.imageUrl || "",
+          broadcastUrl: existingDraft?.broadcastUrl || "",
+          createdAt: new Date().toISOString(),
+        }
+      );
       if (existingDraft?.id) {
-        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "draft_players", existingDraft.id));
+        await deleteDoc(
+          doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "draft_players",
+            existingDraft.id
+          )
+        );
       }
     }
   };
@@ -3939,12 +4905,16 @@ export default function App() {
     const allNames = new Set([...oldMap.keys(), ...newMap.keys()]);
 
     for (const playerName of allNames) {
-      const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
+      const delta =
+        (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
       if (!delta) continue;
 
       let player = players.find((p) => p.name === playerName);
       if (!player) {
-        const playerQuery = query(collection(db, "artifacts", appId, "public", "data", "players"), where("name", "==", playerName));
+        const playerQuery = query(
+          collection(db, "artifacts", appId, "public", "data", "players"),
+          where("name", "==", playerName)
+        );
         const playerSnapshot = await getDocs(playerQuery);
         if (!playerSnapshot.empty) {
           const playerDoc = playerSnapshot.docs[0];
@@ -3953,9 +4923,19 @@ export default function App() {
       }
 
       if (player) {
-        await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
+        await updateDoc(
+          doc(db, "artifacts", appId, "public", "data", "players", player.id),
+          { points: increment(delta) }
+        );
       } else if (delta > 0) {
-        await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: playerName, points: delta, createdAt: new Date().toISOString() });
+        await addDoc(
+          collection(db, "artifacts", appId, "public", "data", "players"),
+          {
+            name: playerName,
+            points: delta,
+            createdAt: new Date().toISOString(),
+          }
+        );
       }
     }
   };
@@ -3965,62 +4945,81 @@ export default function App() {
     setEditGameName(match.gameName);
     setEditMatchDate(match.date);
     setEditMatchMode(match.matchType || "individual");
-    
+
     setEditHasFunding(match.hasFunding || false);
     setEditTotalFunding(match.totalFunding || "");
     setEditIsPublished(match.isPublished !== false);
 
     if (match.matchType === "team") {
-      const teamsByRank = {};
-      (match.results || []).forEach((r) => {
-        if (!teamsByRank[r.rank]) teamsByRank[r.rank] = { 
-           id: Date.now() + Math.random(), 
-           rank: r.rank, 
-           scoreChange: r.scoreChange, 
-           players: [],
-           fundingRatio: r.fundingRatio || "",
-           fundingAmount: r.fundingAmount || ""
-        };
-        teamsByRank[r.rank].players.push(r.playerName);
-      });
-      setEditTeamResults(Object.values(teamsByRank).sort((a,b) => a.rank - b.rank));
-      setEditIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
+      const normalizedTeams = getNormalizedTeamMatchResults(match);
+      setEditTeamResults(
+        normalizedTeams.length > 0
+          ? normalizedTeams
+          : createDefaultTeamMatchResults()
+      );
+      setEditIndividualResults([
+        {
+          playerName: "",
+          rank: 1,
+          scoreChange: 100,
+          fundingRatio: "",
+          fundingAmount: "",
+        },
+        {
+          playerName: "",
+          rank: 2,
+          scoreChange: 50,
+          fundingRatio: "",
+          fundingAmount: "",
+        },
+      ]);
     } else {
-      setEditIndividualResults([...(match.results || [])].map(r => ({...r, fundingRatio: r.fundingRatio || "", fundingAmount: r.fundingAmount || ""})));
-      setEditTeamResults([{ id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" }, { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" }]);
+      setEditIndividualResults(
+        [...(match.results || [])].map((r) => ({
+          ...r,
+          fundingRatio: r.fundingRatio || "",
+          fundingAmount: r.fundingAmount || "",
+        }))
+      );
+      setEditTeamResults(createDefaultTeamMatchResults());
     }
   };
 
   const handleSaveEditedMatch = async (e) => {
     e.preventDefault();
-    if (!editGameName.trim()) return showToast("게임 이름을 입력해주세요.", "error");
+    if (!editGameName.trim())
+      return showToast("게임 이름을 입력해주세요.", "error");
 
     let finalResults = [];
+    let nextTeamResults = [];
     if (editMatchMode === "individual") {
       finalResults = editIndividualResults
         .filter((r) => r.playerName.trim() !== "")
-        .map(r => ({
-           playerName: r.playerName.trim(),
-           rank: r.rank,
-           scoreChange: r.scoreChange,
-           ...(editHasFunding ? { fundingRatio: Number(r.fundingRatio) || 0, fundingAmount: Number(r.fundingAmount) || 0 } : {})
+        .map((r) => ({
+          playerName: r.playerName.trim(),
+          rank: r.rank,
+          scoreChange: r.scoreChange,
+          ...(editHasFunding
+            ? {
+                fundingRatio: Number(r.fundingRatio) || 0,
+                fundingAmount: Number(r.fundingAmount) || 0,
+              }
+            : {}),
         }));
     } else {
-      editTeamResults.forEach((team) => {
-        team.players.forEach((pName) => {
-          if (pName.trim() !== "") {
-            finalResults.push({ 
-               playerName: pName.trim(), 
-               rank: team.rank, 
-               scoreChange: team.scoreChange,
-               ...(editHasFunding ? { fundingRatio: Number(team.fundingRatio) || 0, fundingAmount: Number(team.fundingAmount) || 0 } : {})
-            });
-          }
-        });
-      });
+      const teamPayload = buildTeamMatchPayload(
+        editTeamResults,
+        editHasFunding
+      );
+      finalResults = teamPayload.results;
+      nextTeamResults = teamPayload.teamResults;
     }
 
-    if (finalResults.length === 0) return showToast("최소 1명 이상의 유효한 참가자를 입력해주세요.", "error");
+    if (finalResults.length === 0)
+      return showToast(
+        "최소 1명 이상의 유효한 참가자를 입력해주세요.",
+        "error"
+      );
 
     setIsEditingSubmit(true);
     try {
@@ -4030,25 +5029,46 @@ export default function App() {
         await ensureDraftPlayersExistForMatchResults(finalResults);
       }
 
-      const oldPublishedResults = (matchToEdit.originalMatch.isPublished !== false) ? (matchToEdit.originalMatch.results || []) : [];
+      const oldPublishedResults =
+        matchToEdit.originalMatch.isPublished !== false
+          ? matchToEdit.originalMatch.results || []
+          : [];
       const newPublishedResults = editIsPublished ? finalResults : [];
 
       await applyMatchScoreDelta(oldPublishedResults, newPublishedResults);
 
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "matches", matchToEdit.id), {
-        gameName: editGameName,
-        date: editMatchDate,
-        matchType: editMatchMode,
-        hasFunding: editHasFunding,
-        totalFunding: editHasFunding ? Number(editTotalFunding) || 0 : 0,
-        results: finalResults,
-        isPublished: editIsPublished,
-        publishedAt: editIsPublished ? (matchToEdit.originalMatch.publishedAt || new Date().toISOString()) : null,
-        updatedAt: new Date().toISOString()
-      });
+      await updateDoc(
+        doc(
+          db,
+          "artifacts",
+          appId,
+          "public",
+          "data",
+          "matches",
+          matchToEdit.id
+        ),
+        {
+          gameName: editGameName,
+          date: editMatchDate,
+          matchType: editMatchMode,
+          hasFunding: editHasFunding,
+          totalFunding: editHasFunding ? Number(editTotalFunding) || 0 : 0,
+          results: finalResults,
+          teamResults: editMatchMode === "team" ? nextTeamResults : [],
+          isPublished: editIsPublished,
+          publishedAt: editIsPublished
+            ? matchToEdit.originalMatch.publishedAt || new Date().toISOString()
+            : null,
+          updatedAt: new Date().toISOString(),
+        }
+      );
 
       await updateLastModifiedTime();
-      showToast(editIsPublished ? "경기 기록이 저장/공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
+      showToast(
+        editIsPublished
+          ? "경기 기록이 저장/공개되었습니다."
+          : "경기 기록이 임시 저장되었습니다."
+      );
       setMatchToEdit(null);
     } catch (error) {
       showToast("수정 중 오류 발생", "error");
@@ -4061,16 +5081,29 @@ export default function App() {
     <div className="space-y-6">
       <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden flex items-center min-h-[240px]">
         <div className="relative z-10 w-full md:w-3/4 pr-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 md:whitespace-nowrap tracking-tight">우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
-          <p className="text-gray-300 mb-6 text-sm md:text-base break-keep">매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 md:whitespace-nowrap tracking-tight">
+            우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다
+          </h2>
+          <p className="text-gray-300 mb-6 text-sm md:text-base break-keep">
+            매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.
+          </p>
           <div className="flex flex-wrap gap-4">
-            <button onClick={() => navigateTo("tier")} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition">
+            <button
+              onClick={() => navigateTo("tier")}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition"
+            >
               <Trophy className="w-5 h-5 mr-2" /> 티어표 보기
             </button>
-            <button onClick={() => navigateTo("matches")} className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg hover:bg-gray-700 transition">
+            <button
+              onClick={() => navigateTo("matches")}
+              className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg hover:bg-gray-700 transition"
+            >
               <Swords className="w-5 h-5 mr-2" /> 경기 기록
             </button>
-            <button onClick={() => navigateTo("wow")} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-900 to-purple-900 text-white rounded-lg border border-blue-700/50 shadow-lg hover:from-blue-800 hover:to-purple-800 transition">
+            <button
+              onClick={() => navigateTo("wow")}
+              className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-900 to-purple-900 text-white rounded-lg border border-blue-700/50 shadow-lg hover:from-blue-800 hover:to-purple-800 transition"
+            >
               <Shield className="w-5 h-5 mr-2" /> 와우 왁타버스 길드
             </button>
           </div>
@@ -4083,30 +5116,43 @@ export default function App() {
           </h3>
           {publishedMatches.length > 0 ? (
             <div className="space-y-4">
-              {publishedMatches.slice(0, 3).map((match) => (
-                <button
-                  key={match.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedMatchId(match.id);
-                    navigateTo("matches");
-                  }}
-                  className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
-                >
-                  <div>
-                    <div className="flex items-center">
-                      {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
-                      <p className="font-bold text-white text-lg">{match.gameName}</p>
+              {publishedMatches.slice(0, 3).map((match) => {
+                const firstPlaceName =
+                  match.results?.find((r) => r.rank === 1)?.playerName || "";
+                const firstPlaceLabel =
+                  match.matchType === "team" && firstPlaceName
+                    ? `${firstPlaceName} 팀`
+                    : firstPlaceName;
+
+                return (
+                  <button
+                    key={match.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMatchId(match.id);
+                      navigateTo("matches");
+                    }}
+                    className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
+                  >
+                    <div>
+                      <div className="flex items-center">
+                        {match.matchType === "team" && (
+                          <Users className="w-4 h-4 text-indigo-400 mr-1.5" />
+                        )}
+                        <p className="font-bold text-white text-lg">
+                          {match.gameName}
+                        </p>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">{match.date}</p>
                     </div>
-                    <p className="text-sm text-gray-400 mt-1">{match.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-base text-yellow-400 font-bold">
-                      1위: {match.results?.find((r) => r.rank === 1)?.playerName}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    <div className="text-right">
+                      <p className="text-base text-yellow-400 font-bold">
+                        1위: {firstPlaceLabel}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="text-gray-400 text-lg">최근 경기가 없습니다.</p>
@@ -4118,21 +5164,44 @@ export default function App() {
           </h3>
           {players.length > 0 ? (
             <div className="space-y-3">
-              {[...players].sort((a, b) => b.points - a.points).slice(0, 5).map((player, idx) => (
-                  <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="flex items-center bg-gray-700/30 p-3 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group">
-                    <div className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${
-                      idx === 0 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]" : 
-                      idx === 1 ? "bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.5)]" :
-                      idx === 2 ? "bg-amber-600 text-white shadow-[0_0_10px_rgba(217,119,6,0.5)]" :
-                      "bg-gray-600 text-white"
-                    }`}>
+              {[...players]
+                .sort((a, b) => b.points - a.points)
+                .slice(0, 5)
+                .map((player, idx) => (
+                  <div
+                    key={player.id}
+                    onClick={() => setSelectedPlayer(player.name)}
+                    className="flex items-center bg-gray-700/30 p-3 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group"
+                  >
+                    <div
+                      className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${
+                        idx === 0
+                          ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]"
+                          : idx === 1
+                          ? "bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.5)]"
+                          : idx === 2
+                          ? "bg-amber-600 text-white shadow-[0_0_10px_rgba(217,119,6,0.5)]"
+                          : "bg-gray-600 text-white"
+                      }`}
+                    >
                       {idx + 1}
                     </div>
                     <div className="flex-1 flex items-center gap-3">
-                      <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition" />
-                      <span className="font-bold text-lg text-white group-hover:text-green-400 transition">{player.name}</span>
+                      <img
+                        src={getAvatarSrc(player.name)}
+                        onError={(e) => {
+                          e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                        }}
+                        alt="avatar"
+                        className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition"
+                      />
+                      <span className="font-bold text-lg text-white group-hover:text-green-400 transition">
+                        {player.name}
+                      </span>
                     </div>
-                    <div className="text-green-400 font-black text-lg">{player.points} pt</div>
+                    <div className="text-green-400 font-black text-lg">
+                      {player.points} pt
+                    </div>
                   </div>
                 ))}
             </div>
@@ -4145,9 +5214,16 @@ export default function App() {
   );
 
   const renderPlayersView = () => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
+    const todayStr = new Date().toISOString().split("T")[0];
+    const storageData = JSON.parse(
+      localStorage.getItem("wak_vleague_hearts_v1") ||
+        '{"date": "", "votes": []}'
+    );
     const votesToday = storageData.date === todayStr ? storageData.votes : [];
+    const getPlayerSortButtonClasses = (isActive) =>
+      isActive
+        ? "bg-purple-500/15 text-purple-200 border-purple-400/40 shadow-[0_0_18px_rgba(168,85,247,0.12)]"
+        : "bg-gray-900/80 text-gray-300 border-gray-700 hover:border-purple-500/40 hover:text-white";
 
     return (
       <div className="space-y-8">
@@ -4157,10 +5233,13 @@ export default function App() {
           </div>
           <div className="relative z-10 text-center">
             <h2 className="text-2xl md:text-3xl font-black text-white mb-3 flex items-center justify-center drop-shadow-md">
-              <Users className="w-8 h-8 mr-3 text-purple-400" /> 참가 선수 갤러리
+              <Users className="w-8 h-8 mr-3 text-purple-400" /> 참가 선수
+              갤러리
             </h2>
             <p className="text-gray-300 text-base md:text-lg leading-relaxed max-w-2xl mx-auto break-keep">
-              버츄얼 종겜 리그에 참여한 이력이 있는 스트리머들의 프로필을 확인하실 수 있습니다.<br/>
+              버츄얼 종겜 리그에 참여한 이력이 있는 스트리머들의 프로필을
+              확인하실 수 있습니다.
+              <br />
               <span className="text-purple-200 font-medium text-sm md:text-base mt-4 inline-block bg-white/5 px-6 py-2 rounded-full border border-white/10 shadow-sm backdrop-blur-sm">
                 💡 궁금한 스트리머의 프로필을 클릭해보세요!
               </span>
@@ -4168,60 +5247,170 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-          {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => {
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handlePlayerCardSortChange("name")}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${getPlayerSortButtonClasses(
+                playerCardSort.key === "name"
+              )}`}
+            >
+              이름순
+              {playerCardSort.key === "name" ? (
+                playerCardSort.direction === "asc" ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )
+              ) : (
+                <span className="text-xs text-gray-500">기본</span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePlayerCardSortChange("points")}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${getPlayerSortButtonClasses(
+                playerCardSort.key === "points"
+              )}`}
+            >
+              포인트수
+              {playerCardSort.key === "points" ? (
+                playerCardSort.direction === "asc" ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )
+              ) : (
+                <Trophy className="w-3.5 h-3.5 text-gray-500" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePlayerCardSortChange("hearts")}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${getPlayerSortButtonClasses(
+                playerCardSort.key === "hearts"
+              )}`}
+            >
+              응원수
+              {playerCardSort.key === "hearts" ? (
+                playerCardSort.direction === "asc" ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )
+              ) : (
+                <Heart className="w-3.5 h-3.5 text-gray-500" />
+              )}
+            </button>
+          </div>
+
+          <div className="relative w-full xl:w-96">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={playerCardSearchInput}
+              onChange={(e) => setPlayerCardSearchInput(e.target.value)}
+              placeholder="선수명으로 검색"
+              className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-3.5 xl:gap-4">
+          {filteredPlayersForGallery.map((player) => {
             const hasVotedToday = votesToday.includes(player.name);
-            const broadcastLink = player.broadcastUrl?.trim() 
-              ? player.broadcastUrl 
-              : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(player.name)}`;
+            const broadcastLink = player.broadcastUrl?.trim()
+              ? player.broadcastUrl
+              : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(
+                  player.name
+                )}`;
 
             return (
-              <div key={player.id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col">
-                <div className="p-4 flex-1 flex flex-col items-center cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-700 border-2 border-gray-600 mb-3 overflow-hidden group-hover:scale-110 group-hover:border-purple-400 transition-all duration-300 shadow-md">
-                    <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
+              <div
+                key={player.id}
+                className="bg-gradient-to-b from-gray-800 to-gray-800/95 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:-translate-y-1 hover:border-purple-500/50 hover:shadow-[0_0_18px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col min-h-[248px]"
+              >
+                <div
+                  className="p-3.5 md:p-4 flex-1 flex flex-col items-center cursor-pointer"
+                  onClick={() => setSelectedPlayer(player.name)}
+                >
+                  <div className="w-16 h-16 md:w-[4.5rem] md:h-[4.5rem] rounded-full bg-gray-700 border-2 border-gray-600 mb-3 overflow-hidden group-hover:scale-110 group-hover:border-purple-400 transition-all duration-300 shadow-md">
+                    <img
+                      src={getAvatarSrc(player.name)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                      }}
+                      alt={player.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <h3 className="font-bold text-white text-base md:text-lg group-hover:text-purple-400 transition-colors">{player.name}</h3>
-                  <span className="text-xs font-bold text-green-400 bg-green-900/20 px-2.5 py-0.5 rounded mt-1.5 border border-green-800/30">{player.points} pt</span>
+                  <h3 className="font-bold text-white text-sm md:text-[15px] text-center break-all leading-tight group-hover:text-purple-400 transition-colors">
+                    {player.name}
+                  </h3>
+                  <span className="text-xs font-bold text-green-400 bg-green-900/20 px-2.5 py-0.5 rounded-full mt-2 border border-green-800/30">
+                    {player.points} pt
+                  </span>
                 </div>
-                <div className="px-3 pb-4 space-y-2 mt-auto">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCheerPlayer(player.id, player.name); }}
-                      disabled={cheeringPlayerId === player.id}
-                      className={`w-full flex items-center justify-center py-2 rounded-lg font-bold text-xs transition-all duration-300 transform active:scale-95 ${
-                        cheeringPlayerId === player.id
-                          ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed" 
-                          : hasVotedToday
-                            ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
-                            : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
-                      }`}
-                    >
-                      {cheeringPlayerId === player.id ? (
-                        <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-gray-400" /> 처리 중...</>
-                      ) : (
-                        <>
-                          <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
-                          {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
-                        </>
-                      )}
-                    </button>
-                    <a
-                      href={broadcastLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className="w-full flex items-center justify-center py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"
-                    >
-                      📺 방송국 가기
-                    </a>
+                <div className="px-3 pb-3.5 space-y-2 mt-auto">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCheerPlayer(player.id, player.name);
+                    }}
+                    disabled={cheeringPlayerId === player.id}
+                    className={`w-full flex items-center justify-center py-2.5 rounded-xl font-bold text-xs transition-all duration-300 transform active:scale-95 ${
+                      cheeringPlayerId === player.id
+                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed"
+                        : hasVotedToday
+                        ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
+                        : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
+                    }`}
+                  >
+                    {cheeringPlayerId === player.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-gray-400" />{" "}
+                        처리 중...
+                      </>
+                    ) : (
+                      <>
+                        <Heart
+                          className={`w-3.5 h-3.5 mr-1 ${
+                            hasVotedToday
+                              ? "fill-pink-400 text-pink-400"
+                              : "fill-transparent text-white"
+                          }`}
+                        />
+                        {hasVotedToday ? "응원완료" : "응원하기"}{" "}
+                        {(player.hearts || 0).toLocaleString()}
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={broadcastLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full flex items-center justify-center py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"
+                  >
+                    📺 방송국 가기
+                  </a>
                 </div>
               </div>
-            )
+            );
           })}
+
           {players.length === 0 && (
             <div className="col-span-full py-16 text-center text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p>아직 등록된 선수가 없습니다.</p>
+            </div>
+          )}
+
+          {players.length > 0 && filteredPlayersForGallery.length === 0 && (
+            <div className="col-span-full py-16 text-center text-gray-500">
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>검색 결과가 없습니다.</p>
             </div>
           )}
         </div>
@@ -4231,34 +5420,68 @@ export default function App() {
 
   const renderMatchesView = () => (
     <div className="space-y-8">
-      <h2 className="text-3xl font-bold text-white flex items-center mb-4">
-        <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
-      </h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h2 className="text-3xl font-bold text-white flex items-center">
+          <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
+        </h2>
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={matchSearchInput}
+            onChange={(e) => setMatchSearchInput(e.target.value)}
+            placeholder="게임명 또는 참가 선수 검색"
+            className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+          />
+        </div>
+      </div>
       <div className="grid gap-6">
-        {publishedMatches.map((match) => {
+        {filteredPublishedMatches.map((match) => {
           if (match.matchType === "team") {
-            const teamsByRank = {};
-            (match.results || []).forEach((r) => {
-              if (!teamsByRank[r.rank]) teamsByRank[r.rank] = { rank: r.rank, scoreChange: r.scoreChange, players: [] };
-              teamsByRank[r.rank].players.push(r.playerName);
-            });
-            const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
+            const sortedTeams = getNormalizedTeamMatchResults(match);
+            const setScoreLabel = getTeamMatchSetScoreLabel(sortedTeams);
 
             return (
-              <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
+              <div
+                id={`match-card-${match.id}`}
+                key={match.id}
+                className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${
+                  selectedMatchId === match.id
+                    ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]"
+                    : "border-gray-700"
+                }`}
+              >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                   <div className="flex items-center flex-wrap gap-3">
-                    <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
+                    <h3 className="text-2xl font-bold text-white">
+                      {match.gameName}
+                    </h3>
                     <div className="flex items-center gap-2">
                       <span className="bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
                         <Users className="w-4 h-4 mr-1.5" /> 팀전
                       </span>
+                      {setScoreLabel && (
+                        <span className="bg-sky-900/40 text-sky-200 border border-sky-700/50 px-3 py-1 rounded text-sm font-bold shadow-sm">
+                          세트 결과 {setScoreLabel}
+                        </span>
+                      )}
                       {match.hasFunding && (
-                        <button 
-                          onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
+                        <button
+                          onClick={() =>
+                            setExpandedFundingMatchId(
+                              expandedFundingMatchId === match.id
+                                ? null
+                                : match.id
+                            )
+                          }
                           className="bg-yellow-900/40 text-yellow-400 border border-yellow-700/50 px-3 py-1 rounded text-sm font-bold flex items-center hover:bg-yellow-800/60 transition shadow-sm"
                         >
-                          <Coins className="w-4 h-4 mr-1.5" /> 펀딩 결산 {expandedFundingMatchId === match.id ? <ChevronUp className="w-4 h-4 ml-1"/> : <ChevronDown className="w-4 h-4 ml-1"/>}
+                          <Coins className="w-4 h-4 mr-1.5" /> 펀딩 결산{" "}
+                          {expandedFundingMatchId === match.id ? (
+                            <ChevronUp className="w-4 h-4 ml-1" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 ml-1" />
+                          )}
                         </button>
                       )}
                     </div>
@@ -4268,18 +5491,62 @@ export default function App() {
 
                 <div className="flex flex-col gap-4 order-3">
                   {sortedTeams.map((team, idx) => (
-                    <div key={idx} className={`p-5 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
+                    <div
+                      key={idx}
+                      className={`p-5 rounded-lg border ${
+                        team.rank === 1
+                          ? "bg-yellow-500/10 border-yellow-500/30"
+                          : "bg-gray-700/30 border-gray-600"
+                      }`}
+                    >
                       <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
-                        <span className={`text-lg font-bold ${team.rank === 1 ? "text-yellow-400" : "text-gray-300"}`}>{team.rank}위 팀</span>
-                        <span className={`text-sm font-bold px-3 py-1 rounded ${team.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                          {team.scoreChange > 0 ? "+" : ""}{team.scoreChange} pt
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-lg font-bold ${
+                              team.rank === 1
+                                ? "text-yellow-400"
+                                : "text-gray-300"
+                            }`}
+                          >
+                            {team.rank}위 팀
+                          </span>
+                          {team.setWins !== "" &&
+                            team.setWins !== null &&
+                            team.setWins !== undefined && (
+                              <span className="px-2.5 py-1 rounded text-xs font-black border border-sky-500/30 bg-sky-500/10 text-sky-200">
+                                {team.setWins}승
+                              </span>
+                            )}
+                        </div>
+                        <span
+                          className={`text-sm font-bold px-3 py-1 rounded ${
+                            team.scoreChange >= 0
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-red-500/20 text-red-400"
+                          }`}
+                        >
+                          {team.scoreChange > 0 ? "+" : ""}
+                          {team.scoreChange} pt
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-3">
                         {team.players.map((p) => (
-                          <div key={p} onClick={() => setSelectedPlayer(p)} className="flex items-center bg-gray-900 px-4 py-2 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group">
-                            <img src={getAvatarSrc(p)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }} alt="avatar" className="w-8 h-8 rounded-full mr-2.5 bg-gray-800 object-cover border border-gray-600" />
-                            <span className="text-base font-bold text-white group-hover:text-green-400">{p}</span>
+                          <div
+                            key={p}
+                            onClick={() => setSelectedPlayer(p)}
+                            className="flex items-center bg-gray-900 px-4 py-2 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group"
+                          >
+                            <img
+                              src={getAvatarSrc(p)}
+                              onError={(e) => {
+                                e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`;
+                              }}
+                              alt="avatar"
+                              className="w-8 h-8 rounded-full mr-2.5 bg-gray-800 object-cover border border-gray-600"
+                            />
+                            <span className="text-base font-bold text-white group-hover:text-green-400">
+                              {p}
+                            </span>
                           </div>
                         ))}
                       </div>
@@ -4289,77 +5556,148 @@ export default function App() {
 
                 {expandedFundingMatchId === match.id && match.hasFunding && (
                   <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
-                     <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
-                        <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
-                        <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
-                          <Star className="w-6 h-6 mr-2 fill-yellow-400 text-yellow-400" />
-                          {(match.totalFunding || 0).toLocaleString()} 개
-                        </div>
-                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {sortedTeams.map((team, idx) => {
-                           const firstPlayerResult = match.results.find(r => r.playerName === team.players[0]);
-                           const fAmount = firstPlayerResult?.fundingAmount || 0;
-                           const fRatio = firstPlayerResult?.fundingRatio || 0;
-                           return (
-                             <div key={idx} className="flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm">
-                                <div className="flex justify-between items-center mb-3 border-b border-gray-700/80 pb-3">
-                                   <span className={`text-base font-bold ${team.rank===1?'text-yellow-400':'text-gray-300'}`}>{team.rank}위 팀 전리품</span>
-                                   <div className="text-right">
-                                      <span className="text-yellow-400 font-black text-xl">{Number(fAmount).toLocaleString()}개</span>
-                                      {fRatio > 0 && <span className="text-xs text-gray-400 font-bold ml-1.5">({fRatio}%)</span>}
-                                   </div>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                   {team.players.map(p => (
-                                      <span key={p} className="text-sm text-gray-200 font-medium bg-gray-700 px-2.5 py-1 rounded">{p}</span>
-                                   ))}
-                                </div>
-                             </div>
-                           );
-                        })}
-                     </div>
+                    <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
+                      <span className="text-sm text-gray-400 font-bold">
+                        총 펀딩 규모
+                      </span>
+                      <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
+                        <Star className="w-6 h-6 mr-2 fill-yellow-400 text-yellow-400" />
+                        {(match.totalFunding || 0).toLocaleString()} 개
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {sortedTeams.map((team, idx) => {
+                        const fAmount = Number(team.fundingAmount) || 0;
+                        const fRatio = Number(team.fundingRatio) || 0;
+                        return (
+                          <div
+                            key={idx}
+                            className="flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm"
+                          >
+                            <div className="flex justify-between items-center mb-3 border-b border-gray-700/80 pb-3">
+                              <span
+                                className={`text-base font-bold ${
+                                  team.rank === 1
+                                    ? "text-yellow-400"
+                                    : "text-gray-300"
+                                }`}
+                              >
+                                {team.rank}위 팀 전리품
+                              </span>
+                              <div className="text-right">
+                                <span className="text-yellow-400 font-black text-xl">
+                                  {Number(fAmount).toLocaleString()}개
+                                </span>
+                                {fRatio > 0 && (
+                                  <span className="text-xs text-gray-400 font-bold ml-1.5">
+                                    ({fRatio}%)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {team.players.map((p) => (
+                                <span
+                                  key={p}
+                                  className="text-sm text-gray-200 font-medium bg-gray-700 px-2.5 py-1 rounded"
+                                >
+                                  {p}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
-
               </div>
             );
           }
 
           return (
-            <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
+            <div
+              id={`match-card-${match.id}`}
+              key={match.id}
+              className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${
+                selectedMatchId === match.id
+                  ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]"
+                  : "border-gray-700"
+              }`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div className="flex items-center flex-wrap gap-3">
-                  <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
+                  <h3 className="text-2xl font-bold text-white">
+                    {match.gameName}
+                  </h3>
                   <div className="flex items-center gap-2">
                     <span className="bg-gray-700 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
                       <User className="w-4 h-4 mr-1.5" /> 개인전
                     </span>
                     {match.hasFunding && (
-                      <button 
-                        onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
+                      <button
+                        onClick={() =>
+                          setExpandedFundingMatchId(
+                            expandedFundingMatchId === match.id
+                              ? null
+                              : match.id
+                          )
+                        }
                         className="bg-yellow-900/40 text-yellow-400 border border-yellow-700/50 px-3 py-1 rounded text-sm font-bold flex items-center hover:bg-yellow-800/60 transition shadow-sm"
                       >
-                        <Coins className="w-4 h-4 mr-1.5" /> 펀딩 결산 {expandedFundingMatchId === match.id ? <ChevronUp className="w-4 h-4 ml-1"/> : <ChevronDown className="w-4 h-4 ml-1"/>}
+                        <Coins className="w-4 h-4 mr-1.5" /> 펀딩 결산{" "}
+                        {expandedFundingMatchId === match.id ? (
+                          <ChevronUp className="w-4 h-4 ml-1" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 ml-1" />
+                        )}
                       </button>
                     )}
                   </div>
                 </div>
                 <span className="text-base text-gray-400">{match.date}</span>
               </div>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 order-3">
-                {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
-                    <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
+                {[...(match.results || [])]
+                  .sort((a, b) => a.rank - b.rank)
+                  .map((result, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedPlayer(result.playerName)}
+                      className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${
+                        result.rank === 1
+                          ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400"
+                          : "bg-gray-700/30 border-gray-600 hover:border-green-400"
+                      }`}
+                    >
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-lg font-bold text-gray-300">{result.rank}위</span>
-                        <span className={`text-sm font-bold px-3 py-1 rounded ${result.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                          {result.scoreChange > 0 ? "+" : ""}{result.scoreChange} pt
+                        <span className="text-lg font-bold text-gray-300">
+                          {result.rank}위
+                        </span>
+                        <span
+                          className={`text-sm font-bold px-3 py-1 rounded ${
+                            result.scoreChange >= 0
+                              ? "bg-green-500/20 text-green-400"
+                              : "bg-red-500/20 text-red-400"
+                          }`}
+                        >
+                          {result.scoreChange > 0 ? "+" : ""}
+                          {result.scoreChange} pt
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <img src={getAvatarSrc(result.playerName)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600" />
-                        <span className="font-bold text-white truncate text-xl group-hover:text-green-400 transition">{result.playerName}</span>
+                        <img
+                          src={getAvatarSrc(result.playerName)}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`;
+                          }}
+                          alt="avatar"
+                          className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600"
+                        />
+                        <span className="font-bold text-white truncate text-xl group-hover:text-green-400 transition">
+                          {result.playerName}
+                        </span>
                       </div>
                     </div>
                   ))}
@@ -4367,152 +5705,316 @@ export default function App() {
 
               {expandedFundingMatchId === match.id && match.hasFunding && (
                 <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
-                   <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
-                      <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
-                      <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
-                        <Star className="w-6 h-6 mr-2 fill-yellow-400 text-yellow-400" />
-                        {(match.totalFunding || 0).toLocaleString()} 개
-                      </div>
-                   </div>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {[...(match.results || [])].sort((a,b) => a.rank - b.rank).map((r, i) => (
-                         <div key={i} className="flex justify-between items-center bg-gray-800 p-3.5 rounded-lg border border-gray-700 shadow-sm hover:border-yellow-500/30 transition">
-                            <div className="flex items-center gap-2">
-                               <span className={`text-base font-black w-8 text-center ${r.rank===1?'text-yellow-400':'text-gray-400'}`}>{r.rank}</span>
-                               <span className="text-white font-bold text-lg truncate w-24">{r.playerName}</span>
-                            </div>
-                            <div className="text-right flex flex-col">
-                               <span className="text-yellow-400 font-black text-lg">{Number(r.fundingAmount).toLocaleString()}개</span>
-                               {r.fundingRatio > 0 && <span className="text-[10px] text-gray-500 font-bold">({r.fundingRatio}%)</span>}
-                            </div>
-                         </div>
+                  <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
+                    <span className="text-sm text-gray-400 font-bold">
+                      총 펀딩 규모
+                    </span>
+                    <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
+                      <Star className="w-6 h-6 mr-2 fill-yellow-400 text-yellow-400" />
+                      {(match.totalFunding || 0).toLocaleString()} 개
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[...(match.results || [])]
+                      .sort((a, b) => a.rank - b.rank)
+                      .map((r, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between items-center bg-gray-800 p-3.5 rounded-lg border border-gray-700 shadow-sm hover:border-yellow-500/30 transition"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-base font-black w-8 text-center ${
+                                r.rank === 1
+                                  ? "text-yellow-400"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {r.rank}
+                            </span>
+                            <span className="text-white font-bold text-lg truncate w-24">
+                              {r.playerName}
+                            </span>
+                          </div>
+                          <div className="text-right flex flex-col">
+                            <span className="text-yellow-400 font-black text-lg">
+                              {Number(r.fundingAmount).toLocaleString()}개
+                            </span>
+                            {r.fundingRatio > 0 && (
+                              <span className="text-[10px] text-gray-500 font-bold">
+                                ({r.fundingRatio}%)
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       ))}
-                   </div>
+                  </div>
                 </div>
               )}
-
             </div>
           );
         })}
-        {publishedMatches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
+        {publishedMatches.length === 0 && (
+          <p className="text-gray-400 text-center py-12 text-lg">
+            기록이 없습니다.
+          </p>
+        )}
+        {publishedMatches.length > 0 &&
+          filteredPublishedMatches.length === 0 && (
+            <p className="text-gray-400 text-center py-12 text-lg">
+              검색 결과가 없습니다.
+            </p>
+          )}
       </div>
     </div>
   );
 
   const renderStatsView = () => {
-    const mostWinsPlayer = [...playerStatsMap].sort((a, b) => b.winCount - a.winCount || b.points - a.points)[0];
-    const mostPlayedPlayer = [...playerStatsMap].sort((a, b) => b.matchCount - a.matchCount || b.points - a.points)[0];
-    const bestAvgPlayer = [...playerStatsMap].filter(p => p.matchCount > 0).sort((a, b) => b.avgScore - a.avgScore)[0];
+    const mostWinsPlayer = [...playerStatsMap].sort(
+      (a, b) => b.winCount - a.winCount || b.points - a.points
+    )[0];
+    const mostPlayedPlayer = [...playerStatsMap].sort(
+      (a, b) => b.matchCount - a.matchCount || b.points - a.points
+    )[0];
+    const bestAvgPlayer = [...playerStatsMap]
+      .filter((p) => p.matchCount > 0)
+      .sort((a, b) => b.avgScore - a.avgScore)[0];
 
     const SortIcon = ({ columnKey }) => {
-      if (sortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
-      return sortConfig.direction === 'asc' ? <ChevronUp className="w-4 h-4 ml-1 text-green-400" /> : <ChevronDown className="w-4 h-4 ml-1 text-green-400" />;
+      if (sortConfig.key !== columnKey)
+        return (
+          <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />
+        );
+      return sortConfig.direction === "asc" ? (
+        <ChevronUp className="w-4 h-4 ml-1 text-green-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 ml-1 text-green-400" />
+      );
     };
 
     return (
       <div className="space-y-8">
         <div>
           <h2 className="text-3xl font-bold text-white flex items-center mb-3">
-            <TrendingUp className="w-8 h-8 mr-3 text-indigo-400" /> 종합 통계 대시보드
+            <TrendingUp className="w-8 h-8 mr-3 text-indigo-400" /> 종합 통계
+            대시보드
           </h2>
-          <p className="text-base text-gray-400">매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.</p>
+          <p className="text-base text-gray-400">
+            매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적
+            기록입니다.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-10"><Crown className="w-40 h-40 text-yellow-500" /></div>
+            <div className="absolute -right-4 -top-4 opacity-10">
+              <Crown className="w-40 h-40 text-yellow-500" />
+            </div>
             <Crown className="w-10 h-10 text-yellow-400 mb-3" />
-            <h3 className="text-lg font-bold text-gray-300 mb-1">👑 종합 우승왕</h3>
-            <p className="text-xs md:text-sm text-yellow-500/70 mb-4 text-center break-keep">1위를 가장 많이 달성한 유저</p>
+            <h3 className="text-lg font-bold text-gray-300 mb-1">
+              👑 종합 우승왕
+            </h3>
+            <p className="text-xs md:text-sm text-yellow-500/70 mb-4 text-center break-keep">
+              1위를 가장 많이 달성한 유저
+            </p>
             {mostWinsPlayer && mostWinsPlayer.winCount > 0 ? (
               <>
-                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(mostWinsPlayer.name)}>
-                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-yellow-500/50 group-hover:scale-110 transition" />
-                  <span className="text-2xl font-black text-white group-hover:text-yellow-400 transition">{mostWinsPlayer.name}</span>
+                <div
+                  className="flex items-center gap-3 cursor-pointer group"
+                  onClick={() => setSelectedPlayer(mostWinsPlayer.name)}
+                >
+                  <img
+                    src={getAvatarSrc(mostWinsPlayer.name)}
+                    alt="avatar"
+                    className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-yellow-500/50 group-hover:scale-110 transition"
+                  />
+                  <span className="text-2xl font-black text-white group-hover:text-yellow-400 transition">
+                    {mostWinsPlayer.name}
+                  </span>
                 </div>
-                <p className="text-yellow-400 font-bold mt-4 bg-yellow-900/30 px-4 py-1.5 rounded-full text-base">총 {mostWinsPlayer.winCount}회 우승</p>
+                <p className="text-yellow-400 font-bold mt-4 bg-yellow-900/30 px-4 py-1.5 rounded-full text-base">
+                  총 {mostWinsPlayer.winCount}회 우승
+                </p>
               </>
-            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
+            ) : (
+              <span className="text-gray-500 mt-2 text-base">기록 없음</span>
+            )}
           </div>
 
           <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-10"><Clover className="w-40 h-40 text-emerald-500" /></div>
+            <div className="absolute -right-4 -top-4 opacity-10">
+              <Clover className="w-40 h-40 text-emerald-500" />
+            </div>
             <Clover className="w-10 h-10 text-emerald-400 mb-3" />
-            <h3 className="text-lg font-bold text-gray-300 mb-1">🍀 선택받은 자</h3>
-            <p className="text-xs md:text-sm text-emerald-500/70 mb-4 text-center break-keep">경기에 가장 많이 참가한 유저</p>
+            <h3 className="text-lg font-bold text-gray-300 mb-1">
+              🍀 선택받은 자
+            </h3>
+            <p className="text-xs md:text-sm text-emerald-500/70 mb-4 text-center break-keep">
+              경기에 가장 많이 참가한 유저
+            </p>
             {mostPlayedPlayer && mostPlayedPlayer.matchCount > 0 ? (
               <>
-                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}>
-                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-emerald-500/50 group-hover:scale-110 transition" />
-                  <span className="text-2xl font-black text-white group-hover:text-emerald-400 transition">{mostPlayedPlayer.name}</span>
+                <div
+                  className="flex items-center gap-3 cursor-pointer group"
+                  onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}
+                >
+                  <img
+                    src={getAvatarSrc(mostPlayedPlayer.name)}
+                    alt="avatar"
+                    className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-emerald-500/50 group-hover:scale-110 transition"
+                  />
+                  <span className="text-2xl font-black text-white group-hover:text-emerald-400 transition">
+                    {mostPlayedPlayer.name}
+                  </span>
                 </div>
-                <p className="text-emerald-400 font-bold mt-4 bg-emerald-900/30 px-4 py-1.5 rounded-full text-base">총 {mostPlayedPlayer.matchCount}회 참가</p>
+                <p className="text-emerald-400 font-bold mt-4 bg-emerald-900/30 px-4 py-1.5 rounded-full text-base">
+                  총 {mostPlayedPlayer.matchCount}회 참가
+                </p>
               </>
-            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
+            ) : (
+              <span className="text-gray-500 mt-2 text-base">기록 없음</span>
+            )}
           </div>
 
           <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
-            <div className="absolute -right-4 -top-4 opacity-10"><Gem className="w-40 h-40 text-cyan-500" /></div>
+            <div className="absolute -right-4 -top-4 opacity-10">
+              <Gem className="w-40 h-40 text-cyan-500" />
+            </div>
             <Gem className="w-10 h-10 text-cyan-400 mb-3" />
-            <h3 className="text-lg font-bold text-gray-300 mb-1">💎 최고 효율 플레이어</h3>
-            <p className="text-xs md:text-sm text-cyan-500/70 mb-4 text-center break-keep">경기당 평균 획득 점수가 가장 높은 유저</p>
+            <h3 className="text-lg font-bold text-gray-300 mb-1">
+              💎 최고 효율 플레이어
+            </h3>
+            <p className="text-xs md:text-sm text-cyan-500/70 mb-4 text-center break-keep">
+              경기당 평균 획득 점수가 가장 높은 유저
+            </p>
             {bestAvgPlayer && bestAvgPlayer.matchCount > 0 ? (
               <>
-                <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(bestAvgPlayer.name)}>
-                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-cyan-500/50 group-hover:scale-110 transition" />
-                  <span className="text-2xl font-black text-white group-hover:text-cyan-400 transition">{bestAvgPlayer.name}</span>
+                <div
+                  className="flex items-center gap-3 cursor-pointer group"
+                  onClick={() => setSelectedPlayer(bestAvgPlayer.name)}
+                >
+                  <img
+                    src={getAvatarSrc(bestAvgPlayer.name)}
+                    alt="avatar"
+                    className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-cyan-500/50 group-hover:scale-110 transition"
+                  />
+                  <span className="text-2xl font-black text-white group-hover:text-cyan-400 transition">
+                    {bestAvgPlayer.name}
+                  </span>
                 </div>
-                <p className="text-cyan-400 font-bold mt-4 bg-cyan-900/30 px-4 py-1.5 rounded-full text-base">평균 {bestAvgPlayer.avgScore} pt</p>
+                <p className="text-cyan-400 font-bold mt-4 bg-cyan-900/30 px-4 py-1.5 rounded-full text-base">
+                  평균 {bestAvgPlayer.avgScore} pt
+                </p>
               </>
-            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
+            ) : (
+              <span className="text-gray-500 mt-2 text-base">기록 없음</span>
+            )}
           </div>
         </div>
 
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
           <div className="p-5 border-b border-gray-700 bg-gray-800/50">
             <h3 className="text-xl font-bold text-white flex items-center">
-              <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> 참가자 전체 통계 리스트
+              <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> 참가자 전체
+              통계 리스트
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-base text-left">
               <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
                 <tr>
-                  <th scope="col" className="px-6 py-5 rounded-tl-lg">순위</th>
-                  <th scope="col" className="px-6 py-5">선수명</th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('matchCount')}>
-                    <div className="flex items-center justify-center">참가 횟수 <SortIcon columnKey="matchCount" /></div>
+                  <th scope="col" className="px-6 py-5 rounded-tl-lg">
+                    순위
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('winCount')}>
-                    <div className="flex items-center justify-center">1위 횟수 <SortIcon columnKey="winCount" /></div>
+                  <th scope="col" className="px-6 py-5">
+                    선수명
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('avgScore')}>
-                    <div className="flex items-center justify-center">평균 획득 점수 <SortIcon columnKey="avgScore" /></div>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("matchCount")}
+                  >
+                    <div className="flex items-center justify-center">
+                      참가 횟수 <SortIcon columnKey="matchCount" />
+                    </div>
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestSort('points')}>
-                    <div className="flex items-center justify-end">총 획득 점수 <SortIcon columnKey="points" /></div>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("winCount")}
+                  >
+                    <div className="flex items-center justify-center">
+                      1위 횟수 <SortIcon columnKey="winCount" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestSort("avgScore")}
+                  >
+                    <div className="flex items-center justify-center">
+                      평균 획득 점수 <SortIcon columnKey="avgScore" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg"
+                    onClick={() => requestSort("points")}
+                  >
+                    <div className="flex items-center justify-end">
+                      총 획득 점수 <SortIcon columnKey="points" />
+                    </div>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {sortedPlayerStats.length > 0 ? (
                   sortedPlayerStats.map((player, idx) => (
-                    <tr key={player.id} className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
-                      <td className="px-6 py-5 font-bold text-gray-400 text-lg">{idx + 1}</td>
+                    <tr
+                      key={player.id}
+                      className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer"
+                      onClick={() => setSelectedPlayer(player.name)}
+                    >
+                      <td className="px-6 py-5 font-bold text-gray-400 text-lg">
+                        {idx + 1}
+                      </td>
                       <td className="px-6 py-5 font-bold text-white flex items-center gap-4 text-lg">
-                        <img src={getAvatarSrc(player.name)} alt={player.name} className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-gray-600" />
+                        <img
+                          src={getAvatarSrc(player.name)}
+                          alt={player.name}
+                          className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-gray-600"
+                        />
                         {player.name}
                       </td>
-                      <td className="px-6 py-5 text-center text-gray-300 text-lg">{player.matchCount}회</td>
                       <td className="px-6 py-5 text-center text-gray-300 text-lg">
-                        {player.winCount > 0 ? <span className="text-yellow-400 font-bold">{player.winCount}회</span> : "0회"}
+                        {player.matchCount}회
                       </td>
-                      <td className="px-6 py-5 text-center font-medium text-cyan-400 text-lg">{player.avgScore} pt</td>
-                      <td className="px-6 py-5 text-right font-black text-green-400 text-xl">{player.points} pt</td>
+                      <td className="px-6 py-5 text-center text-gray-300 text-lg">
+                        {player.winCount > 0 ? (
+                          <span className="text-yellow-400 font-bold">
+                            {player.winCount}회
+                          </span>
+                        ) : (
+                          "0회"
+                        )}
+                      </td>
+                      <td className="px-6 py-5 text-center font-medium text-cyan-400 text-lg">
+                        {player.avgScore} pt
+                      </td>
+                      <td className="px-6 py-5 text-right font-black text-green-400 text-xl">
+                        {player.points} pt
+                      </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500 text-lg">아직 등록된 참가자 통계가 없습니다.</td></tr>
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="px-6 py-12 text-center text-gray-500 text-lg"
+                    >
+                      아직 등록된 참가자 통계가 없습니다.
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -4535,12 +6037,12 @@ export default function App() {
 
     const cutoffs = {
       "S+": Math.ceil(totalPlayers * 0.05),
-      "S": Math.ceil(totalPlayers * 0.15),
-      "A+": Math.ceil(totalPlayers * 0.30),
-      "A": Math.ceil(totalPlayers * 0.45),
-      "B": Math.ceil(totalPlayers * 0.65),
-      "C": Math.ceil(totalPlayers * 0.85),
-      "D": totalPlayers
+      S: Math.ceil(totalPlayers * 0.15),
+      "A+": Math.ceil(totalPlayers * 0.3),
+      A: Math.ceil(totalPlayers * 0.45),
+      B: Math.ceil(totalPlayers * 0.65),
+      C: Math.ceil(totalPlayers * 0.85),
+      D: totalPlayers,
     };
 
     const getTierIdByRank = (rank) => {
@@ -4555,28 +6057,65 @@ export default function App() {
     };
 
     const categorizedPlayers = TIER_SETTINGS.map((tier, index) => {
-      const playersInTier = rankedPlayers.filter(p => getTierIdByRank(p.rank) === tier.id);
+      const playersInTier = rankedPlayers.filter(
+        (p) => getTierIdByRank(p.rank) === tier.id
+      );
       let startRank = 1;
       if (index > 0) {
-         const prevTierId = TIER_SETTINGS[index - 1].id;
-         startRank = cutoffs[prevTierId] + 1;
+        const prevTierId = TIER_SETTINGS[index - 1].id;
+        startRank = cutoffs[prevTierId] + 1;
       }
       const endRank = cutoffs[tier.id];
       let rankLabel = "";
       if (totalPlayers > 0) {
-         if (startRank > endRank) { rankLabel = "(공석)"; } 
-         else if (startRank === endRank) { rankLabel = `(${startRank}위)`; } 
-         else { rankLabel = `(${startRank}위 ~ ${endRank}위)`; }
-      } else { rankLabel = "(0명)"; }
+        if (startRank > endRank) {
+          rankLabel = "(공석)";
+        } else if (startRank === endRank) {
+          rankLabel = `(${startRank}위)`;
+        } else {
+          rankLabel = `(${startRank}위 ~ ${endRank}위)`;
+        }
+      } else {
+        rankLabel = "(0명)";
+      }
       return { ...tier, players: playersInTier, rankLabel };
     });
 
     const tierPointGuide = [
-      { label: "1등", points: "+30pt", accentClass: "border-yellow-400/55 bg-yellow-500/10 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.08)]", valueClass: "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.45)]" },
-      { label: "2등", points: "+20pt", accentClass: "border-slate-300/55 bg-slate-200/5 text-slate-100 shadow-[0_0_16px_rgba(226,232,240,0.06)]", valueClass: "text-slate-200" },
-      { label: "3등", points: "+10pt", accentClass: "border-orange-400/55 bg-orange-500/8 text-orange-100 shadow-[0_0_16px_rgba(251,146,60,0.06)]", valueClass: "text-orange-300" },
-      { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-400/35 bg-transparent text-emerald-100", valueClass: "text-emerald-300" },
-      { label: "최하위", points: "0pt", accentClass: "border-gray-600/35 bg-gray-900/40 text-gray-300", valueClass: "text-gray-400" },
+      {
+        label: "1등",
+        points: "+30pt",
+        accentClass:
+          "border-yellow-400/55 bg-yellow-500/10 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.08)]",
+        valueClass:
+          "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.45)]",
+      },
+      {
+        label: "2등",
+        points: "+20pt",
+        accentClass:
+          "border-slate-300/55 bg-slate-200/5 text-slate-100 shadow-[0_0_16px_rgba(226,232,240,0.06)]",
+        valueClass: "text-slate-200",
+      },
+      {
+        label: "3등",
+        points: "+10pt",
+        accentClass:
+          "border-orange-400/55 bg-orange-500/8 text-orange-100 shadow-[0_0_16px_rgba(251,146,60,0.06)]",
+        valueClass: "text-orange-300",
+      },
+      {
+        label: "그 외 참가자",
+        points: "+3pt",
+        accentClass: "border-emerald-400/35 bg-transparent text-emerald-100",
+        valueClass: "text-emerald-300",
+      },
+      {
+        label: "최하위",
+        points: "0pt",
+        accentClass: "border-gray-600/35 bg-gray-900/40 text-gray-300",
+        valueClass: "text-gray-400",
+      },
     ];
 
     return (
@@ -4584,9 +6123,12 @@ export default function App() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-bold text-white flex items-center">
-              <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력 티어표
+              <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력
+              티어표
             </h2>
-            <p className="text-sm text-gray-400 mt-1">상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.</p>
+            <p className="text-sm text-gray-400 mt-1">
+              상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.
+            </p>
           </div>
         </div>
 
@@ -4600,9 +6142,12 @@ export default function App() {
                 <Trophy className="h-5 w-5 text-amber-300" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-lg font-black text-white">티어는 이렇게 정해져요</h3>
+                <h3 className="text-lg font-black text-white">
+                  티어는 이렇게 정해져요
+                </h3>
                 <p className="mt-1 text-sm leading-6 text-gray-300 break-keep">
-                  경기 결과에 따라 아래 기준으로 포인트가 누적되며, 누적 포인트를 바탕으로 티어가 정해집니다.
+                  경기 결과에 따라 아래 기준으로 포인트가 누적되며, 누적
+                  포인트를 바탕으로 티어가 정해집니다.
                 </p>
               </div>
             </div>
@@ -4613,8 +6158,14 @@ export default function App() {
                   key={rule.label}
                   className={`rounded-xl border px-4 py-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] ${rule.accentClass}`}
                 >
-                  <div className="text-xs font-black tracking-[0.08em] uppercase opacity-80">{rule.label}</div>
-                  <div className={`mt-1 text-2xl font-black ${rule.valueClass}`}>{rule.points}</div>
+                  <div className="text-xs font-black tracking-[0.08em] uppercase opacity-80">
+                    {rule.label}
+                  </div>
+                  <div
+                    className={`mt-1 text-2xl font-black ${rule.valueClass}`}
+                  >
+                    {rule.points}
+                  </div>
                 </div>
               ))}
             </div>
@@ -4629,51 +6180,90 @@ export default function App() {
           {categorizedPlayers.map((tier) => {
             const isEmperor = tier.id === "S+";
             return (
-            <div key={tier.id} className="flex flex-col md:flex-row bg-gray-800 rounded-lg overflow-hidden min-h-[100px] relative border border-gray-700">
-              
-              {/* ★ S+ 티어가 들어간 왼쪽 박스에만 황금빛 오라 적용 (오른쪽 테두리는 깔끔하게 회색으로 통일) ★ */}
-              <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-gray-900 shadow-inner relative z-10 overflow-hidden ${
-                isEmperor 
-                  ? 'bg-gradient-to-br from-gray-900 via-black to-yellow-900/40 shadow-[0_0_20px_rgba(250,204,21,0.4)]' 
-                  : tier.color
-              }`}>
-                {/* 어둠 속에서 뿜어져 나오는 네온 빛반사 효과 */}
-                {isEmperor && (
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-yellow-500/30 via-transparent to-transparent pointer-events-none"></div>
-                )}
-                {/* 은은하게 빛나는 왕관 */}
-                {isEmperor && <Crown className="absolute top-2 right-2 w-4 h-4 text-yellow-400 opacity-90 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />}
-                
-                {/* S+ 텍스트 자체의 황금빛 그라데이션과 그림자 */}
-                <span className={`text-2xl font-extrabold text-shadow relative z-10 ${
-                  isEmperor 
-                    ? 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]' 
-                    : 'text-white'
-                }`}>
-                  {tier.id}
-                </span>
-                <span className={`text-xs font-bold mt-1 text-center relative z-10 ${isEmperor ? 'text-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.5)]' : 'text-white/90'}`}>{tier.label}</span>
-                <span className={`text-[10px] mt-0.5 text-center relative z-10 ${isEmperor ? 'text-yellow-500/80' : 'text-white/70'}`}>{tier.rankLabel}</span>
-              </div>
-              
-              <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
-                {tier.players.length > 0 ? (
-                  tier.players.map((player) => {
-                    return (
-                      <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="group relative flex flex-col items-center cursor-pointer">
-                        <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
-                          <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
+              <div
+                key={tier.id}
+                className="flex flex-col md:flex-row bg-gray-800 rounded-lg overflow-hidden min-h-[100px] relative border border-gray-700"
+              >
+                {/* ★ S+ 티어가 들어간 왼쪽 박스에만 황금빛 오라 적용 (오른쪽 테두리는 깔끔하게 회색으로 통일) ★ */}
+                <div
+                  className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-gray-900 shadow-inner relative z-10 overflow-hidden ${
+                    isEmperor
+                      ? "bg-gradient-to-br from-gray-900 via-black to-yellow-900/40 shadow-[0_0_20px_rgba(250,204,21,0.4)]"
+                      : tier.color
+                  }`}
+                >
+                  {/* 어둠 속에서 뿜어져 나오는 네온 빛반사 효과 */}
+                  {isEmperor && (
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-yellow-500/30 via-transparent to-transparent pointer-events-none"></div>
+                  )}
+                  {/* 은은하게 빛나는 왕관 */}
+                  {isEmperor && (
+                    <Crown className="absolute top-2 right-2 w-4 h-4 text-yellow-400 opacity-90 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
+                  )}
+
+                  {/* S+ 텍스트 자체의 황금빛 그라데이션과 그림자 */}
+                  <span
+                    className={`text-2xl font-extrabold text-shadow relative z-10 ${
+                      isEmperor
+                        ? "text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]"
+                        : "text-white"
+                    }`}
+                  >
+                    {tier.id}
+                  </span>
+                  <span
+                    className={`text-xs font-bold mt-1 text-center relative z-10 ${
+                      isEmperor
+                        ? "text-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.5)]"
+                        : "text-white/90"
+                    }`}
+                  >
+                    {tier.label}
+                  </span>
+                  <span
+                    className={`text-[10px] mt-0.5 text-center relative z-10 ${
+                      isEmperor ? "text-yellow-500/80" : "text-white/70"
+                    }`}
+                  >
+                    {tier.rankLabel}
+                  </span>
+                </div>
+
+                <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
+                  {tier.players.length > 0 ? (
+                    tier.players.map((player) => {
+                      return (
+                        <div
+                          key={player.id}
+                          onClick={() => setSelectedPlayer(player.name)}
+                          className="group relative flex flex-col items-center cursor-pointer"
+                        >
+                          <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
+                            <img
+                              src={getAvatarSrc(player.name)}
+                              onError={(e) => {
+                                e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                              }}
+                              alt={player.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded group-hover:text-green-400 transition-colors">
+                            {player.name}
+                          </span>
+                          <span className="text-xs font-bold text-green-400 mt-0.5">
+                            {player.points} pt
+                          </span>
                         </div>
-                        <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded group-hover:text-green-400 transition-colors">{player.name}</span>
-                        <span className="text-xs font-bold text-green-400 mt-0.5">{player.points} pt</span>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <span className="text-gray-500 text-sm italic p-2">해당 티어 플레이어 없음</span>
-                )}
+                      );
+                    })
+                  ) : (
+                    <span className="text-gray-500 text-sm italic p-2">
+                      해당 티어 플레이어 없음
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
             );
           })}
         </div>
@@ -4681,14 +6271,13 @@ export default function App() {
     );
   };
 
-
   const resetWowRaidForm = () => {
     setWowRaidForm(createEmptyWowRaidForm());
-    setWowRaidAdminStatTab('damage');
-    setWowRaidRosterSearchInput('');
-    setWowRaidFixedSearchInput('');
-    setWowRaidGuestSearchInput('');
-    setWowRaidStatSearchInput('');
+    setWowRaidAdminStatTab("damage");
+    setWowRaidRosterSearchInput("");
+    setWowRaidFixedSearchInput("");
+    setWowRaidGuestSearchInput("");
+    setWowRaidStatSearchInput("");
   };
 
   const handleWowRaidFormFieldChange = (field, value) => {
@@ -4697,7 +6286,10 @@ export default function App() {
 
   const handleToggleWowRaidParticipant = (sourceType, sourceId) => {
     if (!sourceId) return;
-    const key = sourceType === 'fixed_member' ? 'fixedParticipantIds' : 'rosterParticipantIds';
+    const key =
+      sourceType === "fixed_member"
+        ? "fixedParticipantIds"
+        : "rosterParticipantIds";
     setWowRaidForm((prev) => {
       const current = Array.isArray(prev[key]) ? prev[key] : [];
       const nextIds = current.includes(sourceId)
@@ -4710,17 +6302,22 @@ export default function App() {
   const handleAddWowRaidGuestParticipant = () => {
     setWowRaidForm((prev) => ({
       ...prev,
-      guestParticipants: [...(prev.guestParticipants || []), createEmptyWowRaidGuestForm()],
+      guestParticipants: [
+        ...(prev.guestParticipants || []),
+        createEmptyWowRaidGuestForm(),
+      ],
     }));
   };
 
   const handleRemoveWowRaidGuestParticipant = (guestId) => {
     setWowRaidForm((prev) => ({
       ...prev,
-      guestParticipants: (prev.guestParticipants || []).filter((participant) => participant.id !== guestId),
+      guestParticipants: (prev.guestParticipants || []).filter(
+        (participant) => participant.id !== guestId
+      ),
       stats: WOW_RAID_STAT_FIELDS.reduce((acc, field) => {
         const nextMap = { ...(prev.stats?.[field.id] || {}) };
-        delete nextMap[buildWowRaidParticipantKey('guest', guestId)];
+        delete nextMap[buildWowRaidParticipantKey("guest", guestId)];
         acc[field.id] = nextMap;
         return acc;
       }, {}),
@@ -4732,32 +6329,46 @@ export default function App() {
       ...prev,
       guestParticipants: (prev.guestParticipants || []).map((participant) => {
         if (participant.id !== guestId) return participant;
-        if (field === 'jobClass') {
+        if (field === "jobClass") {
           const nextJobClass = normalizeWowJobClassKey(value);
           return {
             ...participant,
             jobClass: nextJobClass,
-            mainSpec: '',
+            mainSpec: "",
             availableSpecs: [],
             preferredPositions: [],
           };
         }
-        if (field === 'mainSpec') {
-          const nextMainSpec = getWowSpecOptions(participant.jobClass).includes(value) ? value : '';
+        if (field === "mainSpec") {
+          const nextMainSpec = getWowSpecOptions(participant.jobClass).includes(
+            value
+          )
+            ? value
+            : "";
           return {
             ...participant,
             mainSpec: nextMainSpec,
             availableSpecs: nextMainSpec ? [nextMainSpec] : [],
-            preferredPositions: getRecommendedPreferredPositionsBySpec(participant.jobClass, nextMainSpec),
+            preferredPositions: getRecommendedPreferredPositionsBySpec(
+              participant.jobClass,
+              nextMainSpec
+            ),
           };
         }
-        if (field === 'preferredPositions') {
-          return { ...participant, preferredPositions: normalizePreferredPositions(value) };
+        if (field === "preferredPositions") {
+          return {
+            ...participant,
+            preferredPositions: normalizePreferredPositions(value),
+          };
         }
-        if (field === 'imageMode') {
-          return { ...participant, imageMode: value === 'custom' ? 'custom' : 'default', imageUrl: value === 'custom' ? participant.imageUrl : '' };
+        if (field === "imageMode") {
+          return {
+            ...participant,
+            imageMode: value === "custom" ? "custom" : "default",
+            imageUrl: value === "custom" ? participant.imageUrl : "",
+          };
         }
-        if (field === 'raidGroupNumber') {
+        if (field === "raidGroupNumber") {
           return participant;
         }
         return { ...participant, [field]: value };
@@ -4767,8 +6378,11 @@ export default function App() {
 
   const handleWowRaidStatValueChange = (categoryId, participantId, value) => {
     setWowRaidForm((prev) => {
-      const nextStats = { ...prev.stats, [categoryId]: { ...(prev.stats?.[categoryId] || {}) } };
-      if (value === '' || Number(value) <= 0) {
+      const nextStats = {
+        ...prev.stats,
+        [categoryId]: { ...(prev.stats?.[categoryId] || {}) },
+      };
+      if (value === "" || Number(value) <= 0) {
         delete nextStats[categoryId][participantId];
       } else {
         nextStats[categoryId][participantId] = Number(value) || 0;
@@ -4781,27 +6395,52 @@ export default function App() {
     if (!raid) return;
     setWowRaidForm({
       id: raid.id,
-      raidName: raid.raidName || '',
-      imageUrl: raid.imageUrl || '',
-      raidDate: raid.raidDate || '',
-      clearTime: raid.clearTime || '',
+      raidName: raid.raidName || "",
+      imageUrl: raid.imageUrl || "",
+      raidDate: raid.raidDate || "",
+      clearTime: raid.clearTime || "",
       isCleared: raid.isCleared !== false,
       isPublished: !!raid.isPublished,
-      note: raid.note || '',
-      raidGroupNumber: `${raid.raidGroupNumber ?? ''}`.replace(/[^0-9]/g, ''),
-      rosterParticipantIds: Array.isArray(raid.rosterParticipantIds) ? raid.rosterParticipantIds : raid.participants.filter((participant) => participant.sourceType === 'wow_roster').map((participant) => participant.sourceId),
-      fixedParticipantIds: Array.isArray(raid.fixedParticipantIds) ? raid.fixedParticipantIds : raid.participants.filter((participant) => participant.sourceType === 'fixed_member').map((participant) => participant.sourceId),
-      guestParticipants: Array.isArray(raid.guestParticipants) ? raid.guestParticipants.map(normalizeWowRaidGuestParticipant) : raid.participants.filter((participant) => participant.sourceType === 'guest').map((participant) => normalizeWowRaidGuestParticipant({
-        id: participant.sourceId || participant.id,
-        displayName: participant.displayName || participant.streamerName,
-        wowNickname: participant.wowNickname,
-        imageMode: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? 'custom' : 'default',
-        imageUrl: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? participant.imageUrl : '',
-        jobClass: participant.jobClass,
-        mainSpec: participant.mainSpec,
-        availableSpecs: participant.availableSpecs,
-        preferredPositions: participant.preferredPositions,
-      })),
+      note: raid.note || "",
+      raidGroupNumber: `${raid.raidGroupNumber ?? ""}`.replace(/[^0-9]/g, ""),
+      rosterParticipantIds: Array.isArray(raid.rosterParticipantIds)
+        ? raid.rosterParticipantIds
+        : raid.participants
+            .filter((participant) => participant.sourceType === "wow_roster")
+            .map((participant) => participant.sourceId),
+      fixedParticipantIds: Array.isArray(raid.fixedParticipantIds)
+        ? raid.fixedParticipantIds
+        : raid.participants
+            .filter((participant) => participant.sourceType === "fixed_member")
+            .map((participant) => participant.sourceId),
+      guestParticipants: Array.isArray(raid.guestParticipants)
+        ? raid.guestParticipants.map(normalizeWowRaidGuestParticipant)
+        : raid.participants
+            .filter((participant) => participant.sourceType === "guest")
+            .map((participant) =>
+              normalizeWowRaidGuestParticipant({
+                id: participant.sourceId || participant.id,
+                displayName:
+                  participant.displayName || participant.streamerName,
+                wowNickname: participant.wowNickname,
+                imageMode:
+                  participant.imageUrl &&
+                  participant.imageUrl !==
+                    getDefaultWowRaidGuestAvatar(participant)
+                    ? "custom"
+                    : "default",
+                imageUrl:
+                  participant.imageUrl &&
+                  participant.imageUrl !==
+                    getDefaultWowRaidGuestAvatar(participant)
+                    ? participant.imageUrl
+                    : "",
+                jobClass: participant.jobClass,
+                mainSpec: participant.mainSpec,
+                availableSpecs: participant.availableSpecs,
+                preferredPositions: participant.preferredPositions,
+              })
+            ),
       stats: {
         damage: { ...(raid.stats?.damage || {}) },
         damageTaken: { ...(raid.stats?.damageTaken || {}) },
@@ -4809,42 +6448,46 @@ export default function App() {
         mitigated: { ...(raid.stats?.mitigated || {}) },
       },
     });
-    setAdminInnerTab('wow');
+    setAdminInnerTab("wow");
   };
 
   const handleDeleteWowRaid = async (raidId) => {
     if (!raidId) return;
-    if (!window.confirm('이 레이드 기록을 삭제하시겠습니까?')) return;
+    if (!window.confirm("이 레이드 기록을 삭제하시겠습니까?")) return;
     try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'wow_raids', raidId));
-      showToast('WOW 레이드 기록을 삭제했습니다.');
+      await deleteDoc(
+        doc(db, "artifacts", appId, "public", "data", "wow_raids", raidId)
+      );
+      showToast("WOW 레이드 기록을 삭제했습니다.");
       if (wowRaidForm.id === raidId) resetWowRaidForm();
       if (selectedWowRaidId === raidId) setSelectedWowRaidId(null);
     } catch (error) {
       console.error(error);
-      showToast('WOW 레이드 기록을 삭제하지 못했습니다.', 'error');
+      showToast("WOW 레이드 기록을 삭제하지 못했습니다.", "error");
     }
   };
 
   const handleSaveWowRaid = async () => {
     if (!wowRaidForm.raidName.trim()) {
-      showToast('레이드 이름을 입력해주세요.', 'error');
+      showToast("레이드 이름을 입력해주세요.", "error");
       return;
     }
     if (!wowRaidForm.raidDate) {
-      showToast('진행 날짜를 입력해주세요.', 'error');
+      showToast("진행 날짜를 입력해주세요.", "error");
       return;
     }
-    if (!`${wowRaidForm.raidGroupNumber || ''}`.replace(/[^0-9]/g, '')) {
-      showToast('군 번호를 입력해주세요.', 'error');
+    if (!`${wowRaidForm.raidGroupNumber || ""}`.replace(/[^0-9]/g, "")) {
+      showToast("군 번호를 입력해주세요.", "error");
       return;
     }
     if (wowRaidFormParticipants.length === 0) {
-      showToast('참가자를 한 명 이상 선택해주세요.', 'error');
+      showToast("참가자를 한 명 이상 선택해주세요.", "error");
       return;
     }
 
-    const participantIds = wowRaidFormParticipants.map((participant) => participant.id);
+    const participantIds = wowRaidFormParticipants.map(
+      (participant) => participant.id
+    );
     const nextStats = WOW_RAID_STAT_FIELDS.reduce((acc, field) => {
       const raw = wowRaidForm.stats?.[field.id] || {};
       acc[field.id] = participantIds.reduce((innerAcc, participantId) => {
@@ -4863,10 +6506,15 @@ export default function App() {
       isCleared: !!wowRaidForm.isCleared,
       isPublished: !!wowRaidForm.isPublished,
       note: wowRaidForm.note.trim(),
-      raidGroupNumber: `${wowRaidForm.raidGroupNumber || ''}`.replace(/[^0-9]/g, ''),
+      raidGroupNumber: `${wowRaidForm.raidGroupNumber || ""}`.replace(
+        /[^0-9]/g,
+        ""
+      ),
       rosterParticipantIds: [...wowRaidForm.rosterParticipantIds],
       fixedParticipantIds: [...wowRaidForm.fixedParticipantIds],
-      guestParticipants: (wowRaidForm.guestParticipants || []).map((participant) => normalizeWowRaidGuestParticipant(participant)),
+      guestParticipants: (wowRaidForm.guestParticipants || []).map(
+        (participant) => normalizeWowRaidGuestParticipant(participant)
+      ),
       participants: wowRaidFormParticipants,
       stats: nextStats,
       updatedAt: new Date().toISOString(),
@@ -4875,19 +6523,33 @@ export default function App() {
     try {
       setIsWowRaidSaving(true);
       if (wowRaidForm.id) {
-        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'wow_raids', wowRaidForm.id), payload);
-        showToast('WOW 레이드 기록을 수정했습니다.');
+        await updateDoc(
+          doc(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "wow_raids",
+            wowRaidForm.id
+          ),
+          payload
+        );
+        showToast("WOW 레이드 기록을 수정했습니다.");
       } else {
-        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'wow_raids'), {
-          ...payload,
-          createdAt: new Date().toISOString(),
-        });
-        showToast('WOW 레이드 기록을 생성했습니다.');
+        await addDoc(
+          collection(db, "artifacts", appId, "public", "data", "wow_raids"),
+          {
+            ...payload,
+            createdAt: new Date().toISOString(),
+          }
+        );
+        showToast("WOW 레이드 기록을 생성했습니다.");
       }
       resetWowRaidForm();
     } catch (error) {
       console.error(error);
-      showToast('WOW 레이드 기록을 저장하지 못했습니다.', 'error');
+      showToast("WOW 레이드 기록을 저장하지 못했습니다.", "error");
     } finally {
       setIsWowRaidSaving(false);
     }
@@ -4897,33 +6559,47 @@ export default function App() {
     if (!raid) return [];
     const statsMap = raid.stats?.[categoryId] || {};
     return (raid.participants || [])
-      .map((participant) => ({ ...participant, value: Number(statsMap?.[participant.id]) || 0 }))
+      .map((participant) => ({
+        ...participant,
+        value: Number(statsMap?.[participant.id]) || 0,
+      }))
       .sort((a, b) => {
         if (b.value !== a.value) return b.value - a.value;
-        return (a.streamerName || '').localeCompare(b.streamerName || '', 'ko');
+        return (a.streamerName || "").localeCompare(b.streamerName || "", "ko");
       });
   };
 
   const renderWowRaidValue = (value) => {
     const safeValue = Number(value);
-    if (!Number.isFinite(safeValue) || safeValue === 0) return '-';
-    return safeValue.toLocaleString('ko-KR');
+    if (!Number.isFinite(safeValue) || safeValue === 0) return "-";
+    return safeValue.toLocaleString("ko-KR");
   };
 
   const renderWowRaidView = () => {
     if (selectedWowRaid) {
-      const currentDetailTab = wowRaidDetailTab || 'participants';
-      const currentStatMeta = WOW_RAID_STAT_FIELDS.find((field) => field.id === currentDetailTab) || null;
-      const rankings = currentStatMeta ? getWowRaidRankings(selectedWowRaid, currentStatMeta.id) : [];
+      const currentDetailTab = wowRaidDetailTab || "participants";
+      const currentStatMeta =
+        WOW_RAID_STAT_FIELDS.find((field) => field.id === currentDetailTab) ||
+        null;
+      const rankings = currentStatMeta
+        ? getWowRaidRankings(selectedWowRaid, currentStatMeta.id)
+        : [];
       const podium = rankings.slice(0, 3);
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <button onClick={() => { setSelectedWowRaidId(null); setWowRaidDetailTab('participants'); }} className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white font-bold hover:bg-gray-700 transition">
+            <button
+              onClick={() => {
+                setSelectedWowRaidId(null);
+                setWowRaidDetailTab("participants");
+              }}
+              className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white font-bold hover:bg-gray-700 transition"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" /> WOW레이드 목록으로 돌아가기
             </button>
             <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Shield className="w-4 h-4 text-violet-300" /> WOW레이드 상세 리포트
+              <Shield className="w-4 h-4 text-violet-300" /> WOW레이드 상세
+              리포트
             </div>
           </div>
 
@@ -4931,37 +6607,76 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr]">
               <div className="h-full min-h-[240px] bg-gray-900/60 border-b lg:border-b-0 lg:border-r border-white/5">
                 {selectedWowRaid.imageUrl ? (
-                  <img src={selectedWowRaid.imageUrl} alt={selectedWowRaid.raidName} className="w-full h-full object-cover" />
+                  <img
+                    src={selectedWowRaid.imageUrl}
+                    alt={selectedWowRaid.raidName}
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
-                  <div className="w-full h-full min-h-[240px] flex items-center justify-center bg-gradient-to-br from-violet-900/30 to-slate-900 text-violet-200/70 font-black text-2xl">WOW RAID</div>
+                  <div className="w-full h-full min-h-[240px] flex items-center justify-center bg-gradient-to-br from-violet-900/30 to-slate-900 text-violet-200/70 font-black text-2xl">
+                    WOW RAID
+                  </div>
                 )}
               </div>
               <div className="p-6 lg:p-8 flex flex-col justify-between gap-5">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <span className="px-2.5 py-1 rounded-md border border-violet-400/30 bg-violet-500/10 text-violet-200 text-xs font-black">{selectedWowRaid.isCleared ? '토벌 완료' : '진행 기록'}</span>
-                    {selectedWowRaid.raidGroupNumber && <span className="px-2.5 py-1 rounded-md border border-amber-400/40 bg-amber-500/15 text-amber-100 text-xs font-black">{selectedWowRaid.raidGroupNumber}군</span>}
-                    {selectedWowRaid.raidDate && <span className="px-2.5 py-1 rounded-md border border-gray-600 bg-gray-900/70 text-gray-200 text-xs font-black">{selectedWowRaid.raidDate}</span>}
+                    <span className="px-2.5 py-1 rounded-md border border-violet-400/30 bg-violet-500/10 text-violet-200 text-xs font-black">
+                      {selectedWowRaid.isCleared ? "토벌 완료" : "진행 기록"}
+                    </span>
+                    {selectedWowRaid.raidGroupNumber && (
+                      <span className="px-2.5 py-1 rounded-md border border-amber-400/40 bg-amber-500/15 text-amber-100 text-xs font-black">
+                        {selectedWowRaid.raidGroupNumber}군
+                      </span>
+                    )}
+                    {selectedWowRaid.raidDate && (
+                      <span className="px-2.5 py-1 rounded-md border border-gray-600 bg-gray-900/70 text-gray-200 text-xs font-black">
+                        {selectedWowRaid.raidDate}
+                      </span>
+                    )}
                   </div>
-                  <h2 className="text-3xl font-black text-white mb-2 break-keep">{selectedWowRaid.raidName}</h2>
-                  <p className="text-gray-300 break-keep">{selectedWowRaid.note || '레이드의 기록과 통계를 한눈에 확인할 수 있습니다.'}</p>
+                  <h2 className="text-3xl font-black text-white mb-2 break-keep">
+                    {selectedWowRaid.raidName}
+                  </h2>
+                  <p className="text-gray-300 break-keep">
+                    {selectedWowRaid.note ||
+                      "레이드의 기록과 통계를 한눈에 확인할 수 있습니다."}
+                  </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">진행 날짜</div>
-                    <div className="text-lg font-black text-white">{selectedWowRaid.raidDate || '-'}</div>
+                    <div className="text-xs font-black text-gray-400 mb-1">
+                      진행 날짜
+                    </div>
+                    <div className="text-lg font-black text-white">
+                      {selectedWowRaid.raidDate || "-"}
+                    </div>
                   </div>
                   <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">토벌시간</div>
-                    <div className="text-lg font-black text-cyan-200">{selectedWowRaid.clearTime || '-'}</div>
+                    <div className="text-xs font-black text-gray-400 mb-1">
+                      토벌시간
+                    </div>
+                    <div className="text-lg font-black text-cyan-200">
+                      {selectedWowRaid.clearTime || "-"}
+                    </div>
                   </div>
                   <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">참가 인원</div>
-                    <div className="text-lg font-black text-amber-200">{selectedWowRaid.participants.length}명</div>
+                    <div className="text-xs font-black text-gray-400 mb-1">
+                      참가 인원
+                    </div>
+                    <div className="text-lg font-black text-amber-200">
+                      {selectedWowRaid.participants.length}명
+                    </div>
                   </div>
                   <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">군 구분</div>
-                    <div className="text-lg font-black text-violet-200">{selectedWowRaid.raidGroupNumber ? `${selectedWowRaid.raidGroupNumber}군` : '-'}</div>
+                    <div className="text-xs font-black text-gray-400 mb-1">
+                      군 구분
+                    </div>
+                    <div className="text-lg font-black text-violet-200">
+                      {selectedWowRaid.raidGroupNumber
+                        ? `${selectedWowRaid.raidGroupNumber}군`
+                        : "-"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4972,30 +6687,81 @@ export default function App() {
             {WOW_RAID_DETAIL_TABS.map((tab) => {
               const isActive = wowRaidDetailTab === tab.id;
               return (
-                <button key={tab.id} onClick={() => setWowRaidDetailTab(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-black border transition ${isActive ? 'bg-violet-600 text-white border-violet-400 shadow-[0_0_0_1px_rgba(196,181,253,0.18)]' : 'bg-gray-800 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white'}`}>
+                <button
+                  key={tab.id}
+                  onClick={() => setWowRaidDetailTab(tab.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-black border transition ${
+                    isActive
+                      ? "bg-violet-600 text-white border-violet-400 shadow-[0_0_0_1px_rgba(196,181,253,0.18)]"
+                      : "bg-gray-800 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white"
+                  }`}
+                >
                   {tab.label}
                 </button>
               );
             })}
           </div>
 
-          {wowRaidDetailTab === 'participants' ? (
+          {wowRaidDetailTab === "participants" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {selectedWowRaid.participants.map((participant) => (
-                <div key={participant.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg">
+                <div
+                  key={participant.id}
+                  className="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg"
+                >
                   <div className="flex items-center gap-3">
-                    <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover bg-gray-900 border border-gray-600" />
+                    <img
+                      src={getWowAvatarSrc(participant)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${
+                          participant.displayName || participant.streamerName
+                        }`;
+                      }}
+                      alt={participant.streamerName}
+                      className="w-14 h-14 rounded-full object-cover bg-gray-900 border border-gray-600"
+                    />
                     <div className="min-w-0">
-                      <div className="font-black text-white truncate">{participant.streamerName}</div>
-                      <div className="text-sm text-blue-300 truncate">{participant.wowNickname}</div>
-                      <div className="text-xs text-gray-400">Lv.{participant.level}</div>
+                      <div className="font-black text-white truncate">
+                        {participant.streamerName}
+                      </div>
+                      <div className="text-sm text-blue-300 truncate">
+                        {participant.wowNickname}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Lv.{participant.level}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5 items-center">
-                    <span style={getJobBadgeStyle(participant.jobClass)} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap">{participant.jobClass}</span>
-                    {participant.mainSpec && <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{participant.mainSpec}</span>}
-                    {normalizePreferredPositions(participant.preferredPositions).map((positionId) => (
-                      <span key={positionId} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
+                    <span
+                      style={getJobBadgeStyle(participant.jobClass)}
+                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap"
+                    >
+                      {participant.jobClass}
+                    </span>
+                    {participant.mainSpec && (
+                      <span
+                        title={getWowSpecTagTitle(
+                          participant.jobClass,
+                          participant.mainSpec,
+                          participant.availableSpecs
+                        )}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}
+                      >
+                        {participant.mainSpec}
+                      </span>
+                    )}
+                    {normalizePreferredPositions(
+                      participant.preferredPositions
+                    ).map((positionId) => (
+                      <span
+                        key={positionId}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${getWowPositionTagClasses(
+                          positionId
+                        )}`}
+                      >
+                        {getWowPositionShortLabel(positionId)}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -5004,20 +6770,47 @@ export default function App() {
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {podium.length > 0 ? podium.map((participant, index) => (
-                  <div key={participant.id} className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-5 shadow-lg">
-                    <div className="text-xs font-black text-gray-400 mb-2">TOP {index + 1}</div>
-                    <div className="flex items-center gap-3">
-                      <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover border border-gray-600 bg-gray-900" />
-                      <div className="min-w-0">
-                        <div className="font-black text-white truncate">{participant.displayName || participant.streamerName}</div>
-                        <div className="text-sm text-blue-300 truncate">{participant.wowNickname}</div>
-                        <div className="text-lg font-black text-amber-300">{renderWowRaidValue(participant.value)}</div>
+                {podium.length > 0 ? (
+                  podium.map((participant, index) => (
+                    <div
+                      key={participant.id}
+                      className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-5 shadow-lg"
+                    >
+                      <div className="text-xs font-black text-gray-400 mb-2">
+                        TOP {index + 1}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={getWowAvatarSrc(participant)}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${
+                              participant.displayName ||
+                              participant.streamerName
+                            }`;
+                          }}
+                          alt={participant.streamerName}
+                          className="w-14 h-14 rounded-full object-cover border border-gray-600 bg-gray-900"
+                        />
+                        <div className="min-w-0">
+                          <div className="font-black text-white truncate">
+                            {participant.displayName ||
+                              participant.streamerName}
+                          </div>
+                          <div className="text-sm text-blue-300 truncate">
+                            {participant.wowNickname}
+                          </div>
+                          <div className="text-lg font-black text-amber-300">
+                            {renderWowRaidValue(participant.value)}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="md:col-span-3 bg-gray-800 rounded-xl border border-gray-700 p-6 text-center text-gray-400">
+                    아직 입력된 {currentStatMeta?.label || "통계"} 데이터가
+                    없습니다.
                   </div>
-                )) : (
-                  <div className="md:col-span-3 bg-gray-800 rounded-xl border border-gray-700 p-6 text-center text-gray-400">아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</div>
                 )}
               </div>
 
@@ -5026,26 +6819,81 @@ export default function App() {
                   <table className="min-w-full text-[17px]">
                     <thead className="bg-gray-900/90 text-gray-300">
                       <tr>
-                        <th className="px-4 py-3 text-left text-[17px] font-black">순위</th>
-                        <th className="px-4 py-3 text-left text-[17px] font-black">참가자</th>
-                        <th className="px-4 py-3 text-left text-[17px] font-black">와우 닉네임</th>
-                        <th className="px-4 py-3 text-left text-[17px] font-black">직업</th>
-                        <th className="px-4 py-3 text-left text-[17px] font-black">특성</th>
-                        <th className="px-4 py-3 text-right text-[17px] font-black">{currentStatMeta?.label}</th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">
+                          순위
+                        </th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">
+                          참가자
+                        </th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">
+                          와우 닉네임
+                        </th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">
+                          직업
+                        </th>
+                        <th className="px-4 py-3 text-left text-[17px] font-black">
+                          특성
+                        </th>
+                        <th className="px-4 py-3 text-right text-[17px] font-black">
+                          {currentStatMeta?.label}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rankings.length > 0 ? rankings.map((participant, index) => (
-                        <tr key={participant.id} className="border-t border-gray-700/80 hover:bg-gray-700/20">
-                          <td className="px-4 py-3 font-black text-gray-300 text-[17px]">{index + 1}</td>
-                          <td className="px-4 py-3 font-bold text-white text-[17px]">{participant.streamerName}</td>
-                          <td className="px-4 py-3 text-blue-300 text-[17px]">{participant.wowNickname}</td>
-                          <td className="px-4 py-3"><span style={getJobBadgeStyle(participant.jobClass)} className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap">{participant.jobClass}</span></td>
-                          <td className="px-4 py-3">{participant.mainSpec ? <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{participant.mainSpec}</span> : <span className="text-gray-500">-</span>}</td>
-                          <td className="px-4 py-3 text-right font-black text-amber-200 text-[21px]">{renderWowRaidValue(participant.value)}</td>
+                      {rankings.length > 0 ? (
+                        rankings.map((participant, index) => (
+                          <tr
+                            key={participant.id}
+                            className="border-t border-gray-700/80 hover:bg-gray-700/20"
+                          >
+                            <td className="px-4 py-3 font-black text-gray-300 text-[17px]">
+                              {index + 1}
+                            </td>
+                            <td className="px-4 py-3 font-bold text-white text-[17px]">
+                              {participant.streamerName}
+                            </td>
+                            <td className="px-4 py-3 text-blue-300 text-[17px]">
+                              {participant.wowNickname}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                style={getJobBadgeStyle(participant.jobClass)}
+                                className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap"
+                              >
+                                {participant.jobClass}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {participant.mainSpec ? (
+                                <span
+                                  title={getWowSpecTagTitle(
+                                    participant.jobClass,
+                                    participant.mainSpec,
+                                    participant.availableSpecs
+                                  )}
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}
+                                >
+                                  {participant.mainSpec}
+                                </span>
+                              ) : (
+                                <span className="text-gray-500">-</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right font-black text-amber-200 text-[21px]">
+                              {renderWowRaidValue(participant.value)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="px-4 py-8 text-center text-gray-400 text-[17px]"
+                          >
+                            아직 입력된 {currentStatMeta?.label || "통계"}{" "}
+                            데이터가 없습니다.
+                          </td>
                         </tr>
-                      )) : (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-[17px]">아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -5060,15 +6908,20 @@ export default function App() {
     return (
       <div className="space-y-6">
         <div className="bg-gradient-to-r from-violet-900/35 via-indigo-900/35 to-slate-900 rounded-2xl p-8 border border-violet-500/20 shadow-xl">
-          <h2 className="text-3xl font-black text-white mb-2 flex items-center"><Layers className="w-8 h-8 mr-3 text-violet-300" /> WOW레이드</h2>
-          <p className="text-gray-300 text-lg break-keep">진행되었던 WOW 레이드의 참가 인원과 통계를 카드형 리포트로 확인할 수 있습니다.</p>
+          <h2 className="text-3xl font-black text-white mb-2 flex items-center">
+            <Layers className="w-8 h-8 mr-3 text-violet-300" /> WOW레이드
+          </h2>
+          <p className="text-gray-300 text-lg break-keep">
+            진행되었던 WOW 레이드의 참가 인원과 통계를 카드형 리포트로 확인할 수
+            있습니다.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {[
-            { id: 'all', label: '전체' },
-            { id: '1', label: '1군' },
-            { id: '2', label: '2군' },
-            { id: 'other', label: '기타' },
+            { id: "all", label: "전체" },
+            { id: "1", label: "1군" },
+            { id: "2", label: "2군" },
+            { id: "other", label: "기타" },
           ].map((option) => {
             const active = wowRaidGroupFilter === option.id;
             return (
@@ -5076,7 +6929,11 @@ export default function App() {
                 key={option.id}
                 type="button"
                 onClick={() => setWowRaidGroupFilter(option.id)}
-                className={`px-4 py-2 rounded-lg border text-sm font-black transition-all ${active ? 'bg-violet-600/25 border-violet-400/50 text-white shadow-[0_0_0_1px_rgba(167,139,250,0.2)]' : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:border-violet-400/30 hover:text-white'}`}
+                className={`px-4 py-2 rounded-lg border text-sm font-black transition-all ${
+                  active
+                    ? "bg-violet-600/25 border-violet-400/50 text-white shadow-[0_0_0_1px_rgba(167,139,250,0.2)]"
+                    : "bg-gray-800/70 border-gray-700 text-gray-300 hover:border-violet-400/30 hover:text-white"
+                }`}
               >
                 {option.label}
               </button>
@@ -5086,7 +6943,14 @@ export default function App() {
         {filteredWowRaidPublishedList.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
             {filteredWowRaidPublishedList.map((raid) => (
-              <button key={raid.id} onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); }} className="text-left bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-violet-400/40 hover:-translate-y-0.5 transition-all">
+              <button
+                key={raid.id}
+                onClick={() => {
+                  setSelectedWowRaidId(raid.id);
+                  setWowRaidDetailTab("participants");
+                }}
+                className="text-left bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-violet-400/40 hover:-translate-y-0.5 transition-all"
+              >
                 <div className="relative h-40 bg-gray-900/60 overflow-hidden">
                   {raid.raidGroupNumber && (
                     <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md border border-amber-300/45 bg-black/50 backdrop-blur-sm text-amber-100 text-xs font-black shadow-lg">
@@ -5094,533 +6958,40 @@ export default function App() {
                     </span>
                   )}
                   {raid.imageUrl ? (
-                    <img src={raid.imageUrl} alt={raid.raidName} className="w-full h-full object-cover" />
+                    <img
+                      src={raid.imageUrl}
+                      alt={raid.raidName}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-900/25 to-slate-900 text-violet-200/70 font-black text-2xl">WOW RAID</div>
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-900/25 to-slate-900 text-violet-200/70 font-black text-2xl">
+                      WOW RAID
+                    </div>
                   )}
                 </div>
                 <div className="p-4">
-                  <div className="text-lg font-black text-white mb-2 break-keep">{raid.raidName}</div>
-                  <div className="text-sm text-gray-300 mb-1">{raid.raidDate || '-'}</div>
-                  <div className="text-sm text-cyan-300 font-black">토벌시간 {raid.clearTime || '-'}</div>
-                  {raid.note && <div className="mt-2 text-xs text-gray-400 break-keep leading-relaxed">{raid.note}</div>}
+                  <div className="text-lg font-black text-white mb-2 break-keep">
+                    {raid.raidName}
+                  </div>
+                  <div className="text-sm text-gray-300 mb-1">
+                    {raid.raidDate || "-"}
+                  </div>
+                  <div className="text-sm text-cyan-300 font-black">
+                    토벌시간 {raid.clearTime || "-"}
+                  </div>
+                  {raid.note && (
+                    <div className="mt-2 text-xs text-gray-400 break-keep leading-relaxed">
+                      {raid.note}
+                    </div>
+                  )}
                 </div>
               </button>
             ))}
           </div>
         ) : (
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400">선택한 군에 해당하는 WOW 레이드 기록이 없습니다.</div>
-        )}
-      </div>
-    );
-  };
-
-  const renderEventView = () => {
-    const matchesByRound = {
-      quarterfinal: publicEventMatches.filter((match) => match.round === "quarterfinal"),
-      semifinal: publicEventMatches.filter((match) => match.round === "semifinal"),
-      final: publicEventMatches.filter((match) => match.round === "final"),
-    };
-    const championTeam = eventTeamMap[eventSettings.championTeamId] || eventTeamMap[publicEventMatches.find((match) => match.id === "final1")?.winnerTeamId];
-    const quarterfinalMatches = matchesByRound.quarterfinal;
-    const semifinalMatches = matchesByRound.semifinal;
-    const finalMatch = matchesByRound.final[0] || normalizeEventMatchDocument({ id: "final1" });
-    const remainingMatchCount = publicEventMatches.filter((match) => match.status !== "finished").length;
-
-    const getEventBracketSlotStyle = (team) => {
-      if (!team) {
-        return {
-          borderColor: "rgba(100, 116, 139, 0.32)",
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.84))",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-        };
-      }
-
-      return getEventTeamStyle(team.jobClass);
-    };
-
-    const renderEventBracketTeamRow = ({ team, score, isWinner, variant = "desktopQuarterfinal" }) => {
-      const toneStyle = getEventBracketSlotStyle(team);
-      const isPending = !team;
-      const rowConfig = {
-        desktopQuarterfinal: {
-          wrapperClass: "rounded-[14px] px-2.5 py-2",
-          nameClass: "text-[13px]",
-          badgeClass: "px-1.5 py-0.5 text-[8px]",
-          scoreClass: "text-base min-w-[1.4rem]",
-        },
-        desktopSemifinal: {
-          wrapperClass: "rounded-[15px] px-2.5 py-2.5",
-          nameClass: "text-[13px]",
-          badgeClass: "px-1.5 py-0.5 text-[8px]",
-          scoreClass: "text-[17px] min-w-[1.5rem]",
-        },
-        desktopFinal: {
-          wrapperClass: "rounded-[16px] px-3 py-2.5",
-          nameClass: "text-[14px]",
-          badgeClass: "px-2 py-0.5 text-[8px]",
-          scoreClass: "text-lg min-w-[1.6rem]",
-        },
-        mobile: {
-          wrapperClass: "rounded-[16px] px-3 py-3",
-          nameClass: "text-sm",
-          badgeClass: "px-2 py-0.5 text-[9px]",
-          scoreClass: "text-lg min-w-[1.8rem]",
-        },
-      }[variant] || {
-        wrapperClass: "rounded-[14px] px-2.5 py-2",
-        nameClass: "text-[13px]",
-        badgeClass: "px-1.5 py-0.5 text-[8px]",
-        scoreClass: "text-base min-w-[1.4rem]",
-      };
-
-      return (
-        <div
-          className={`flex items-center justify-between gap-2 border ${rowConfig.wrapperClass} transition ${
-            isWinner ? "ring-1 ring-amber-200/35" : ""
-          } ${isPending ? "border-dashed" : ""}`}
-          style={{
-            borderColor: isPending ? "rgba(148, 163, 184, 0.48)" : toneStyle.borderColor,
-            background: isPending
-              ? "linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.68))"
-              : toneStyle.background,
-            boxShadow: isPending
-              ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 0 18px rgba(148,163,184,0.08)"
-              : isWinner
-              ? `${toneStyle.boxShadow || "0 0 0 transparent"}, 0 0 0 1px rgba(255,255,255,0.08)`
-              : toneStyle.boxShadow,
-            opacity: isPending ? 0.92 : 1,
-          }}
-        >
-          <div className="min-w-0 flex-1">
-            <div className={`truncate font-black ${rowConfig.nameClass} ${isPending ? "text-slate-200" : "text-white"}`}>
-              {team?.teamName || "승리팀 대기중"}
-            </div>
+          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400">
+            선택한 군에 해당하는 WOW 레이드 기록이 없습니다.
           </div>
-          <div className="flex shrink-0 items-center">
-            <span className={`text-right font-black text-white ${rowConfig.scoreClass}`}>
-              {score === "" ? "-" : score}
-            </span>
-          </div>
-        </div>
-      );
-    };
-
-    const renderEventBracketMatchCard = (match, variant = "desktopQuarterfinal") => {
-      if (!match) return null;
-
-      const teamA = eventTeamMap[match.teamAId];
-      const teamB = eventTeamMap[match.teamBId];
-      const displayDate = `${match.displayDate || ""}`.trim();
-      const variantConfig = {
-        desktopQuarterfinal: { wrapperClass: "w-[154px]", cardClass: "min-h-[118px]" },
-        desktopSemifinal: { wrapperClass: "w-[172px]", cardClass: "min-h-[124px]" },
-        desktopFinal: { wrapperClass: "w-[194px]", cardClass: "min-h-[132px]" },
-        mobile: { wrapperClass: "w-full", cardClass: "min-h-0" },
-      }[variant] || { wrapperClass: "w-full", cardClass: "min-h-0" };
-      const isPendingMatch = variant !== "desktopQuarterfinal" && (!teamA || !teamB);
-
-      return (
-        <article
-          className={`${variantConfig.wrapperClass} ${variantConfig.cardClass} rounded-[20px] border p-2.5 shadow-[0_12px_28px_rgba(2,6,23,0.34)] backdrop-blur-sm ${
-            isPendingMatch
-              ? "border-dashed border-slate-500/80 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(30,41,59,0.84))] animate-pulse"
-              : "border-slate-600/85 bg-[#071120]/94"
-          }`}
-        >
-          <div className="min-w-0 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[9px] font-black tracking-[0.14em] text-slate-400 uppercase">{match.label}</div>
-              {displayDate ? <div className="mt-0.5 text-[11px] font-bold text-rose-200">{displayDate}</div> : null}
-            </div>
-          </div>
-
-          <div className="mt-2.5 space-y-2">
-            {renderEventBracketTeamRow({
-              team: teamA,
-              score: match.teamAScore,
-              isWinner: !!teamA && match.winnerTeamId === teamA.id,
-              variant,
-            })}
-            <div className="flex items-center gap-2 px-1">
-              <div className="h-px flex-1 bg-white/12" />
-              <span className="text-[9px] font-black tracking-[0.24em] text-white/45">VS</span>
-              <div className="h-px flex-1 bg-white/12" />
-            </div>
-            {renderEventBracketTeamRow({
-              team: teamB,
-              score: match.teamBScore,
-              isWinner: !!teamB && match.winnerTeamId === teamB.id,
-              variant,
-            })}
-          </div>
-        </article>
-      );
-    };
-
-    const renderEventChampionCard = (team) => (
-      <div className="relative min-h-[98px] overflow-hidden rounded-[28px] border border-amber-200/25 bg-[radial-gradient(circle_at_top,_rgba(254,240,138,0.34),_transparent_50%),linear-gradient(180deg,_rgba(120,53,15,0.98),_rgba(92,37,7,0.94)_32%,_rgba(15,23,42,0.96))] px-4 py-3 shadow-[0_0_34px_rgba(251,191,36,0.2),0_18px_38px_rgba(120,53,15,0.26)] ring-1 ring-amber-100/10 lg:scale-[1.03] lg:origin-top">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.1),_transparent_42%)]" />
-        <div className="relative flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-amber-100 uppercase">
-          <Crown className="h-3.5 w-3.5 text-amber-300" />
-          Champion
-        </div>
-        {team ? (
-          <div className="relative mt-3 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="truncate text-xl font-black text-white">{team.teamName}</div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <span
-                  className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black"
-                  style={getJobBadgeStyle(team.jobClass)}
-                >
-                  {team.jobClass}
-                </span>
-                <span className="rounded-full border border-amber-100/20 bg-amber-300/10 px-2.5 py-0.5 text-[10px] font-black text-amber-100">
-                  우승 확정
-                </span>
-              </div>
-            </div>
-            <div className="flex shrink-0 -space-x-2.5">
-              {team.members.slice(0, 4).map((member) => (
-                <img
-                  key={member.id}
-                  src={getEventMemberAvatar(member)}
-                  onError={(e) => {
-                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
-                  }}
-                  alt={member.displayName}
-                  className="h-10 w-10 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover shadow-[0_0_14px_rgba(250,204,21,0.14)]"
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="relative mt-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-400/10 shadow-[0_0_18px_rgba(251,191,36,0.12)]">
-              <Trophy className="h-4.5 w-4.5 text-amber-300" />
-            </div>
-            <div>
-              <div className="text-base font-black text-white">우승팀 대기중</div>
-              <div className="text-[11px] leading-4 text-amber-100/70">결승 결과가 확정되면 이 영역이 자동으로 채워집니다.</div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-
-    if (!eventSettings.isVisible && !isAdminAuth) {
-      return (
-        <div className="max-w-3xl mx-auto rounded-3xl border border-gray-700 bg-gray-900/80 p-10 text-center shadow-xl">
-          <Sparkles className="w-12 h-12 text-amber-300 mx-auto mb-4" />
-          <h2 className="text-3xl font-black text-white mb-3">이벤트 준비 중</h2>
-          <p className="text-gray-400 leading-relaxed break-keep">아직 이벤트 탭이 공개되지 않았습니다. 관리자에서 팀 구성과 대진표를 저장한 뒤 공개할 수 있어요.</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-8">
-        <section className="relative overflow-hidden rounded-[28px] border border-slate-700/80 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.45)]">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-[38%] bg-[radial-gradient(circle_at_top_left,_rgba(250,204,21,0.18),_transparent_62%)]" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.12),_transparent_65%)]" />
-          <div className="absolute -right-10 -top-10 opacity-[0.08] pointer-events-none"><Trophy className="w-44 h-44 text-yellow-100" /></div>
-          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center rounded-full bg-yellow-500 px-3.5 py-1.5 text-[11px] font-black tracking-[0.18em] text-black uppercase shadow-[0_8px_24px_rgba(234,179,8,0.3)]">
-                EVENT
-              </div>
-              <h2 className="mt-4 text-4xl font-black text-white tracking-tight break-keep">{eventSettings.title}</h2>
-              <p className="mt-3 max-w-2xl text-lg text-slate-200 break-keep leading-relaxed">{eventSettings.subtitle}</p>
-              <div className="mt-6 flex flex-wrap gap-3 text-sm font-bold text-gray-200">
-                <span className="inline-flex items-center rounded-full border border-yellow-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Activity className="w-4 h-4 mr-2 text-yellow-300" /> 현재 라운드 {eventCurrentRoundLabel}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-sky-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Users className="w-4 h-4 mr-2 text-sky-300" /> 참가팀 {sortedEventTeams.length}팀
-                </span>
-                <span className="inline-flex items-center rounded-full border border-rose-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Swords className="w-4 h-4 mr-2 text-rose-300" /> 남은 경기 {publicEventMatches.filter((match) => match.status !== "finished").length}경기
-                </span>
-              </div>
-            </div>
-            <div className="relative shrink-0">
-              <div className="rounded-[26px] bg-gradient-to-r from-amber-300/40 via-white/18 to-sky-300/28 p-[1px] shadow-[0_0_32px_rgba(251,191,36,0.16)]">
-                <div className="relative overflow-hidden rounded-[25px] bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(30,41,59,0.9))] px-6 py-5 backdrop-blur-xl">
-                  <div className="pointer-events-none absolute -left-3 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-slate-950/95 ring-1 ring-white/5" />
-                  <div className="pointer-events-none absolute -right-3 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-slate-950/95 ring-1 ring-white/5" />
-                  <div className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-amber-200 uppercase">
-                    <CalendarDays className="h-4 w-4 text-amber-300" />
-                    일정
-                  </div>
-                  <div className="mt-3 text-2xl font-black leading-tight text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.08)]">
-                    {formatEventStartAt(eventSettings.startAt)}
-                  </div>
-                  <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-                  <div className="mt-4 text-sm text-slate-300 break-keep leading-6">
-                    8강 4경기, 4강 2경기, 결승 1경기로 진행됩니다.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[32px] border border-slate-700 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.96),_rgba(2,6,23,0.98))] p-6 shadow-[0_28px_80px_rgba(2,6,23,0.5)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-slate-400 uppercase">Bracket Board</div>
-              <h3 className="mt-2 text-3xl font-black text-white">와농대 8강 토너먼트</h3>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-black text-slate-200">
-                <Target className="w-3.5 h-3.5 mr-2 text-rose-300" /> 남은 경기 {remainingMatchCount}경기
-              </span>
-              <button
-                type="button"
-                onClick={() => copyTextToClipboard(`${window.location.origin}${window.location.pathname}#event`, "이벤트 링크를 복사했습니다.")}
-                className="inline-flex items-center rounded-full border border-slate-700 bg-slate-950/90 px-3 py-2 text-xs font-black text-slate-200 transition hover:border-slate-500 hover:text-white"
-              >
-                <Link2 className="w-3.5 h-3.5 mr-2 text-cyan-300" /> 이벤트 링크 복사
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 hidden lg:block">
-            <div className="relative mx-auto h-[888px] w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-slate-800/70 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.05),_transparent_55%)] px-6">
-              <div className="absolute inset-0 translate-y-[10px]">
-                <div className="absolute left-1/2 top-[28px] w-[292px] -translate-x-1/2">
-                  {renderEventChampionCard(championTeam)}
-                </div>
-
-                <div className="pointer-events-none absolute left-1/2 top-[130px] h-[22px] w-[2px] -translate-x-1/2 bg-gradient-to-b from-amber-300/80 to-slate-400/80" />
-
-                <div className="absolute left-1/2 top-[152px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(finalMatch, "desktopFinal")}
-                </div>
-
-                <div className="absolute left-[26%] top-[384px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(semifinalMatches[0], "desktopSemifinal")}
-                </div>
-                <div className="absolute left-[74%] top-[384px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(semifinalMatches[1], "desktopSemifinal")}
-                </div>
-
-                <div className="absolute left-[14%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[0], "desktopQuarterfinal")}
-                </div>
-                <div className="absolute left-[38%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[1], "desktopQuarterfinal")}
-                </div>
-                <div className="absolute left-[62%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[2], "desktopQuarterfinal")}
-                </div>
-                <div className="absolute left-[86%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[3], "desktopQuarterfinal")}
-                </div>
-
-                <div className="pointer-events-none absolute left-1/2 top-[314px] h-[42px] w-[2px] -translate-x-1/2 bg-slate-400/85" />
-                <div className="pointer-events-none absolute left-[26%] top-[356px] h-[2px] w-[48%] bg-slate-400/85" />
-                <div className="pointer-events-none absolute left-[26%] top-[356px] h-[28px] w-[2px] bg-slate-400/85" />
-                <div className="pointer-events-none absolute left-[74%] top-[356px] h-[28px] w-[2px] bg-slate-400/85" />
-
-                <div className="pointer-events-none absolute left-[26%] top-[542px] h-[78px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[14%] top-[620px] h-[2px] w-[24%] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[14%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[38%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-
-                <div className="pointer-events-none absolute left-[74%] top-[542px] h-[78px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[62%] top-[620px] h-[2px] w-[24%] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[62%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[86%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-
-                <div className="pointer-events-none absolute left-1/2 top-[2px] -translate-x-1/2 text-[11px] font-black tracking-[0.18em] text-amber-300 uppercase">우승</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-5 lg:hidden">
-            <div>{renderEventChampionCard(championTeam)}</div>
-            {[
-              { roundKey: "final", title: "결승", matches: [finalMatch] },
-              { roundKey: "semifinal", title: "4강", matches: semifinalMatches },
-              { roundKey: "quarterfinal", title: "8강", matches: quarterfinalMatches },
-            ].map((section) => (
-              <div key={section.roundKey} className="rounded-[26px] border border-slate-700 bg-slate-950/55 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h4 className="text-lg font-black text-white">{section.title}</h4>
-                  <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-[11px] font-black text-slate-300">
-                    {section.matches.length}경기
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {section.matches.map((match) => (
-                    <div key={match.id}>{renderEventBracketMatchCard(match, "mobile")}</div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-gray-700 bg-gray-900/75 p-6 shadow-lg">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-gray-400 uppercase">Teams</div>
-              <h3 className="text-3xl font-black text-white mt-1">참가 팀 상세</h3>
-            </div>
-            <div className="text-sm text-gray-400">직업별 테마 색상과 팀 메모, 5인 구성까지 한 번에 확인할 수 있습니다.</div>
-          </div>
-          {sortedEventTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/60 px-4 py-10 text-center text-gray-500">아직 등록된 이벤트 참가 팀이 없습니다.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {sortedEventTeams.map((team) => {
-                const teamAccentColor = WOW_CLASS_COLORS[team.jobClass] || "#94a3b8";
-
-                return (
-                  <div key={team.id} className="rounded-[24px] border p-4 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="min-w-0">
-                        <div className="text-xs font-black tracking-[0.16em] text-white/60 uppercase">Team #{team.sortOrder}</div>
-                        <h4 className="text-xl font-black text-white truncate">{team.teamName}</h4>
-                      </div>
-                      <span
-                        className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm"
-                        style={getJobBadgeStyle(team.jobClass)}
-                      >
-                        {team.jobClass || "직업 미정"}
-                      </span>
-                    </div>
-                    {team.note ? <p className="mb-4 text-sm text-white/75 break-keep">{team.note}</p> : null}
-                    <div className="space-y-2">
-                      {team.members.map((member) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-gray-950/45 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-200 hover:border-white/15 hover:bg-gray-900/72 hover:shadow-[0_10px_24px_rgba(15,23,42,0.22)]"
-                        >
-                          <img
-                            src={getEventMemberAvatar(member)}
-                            onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }}
-                            alt={member.displayName}
-                            className="w-10 h-10 rounded-full border-2 bg-gray-900 object-cover transition-transform duration-200"
-                            style={{
-                              borderColor: teamAccentColor,
-                              boxShadow: `0 0 0 1px rgba(255,255,255,0.04), 0 0 16px ${teamAccentColor}22`,
-                            }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-black text-white">{member.displayName}</div>
-                            <div className="truncate text-[11px] text-white/70">{member.wowNickname}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {false && (
-          <>
-        {championTeam ? (
-          <section className="rounded-3xl border border-yellow-400/25 bg-gradient-to-r from-yellow-500/10 via-amber-400/10 to-orange-500/10 p-6 shadow-lg">
-            <div className="text-xs font-black tracking-[0.18em] text-yellow-300 uppercase mb-2">Champion</div>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="text-3xl font-black text-white break-keep">{championTeam.teamName}</div>
-                <span className="mt-3 inline-flex items-center rounded-full border px-3 py-1 text-sm font-black" style={getJobBadgeStyle(championTeam.jobClass)}>{championTeam.jobClass}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {championTeam.members.slice(0, 5).map((member) => (
-                  <img key={member.id} src={getEventMemberAvatar(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }} alt={member.displayName} className="w-12 h-12 rounded-full border border-yellow-200/20 bg-gray-900 object-cover" />
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="grid gap-5 xl:grid-cols-3">
-          {(["quarterfinal", "semifinal", "final"]).map((roundKey) => (
-            <div key={roundKey} className="rounded-3xl border border-gray-700 bg-gray-900/75 p-5 shadow-lg">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-2xl font-black text-white">{EVENT_ROUND_LABELS[roundKey]}</h3>
-                <span className="rounded-full border border-gray-700 bg-gray-950/70 px-3 py-1 text-xs font-bold text-gray-300">{matchesByRound[roundKey].length}경기</span>
-              </div>
-              <div className="space-y-4">
-                {matchesByRound[roundKey].map((match) => {
-                  const teamA = eventTeamMap[match.teamAId];
-                  const teamB = eventTeamMap[match.teamBId];
-                  const matchStatus = getEventStatusMeta(match.status);
-                  return (
-                    <div key={match.id} className="rounded-2xl border border-gray-700 bg-gray-950/70 p-4">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div className="text-sm font-black text-white">{match.label}</div>
-                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${matchStatus.badgeClass}`}>{matchStatus.label}</span>
-                      </div>
-                      {[{ key: "teamA", team: teamA, score: match.teamAScore }, { key: "teamB", team: teamB, score: match.teamBScore }].map((entry) => (
-                        <div key={entry.key} className={`mt-2 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${match.winnerTeamId && entry.team && match.winnerTeamId === entry.team.id ? "ring-1" : ""}`} style={getEventTeamStyle(entry.team?.jobClass || "")}>
-                          <div className="min-w-0">
-                            <div className="text-xs font-black tracking-[0.16em] text-white/50 uppercase">{entry.key === "teamA" ? "TEAM A" : "TEAM B"}</div>
-                            <div className="truncate text-lg font-black text-white">{entry.team?.teamName || "TBD"}</div>
-                            <div className="truncate text-xs text-white/75">{entry.team?.jobClass || "팀 미배정"}</div>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            {entry.team ? <span className="rounded-full border px-2 py-1 text-[11px] font-black" style={getJobBadgeStyle(entry.team.jobClass)}>{entry.team.jobClass}</span> : null}
-                            <span className="min-w-[2.2rem] text-right text-2xl font-black text-white">{entry.score === "" ? "-" : entry.score}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="mt-3 text-sm font-bold text-emerald-200">{match.winnerTeamId && eventTeamMap[match.winnerTeamId] ? `승리: ${eventTeamMap[match.winnerTeamId].teamName}` : "아직 승리 팀이 확정되지 않았습니다."}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </section>
-
-        <section className="rounded-3xl border border-gray-700 bg-gray-900/75 p-6 shadow-lg">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-gray-400 uppercase">Teams</div>
-              <h3 className="text-3xl font-black text-white mt-1">참가 8팀 소개</h3>
-            </div>
-            <div className="text-sm text-gray-400">직업별 고유 색상을 기반으로 팀 카드가 자동 구성됩니다.</div>
-          </div>
-          {sortedEventTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/60 px-4 py-10 text-center text-gray-500">아직 등록된 이벤트 참가 팀이 없습니다.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {sortedEventTeams.map((team) => (
-                <div key={team.id} className="rounded-[24px] border p-4 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="min-w-0">
-                      <div className="text-xs font-black tracking-[0.16em] text-white/60 uppercase">Team #{team.sortOrder}</div>
-                      <h4 className="text-xl font-black text-white truncate">{team.teamName}</h4>
-                    </div>
-                    <span className="rounded-full border px-2.5 py-1 text-[11px] font-black" style={getJobBadgeStyle(team.jobClass)}>{team.jobClass || "직업 미설정"}</span>
-                  </div>
-                  {team.note ? <p className="mb-4 text-sm text-white/75 break-keep">{team.note}</p> : null}
-                  <div className="space-y-2">
-                    {team.members.map((member) => (
-                      <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                        <img src={getEventMemberAvatar(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }} alt={member.displayName} className="w-10 h-10 rounded-full border border-white/15 bg-gray-900 object-cover" />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-black text-white">{member.displayName}</div>
-                          <div className="truncate text-[11px] text-white/70">{member.wowNickname}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-          </>
         )}
       </div>
     );
@@ -5628,12 +6999,22 @@ export default function App() {
 
   const renderWowView = () => {
     const totalWowMembers = wowRoster.length;
-    const qualifiedCount = wowRoster.filter(m => m.level >= 40).length;
-    const qualifyPercent = totalWowMembers === 0 ? 0 : Math.round((qualifiedCount / totalWowMembers) * 100);
-    
-    const avgLevel = totalWowMembers === 0 ? 0 : (wowRoster.reduce((sum, m) => sum + m.level, 0) / totalWowMembers).toFixed(1);
-    const top5Wow = [...wowRoster].sort((a, b) => b.level - a.level).slice(0, 5);
-    
+    const qualifiedCount = wowRoster.filter((m) => m.level >= 40).length;
+    const qualifyPercent =
+      totalWowMembers === 0
+        ? 0
+        : Math.round((qualifiedCount / totalWowMembers) * 100);
+
+    const avgLevel =
+      totalWowMembers === 0
+        ? 0
+        : (
+            wowRoster.reduce((sum, m) => sum + m.level, 0) / totalWowMembers
+          ).toFixed(1);
+    const top5Wow = [...wowRoster]
+      .sort((a, b) => b.level - a.level)
+      .slice(0, 5);
+
     const classCounts = wowRoster.reduce((acc, m) => {
       acc[m.jobClass] = (acc[m.jobClass] || 0) + 1;
       return acc;
@@ -5641,8 +7022,15 @@ export default function App() {
     const allClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1]);
 
     const WowSortIcon = ({ columnKey }) => {
-      if (wowSortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
-      return wowSortConfig.direction === 'asc' ? <ChevronUp className="w-4 h-4 ml-1 text-blue-400" /> : <ChevronDown className="w-4 h-4 ml-1 text-blue-400" />;
+      if (wowSortConfig.key !== columnKey)
+        return (
+          <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />
+        );
+      return wowSortConfig.direction === "asc" ? (
+        <ChevronUp className="w-4 h-4 ml-1 text-blue-400" />
+      ) : (
+        <ChevronDown className="w-4 h-4 ml-1 text-blue-400" />
+      );
     };
 
     return (
@@ -5653,11 +7041,18 @@ export default function App() {
           </div>
           <div className="relative z-10">
             <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300 mb-3 flex items-center drop-shadow-md">
-              <Shield className="w-8 h-8 mr-3 text-blue-400" /> 월드 오브 워크래프트 x 버츄얼 종겜 리그
+              <Shield className="w-8 h-8 mr-3 text-blue-400" /> 월드 오브
+              워크래프트 x 버츄얼 종겜 리그
             </h2>
             <p className="text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm">
-              왁타버스 길드에 가입하여 피나는 노력 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
-              <br/>종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 가장 먼저 합류할까요?
+              왁타버스 길드에 가입하여 피나는 노력 끝에{" "}
+              <strong className="text-yellow-400 font-black text-xl px-1">
+                레벨 40
+              </strong>
+              을 달성한 자만이
+              <br />
+              종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 가장 먼저
+              합류할까요?
             </p>
           </div>
         </div>
@@ -5665,13 +7060,33 @@ export default function App() {
         <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 relative overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-500"></div>
           <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center">
-            <Ticket className="w-6 h-6 mr-2" /> '종겜 리그 참가권'에 대한 정확한 안내
+            <Ticket className="w-6 h-6 mr-2" /> '종겜 리그 참가권'에 대한 정확한
+            안내
           </h3>
           <div className="space-y-3 text-gray-300 text-lg leading-relaxed">
-            <p><strong className="text-white">✅ 확정 참가가 아닙니다:</strong> 40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가 권리'를 의미하지 않습니다.</p>
-            <p><strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong> 왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className="text-blue-300 font-bold">"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className="text-white font-bold">해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
+            <p>
+              <strong className="text-white">✅ 확정 참가가 아닙니다:</strong>{" "}
+              40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가
+              권리'를 의미하지 않습니다.
+            </p>
+            <p>
+              <strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong>{" "}
+              왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서{" "}
+              <strong className="text-blue-300 font-bold">
+                "와튜버 한 자리 보장"
+              </strong>{" "}
+              룰이 적용되어 참가자를 뽑을 때{" "}
+              <strong className="text-white font-bold">
+                해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격
+              </strong>
+              을 의미합니다.
+            </p>
             <div className="mt-5 pt-4 border-t border-gray-700">
-              <p className="text-base text-gray-400">단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 관리자가 되겠습니다. </p>
+              <p className="text-base text-gray-400">
+                단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨
+                점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱
+                정확하게 안내하는 관리자가 되겠습니다.{" "}
+              </p>
             </div>
           </div>
         </div>
@@ -5680,17 +7095,31 @@ export default function App() {
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-white mb-1 flex items-center">
-                <Ticket className="w-5 h-5 mr-2 text-yellow-400"/> 참가권 획득 진척도
+                <Ticket className="w-5 h-5 mr-2 text-yellow-400" /> 참가권 획득
+                진척도
               </h3>
-              <p className="text-sm text-gray-400 mb-4">레벨 40 이상 달성자 비율</p>
+              <p className="text-sm text-gray-400 mb-4">
+                레벨 40 이상 달성자 비율
+              </p>
             </div>
             <div>
               <div className="flex justify-between items-end mb-2">
-                <span className="text-3xl font-black text-yellow-400">{qualifiedCount}<span className="text-lg text-gray-500 font-bold"> / {totalWowMembers}명</span></span>
-                <span className="text-lg font-bold text-white">{qualifyPercent}%</span>
+                <span className="text-3xl font-black text-yellow-400">
+                  {qualifiedCount}
+                  <span className="text-lg text-gray-500 font-bold">
+                    {" "}
+                    / {totalWowMembers}명
+                  </span>
+                </span>
+                <span className="text-lg font-bold text-white">
+                  {qualifyPercent}%
+                </span>
               </div>
               <div className="w-full bg-gray-900 rounded-full h-4 border border-gray-700 overflow-hidden">
-                <div className="bg-gradient-to-r from-yellow-600 to-yellow-400 h-4 rounded-full transition-all duration-1000" style={{ width: `${qualifyPercent}%` }}></div>
+                <div
+                  className="bg-gradient-to-r from-yellow-600 to-yellow-400 h-4 rounded-full transition-all duration-1000"
+                  style={{ width: `${qualifyPercent}%` }}
+                ></div>
               </div>
             </div>
           </div>
@@ -5698,20 +7127,40 @@ export default function App() {
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-white mb-1 flex items-center">
-                <Swords className="w-5 h-5 mr-2 text-red-400"/> 길드 전투력 요약
+                <Swords className="w-5 h-5 mr-2 text-red-400" /> 길드 전투력
+                요약
               </h3>
-              <p className="text-sm text-gray-400 mb-4">평균 레벨 및 최상위 선발대</p>
+              <p className="text-sm text-gray-400 mb-4">
+                평균 레벨 및 최상위 선발대
+              </p>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-xs text-gray-500 font-bold mb-1">길드 평균 레벨</span>
-                <span className="text-3xl font-black text-white">Lv. {avgLevel}</span>
+                <span className="text-xs text-gray-500 font-bold mb-1">
+                  길드 평균 레벨
+                </span>
+                <span className="text-3xl font-black text-white">
+                  Lv. {avgLevel}
+                </span>
               </div>
               <div className="flex -space-x-3 overflow-hidden">
                 {top5Wow.map((m, i) => (
-                  <div key={i} className="relative z-10 inline-block h-12 w-12 rounded-full ring-2 ring-gray-800" title={`${m.streamerName} (Lv.${m.level})`}>
-                    <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} alt={m.streamerName} className="h-full w-full rounded-full object-cover bg-gray-900" />
-                    <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-black text-[10px] font-black px-1.5 rounded-full border border-gray-800">{m.level}</div>
+                  <div
+                    key={i}
+                    className="relative z-10 inline-block h-12 w-12 rounded-full ring-2 ring-gray-800"
+                    title={`${m.streamerName} (Lv.${m.level})`}
+                  >
+                    <img
+                      src={getWowAvatarSrc(m)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`;
+                      }}
+                      alt={m.streamerName}
+                      className="h-full w-full rounded-full object-cover bg-gray-900"
+                    />
+                    <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-black text-[10px] font-black px-1.5 rounded-full border border-gray-800">
+                      {m.level}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -5721,25 +7170,48 @@ export default function App() {
           <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
             <div>
               <h3 className="text-lg font-bold text-white mb-1 flex items-center">
-                <PieChart className="w-5 h-5 mr-2 text-blue-400"/> 직업 분포도
+                <PieChart className="w-5 h-5 mr-2 text-blue-400" /> 직업 분포도
               </h3>
-              <p className="text-sm text-gray-400 mb-4">길드 내 전체 직업 비율</p>
+              <p className="text-sm text-gray-400 mb-4">
+                길드 내 전체 직업 비율
+              </p>
             </div>
             <div>
               <div className="flex h-4 rounded-full overflow-hidden mb-3 border border-gray-700 bg-gray-900">
                 {allClasses.map((cls, i) => {
-                  const pct = totalWowMembers === 0 ? 0 : (cls[1] / totalWowMembers) * 100;
-                  const bgColor = WOW_CLASS_COLORS[cls[0]] || fallbackColors[i % fallbackColors.length];
-                  return <div key={i} style={{ width: `${pct}%`, backgroundColor: bgColor }} className="h-full" title={`${cls[0]}: ${cls[1]}명`}></div>
+                  const pct =
+                    totalWowMembers === 0
+                      ? 0
+                      : (cls[1] / totalWowMembers) * 100;
+                  const bgColor =
+                    WOW_CLASS_COLORS[cls[0]] ||
+                    fallbackColors[i % fallbackColors.length];
+                  return (
+                    <div
+                      key={i}
+                      style={{ width: `${pct}%`, backgroundColor: bgColor }}
+                      className="h-full"
+                      title={`${cls[0]}: ${cls[1]}명`}
+                    ></div>
+                  );
                 })}
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-xs max-h-[80px] overflow-y-auto custom-scrollbar pr-1">
                 {allClasses.map((cls, i) => {
-                  const bgColor = WOW_CLASS_COLORS[cls[0]] || fallbackColors[i % fallbackColors.length];
+                  const bgColor =
+                    WOW_CLASS_COLORS[cls[0]] ||
+                    fallbackColors[i % fallbackColors.length];
                   return (
-                    <div key={i} className="flex items-center text-gray-300 font-medium">
-                      <span className="w-2.5 h-2.5 rounded-full mr-1.5 border border-gray-600/50" style={{ backgroundColor: bgColor }}></span>
-                      {cls[0]} <span className="text-gray-500 ml-1">({cls[1]})</span>
+                    <div
+                      key={i}
+                      className="flex items-center text-gray-300 font-medium"
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full mr-1.5 border border-gray-600/50"
+                        style={{ backgroundColor: bgColor }}
+                      ></span>
+                      {cls[0]}{" "}
+                      <span className="text-gray-500 ml-1">({cls[1]})</span>
                     </div>
                   );
                 })}
@@ -5772,20 +7244,33 @@ export default function App() {
                     💡 갱신 기준 시간
                   </h4>
                   <p className="pl-6 text-gray-400">
-                    캐릭터들의 레벨 최신화 시점은 화면 좌측 최상단 바에 표시되는 <strong className="text-blue-300">최근 갱신 시각</strong>을 기준으로 합니다.
+                    캐릭터들의 레벨 최신화 시점은 화면 좌측 최상단 바에 표시되는{" "}
+                    <strong className="text-blue-300">최근 갱신 시각</strong>을
+                    기준으로 합니다.
                   </p>
                 </div>
-                
+
                 <div>
                   <h4 className="font-bold text-white mb-2 flex items-center">
-                    🛠️ 업데이트 방식 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded ml-2 font-medium">100% 수동 작업</span>
+                    🛠️ 업데이트 방식{" "}
+                    <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded ml-2 font-medium">
+                      100% 수동 작업
+                    </span>
                   </h4>
                   <p className="pl-6 text-gray-400 mb-2 break-keep">
-                    현재 레벨 갱신은 게임 시스템과의 자동 연동이 어려워, 부득이하게 아래와 같은 방법으로 관리자가 직접 수동으로 업데이트하고 있습니다.
+                    현재 레벨 갱신은 게임 시스템과의 자동 연동이 어려워,
+                    부득이하게 아래와 같은 방법으로 관리자가 직접 수동으로
+                    업데이트하고 있습니다.
                   </p>
                   <ul className="pl-8 list-decimal text-gray-400 space-y-1.5 marker:font-bold marker:text-blue-400/50">
-                    <li>관리자가 직접 '월드 오브 워크래프트' 게임 내에 접속하여 길드창 확인</li>
-                    <li>왁굳님 및 참가 스트리머분들의 생방송 화면을 실시간으로 모니터링하여 확인</li>
+                    <li>
+                      관리자가 직접 '월드 오브 워크래프트' 게임 내에 접속하여
+                      길드창 확인
+                    </li>
+                    <li>
+                      왁굳님 및 참가 스트리머분들의 생방송 화면을 실시간으로
+                      모니터링하여 확인
+                    </li>
                   </ul>
                 </div>
 
@@ -5794,7 +7279,13 @@ export default function App() {
                     ⏱️ 업데이트 주기
                   </h4>
                   <p className="pl-6 text-gray-400 break-keep">
-                    평소에는 관리자가 여유가 생길 때마다 틈틈이 갱신 작업을 진행하고 있습니다. 다만, 중요한 컨텐츠나 이벤트가 시작되기 직전에는 작업의 우선순위를 가장 높여 <strong className="text-white">최대한 실시간에 가깝게 반영</strong>하려 노력 중입니다.
+                    평소에는 관리자가 여유가 생길 때마다 틈틈이 갱신 작업을
+                    진행하고 있습니다. 다만, 중요한 컨텐츠나 이벤트가 시작되기
+                    직전에는 작업의 우선순위를 가장 높여{" "}
+                    <strong className="text-white">
+                      최대한 실시간에 가깝게 반영
+                    </strong>
+                    하려 노력 중입니다.
                   </p>
                 </div>
 
@@ -5804,7 +7295,10 @@ export default function App() {
                     🙇‍♂️ 팬 여러분께 드리는 말씀
                   </h4>
                   <p className="text-gray-300 text-base break-keep">
-                    모든 분들의 레벨을 완벽한 실시간으로 반영하기에는 물리적인 어려움이 따르는 점, 팬 여러분들의 너른 양해를 부탁드립니다. 조금 느리더라도 확실하게, 늘 더 노력하는 관리자가 되겠습니다! 감사합니다.
+                    모든 분들의 레벨을 완벽한 실시간으로 반영하기에는 물리적인
+                    어려움이 따르는 점, 팬 여러분들의 너른 양해를 부탁드립니다.
+                    조금 느리더라도 확실하게, 늘 더 노력하는 관리자가
+                    되겠습니다! 감사합니다.
                   </p>
                 </div>
               </div>
@@ -5814,12 +7308,12 @@ export default function App() {
 
         <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
           <div className="p-5 border-b border-gray-700 bg-gray-800/50 flex flex-col gap-4 relative">
-            
             {/* 상단: 제목, 버튼, 검색창 */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
               <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
                 <h3 className="text-xl font-bold text-white flex items-center">
-                  <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 버튜버 명단
+                  <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드
+                  버튜버 명단
                 </h3>
                 <button
                   onClick={handleCopyWowApplicantList}
@@ -5843,11 +7337,10 @@ export default function App() {
                   rel="noopener noreferrer"
                   className="bg-cyan-600/5 text-cyan-300 border border-cyan-500/45 hover:bg-cyan-500/20 hover:border-cyan-300 hover:text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center whitespace-nowrap"
                 >
-                  <Link2 className="w-4 h-4 mr-1.5" />
-                  템 세팅 보러가기
+                  <Link2 className="w-4 h-4 mr-1.5" />템 세팅 보러가기
                 </a>
               </div>
-              
+
               <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20 mt-2 md:mt-0">
                 <div className="flex items-center px-2.5">
                   <Search className="w-4 h-4 text-gray-400" />
@@ -5855,10 +7348,19 @@ export default function App() {
                 <input
                   type="text"
                   value={wowSearchInput}
-                  onChange={(e) => { setWowSearchInput(e.target.value); setShowWowSearchDropdown(true); }}
-                  onFocus={() => { if(wowSearchInput) setShowWowSearchDropdown(true); }}
-                  onBlur={() => setTimeout(() => setShowWowSearchDropdown(false), 200)}
-                  onKeyDown={(e) => { if(e.key === 'Enter') handleWowSearchNext(); }}
+                  onChange={(e) => {
+                    setWowSearchInput(e.target.value);
+                    setShowWowSearchDropdown(true);
+                  }}
+                  onFocus={() => {
+                    if (wowSearchInput) setShowWowSearchDropdown(true);
+                  }}
+                  onBlur={() =>
+                    setTimeout(() => setShowWowSearchDropdown(false), 200)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleWowSearchNext();
+                  }}
                   placeholder="스트리머, 직업, 특성 찾기..."
                   className="w-full md:w-48 bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
                 />
@@ -5868,12 +7370,18 @@ export default function App() {
                   </span>
                 )}
                 <div className="flex border-l border-gray-700 pl-1 ml-1 select-none">
-                   <button onClick={handleWowSearchPrev} className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition">
-                     <ChevronUp className="w-4 h-4" />
-                   </button>
-                   <button onClick={handleWowSearchNext} className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition">
-                     <ChevronDown className="w-4 h-4" />
-                   </button>
+                  <button
+                    onClick={handleWowSearchPrev}
+                    className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleWowSearchNext}
+                    className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {showWowSearchDropdown && wowSearchResults.length > 0 && (
@@ -5884,38 +7392,71 @@ export default function App() {
                         onClick={() => handleWowSearchSelect(m)}
                         className="flex items-center gap-3 px-4 py-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700/50 last:border-0 transition"
                       >
-                        <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} className="w-8 h-8 rounded-full object-cover bg-gray-900 border border-gray-600" alt="avatar"/>
+                        <img
+                          src={getWowAvatarSrc(m)}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`;
+                          }}
+                          className="w-8 h-8 rounded-full object-cover bg-gray-900 border border-gray-600"
+                          alt="avatar"
+                        />
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-white leading-tight">{m.streamerName}</span>
+                          <span className="text-sm font-bold text-white leading-tight">
+                            {m.streamerName}
+                          </span>
                           <div className="flex items-center mt-0.5">
-                            <span className="text-xs font-bold" style={{ color: WOW_CLASS_COLORS[m.jobClass] || "#94a3b8" }}>{m.jobClass}</span>
-                            <span className="text-gray-500 mx-1 text-[10px]">|</span> 
-                            <span className="text-xs text-blue-400">{m.wowNickname}</span>
+                            <span
+                              className="text-xs font-bold"
+                              style={{
+                                color:
+                                  WOW_CLASS_COLORS[m.jobClass] || "#94a3b8",
+                              }}
+                            >
+                              {m.jobClass}
+                            </span>
+                            <span className="text-gray-500 mx-1 text-[10px]">
+                              |
+                            </span>
+                            <span className="text-xs text-blue-400">
+                              {m.wowNickname}
+                            </span>
                           </div>
                         </div>
-                        <span className="ml-auto text-xs font-black text-yellow-500">Lv.{m.level}</span>
+                        <span className="ml-auto text-xs font-black text-yellow-500">
+                          Lv.{m.level}
+                        </span>
                       </div>
                     ))}
                   </div>
                 )}
-                {showWowSearchDropdown && wowSearchInput && wowSearchResults.length === 0 && (
-                   <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-4 text-center text-sm text-gray-400 z-50">
-                     검색 결과가 없습니다.
-                   </div>
-                )}
+                {showWowSearchDropdown &&
+                  wowSearchInput &&
+                  wowSearchResults.length === 0 && (
+                    <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-4 text-center text-sm text-gray-400 z-50">
+                      검색 결과가 없습니다.
+                    </div>
+                  )}
               </div>
             </div>
 
             {/* ★ 하단: 직업 필터 뱃지 구역 (가로 스크롤) ★ */}
-            <div className="flex overflow-x-auto gap-2.5 pt-2 pb-1 custom-scrollbar w-full items-center" style={{ scrollbarWidth: 'thin' }}>
+            <div
+              className="flex overflow-x-auto gap-2.5 pt-2 pb-1 custom-scrollbar w-full items-center"
+              style={{ scrollbarWidth: "thin" }}
+            >
               {wowJobStats.sortedJobs.map((job) => {
                 const count = wowJobStats.stats[job];
                 if (count === 0) return null;
 
                 const isSelected = selectedJobFilter === job;
-                const baseStyle = job === "전체"
-                  ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
-                  : getJobBadgeStyle(job);
+                const baseStyle =
+                  job === "전체"
+                    ? {
+                        color: "#e2e8f0",
+                        backgroundColor: "rgba(51, 65, 85, 0.4)",
+                        borderColor: "rgba(71, 85, 105, 0.6)",
+                      }
+                    : getJobBadgeStyle(job);
 
                 return (
                   <button
@@ -5923,20 +7464,28 @@ export default function App() {
                     onClick={() => handleJobFilterClick(job)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-all whitespace-nowrap flex-shrink-0 active:scale-95 ${
                       isSelected
-                        ? 'ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.2)] transform scale-105'
-                        : 'opacity-60 hover:opacity-100 hover:scale-105'
+                        ? "ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.2)] transform scale-105"
+                        : "opacity-60 hover:opacity-100 hover:scale-105"
                     }`}
                     style={{
                       ...baseStyle,
-                      backgroundColor: isSelected ? baseStyle.color : baseStyle.backgroundColor,
-                      color: isSelected ? '#000' : baseStyle.color,
-                      borderColor: isSelected ? 'transparent' : baseStyle.borderColor,
+                      backgroundColor: isSelected
+                        ? baseStyle.color
+                        : baseStyle.backgroundColor,
+                      color: isSelected ? "#000" : baseStyle.color,
+                      borderColor: isSelected
+                        ? "transparent"
+                        : baseStyle.borderColor,
                     }}
                   >
                     {job}
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
-                      isSelected ? 'bg-black/30 text-white' : 'bg-gray-900 text-gray-300'
-                    }`}>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                        isSelected
+                          ? "bg-black/30 text-white"
+                          : "bg-gray-900 text-gray-300"
+                      }`}
+                    >
                       {count}
                     </span>
                   </button>
@@ -5947,13 +7496,19 @@ export default function App() {
             <div className="flex flex-col gap-2 pt-1">
               <div className="text-xs font-black text-gray-400">특성</div>
               {selectedJobFilter === "전체" ? (
-                <div className="text-xs text-gray-500">직업을 선택하면 해당 직업의 특성 필터가 열립니다.</div>
+                <div className="text-xs text-gray-500">
+                  직업을 선택하면 해당 직업의 특성 필터가 열립니다.
+                </div>
               ) : (
                 <div className="flex flex-wrap gap-2 items-center">
                   <button
                     type="button"
                     onClick={() => handleWowSpecFilterToggle("전체")}
-                    className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${selectedWowSpecFilters.includes("전체") ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${
+                      selectedWowSpecFilters.includes("전체")
+                        ? WOW_SPEC_TAG_CLASS
+                        : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                    }`}
                   >
                     전체
                   </button>
@@ -5964,7 +7519,11 @@ export default function App() {
                         key={spec}
                         type="button"
                         onClick={() => handleWowSpecFilterToggle(spec)}
-                        className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                        className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${
+                          isSelected
+                            ? WOW_SPEC_TAG_CLASS
+                            : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                        }`}
                       >
                         {spec}
                       </button>
@@ -5975,20 +7534,34 @@ export default function App() {
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
-              <div className="text-xs font-black text-gray-400">선호 포지션</div>
-              <div className="flex overflow-x-auto gap-2 custom-scrollbar w-full items-center" style={{ scrollbarWidth: 'thin' }}>
+              <div className="text-xs font-black text-gray-400">
+                선호 포지션
+              </div>
+              <div
+                className="flex overflow-x-auto gap-2 custom-scrollbar w-full items-center"
+                style={{ scrollbarWidth: "thin" }}
+              >
                 {wowPositionStats.orderedIds.map((positionId) => {
                   const meta = getWowPositionMeta(positionId);
                   const count = wowPositionStats.stats[positionId] || 0;
-                  const isSelected = selectedWowPositionFilters.includes(positionId);
+                  const isSelected =
+                    selectedWowPositionFilters.includes(positionId);
                   return (
                     <button
                       key={positionId}
                       onClick={() => handleWowPositionFilterToggle(positionId)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap flex-shrink-0 ${getWowPositionFilterButtonClasses(positionId, isSelected)}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap flex-shrink-0 ${getWowPositionFilterButtonClasses(
+                        positionId,
+                        isSelected
+                      )}`}
                     >
                       {meta?.label}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${getWowPositionCountClasses(positionId, isSelected)}`}>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${getWowPositionCountClasses(
+                          positionId,
+                          isSelected
+                        )}`}
+                      >
                         {count}
                       </span>
                     </button>
@@ -6001,9 +7574,19 @@ export default function App() {
               <div className="text-xs font-black text-gray-400">신청 상태</div>
               <button
                 onClick={() => setShowWowRaidApplicantsOnly((prev) => !prev)}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap ${showWowRaidApplicantsOnly ? "bg-cyan-500/15 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(34,211,238,0.12)]" : "bg-gray-900 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white"}`}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap ${
+                  showWowRaidApplicantsOnly
+                    ? "bg-cyan-500/15 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(34,211,238,0.12)]"
+                    : "bg-gray-900 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white"
+                }`}
               >
-                <Shield className={`w-4 h-4 ${showWowRaidApplicantsOnly ? "text-cyan-300" : "text-gray-400"}`} />
+                <Shield
+                  className={`w-4 h-4 ${
+                    showWowRaidApplicantsOnly
+                      ? "text-cyan-300"
+                      : "text-gray-400"
+                  }`}
+                />
                 레이드 신청자만 보기
               </button>
               {showWowRaidApplicantsOnly && (
@@ -6013,44 +7596,79 @@ export default function App() {
               )}
             </div>
           </div>
-          
+
           <div className="overflow-x-auto min-h-[300px]">
             <table className="w-full text-base text-left">
               <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
                 <tr>
-                  <th scope="col" className="px-6 py-5 rounded-tl-lg text-center">번호</th>
-                  <th scope="col" className="px-6 py-5">프로필</th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('streamerName')}>
-                    <div className="flex items-center">스트리머명 <WowSortIcon columnKey="streamerName" /></div>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 rounded-tl-lg text-center"
+                  >
+                    번호
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('wowNickname')}>
-                    <div className="flex items-center">와우 닉네임 <WowSortIcon columnKey="wowNickname" /></div>
+                  <th scope="col" className="px-6 py-5">
+                    프로필
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('jobClass')}>
-                    <div className="flex items-center">직업 <WowSortIcon columnKey="jobClass" /></div>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestWowSort("streamerName")}
+                  >
+                    <div className="flex items-center">
+                      스트리머명 <WowSortIcon columnKey="streamerName" />
+                    </div>
                   </th>
-                  <th scope="col" className="px-6 py-5 text-center">특성</th>
-                  <th scope="col" className="px-6 py-5 text-center">선호 포지션</th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestWowSort('level')}>
-                    <div className="flex items-center justify-end">현재 레벨 <WowSortIcon columnKey="level" /></div>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestWowSort("wowNickname")}
+                  >
+                    <div className="flex items-center">
+                      와우 닉네임 <WowSortIcon columnKey="wowNickname" />
+                    </div>
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition"
+                    onClick={() => requestWowSort("jobClass")}
+                  >
+                    <div className="flex items-center">
+                      직업 <WowSortIcon columnKey="jobClass" />
+                    </div>
+                  </th>
+                  <th scope="col" className="px-6 py-5 text-center">
+                    특성
+                  </th>
+                  <th scope="col" className="px-6 py-5 text-center">
+                    선호 포지션
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg"
+                    onClick={() => requestWowSort("level")}
+                  >
+                    <div className="flex items-center justify-end">
+                      현재 레벨 <WowSortIcon columnKey="level" />
+                    </div>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {sortedWowRoster.length > 0 ? (
                   sortedWowRoster.map((member, idx) => {
-                    const isQualified = member.level >= 40;     
+                    const isQualified = member.level >= 40;
 
                     return (
-                      <tr 
+                      <tr
                         id={`wow-member-${member.id}`}
-                        key={member.id} 
+                        key={member.id}
                         className={`border-b transition-all duration-500 ${
-                          highlightedWowMemberId === member.id 
-                            ? 'bg-purple-800/40 border-purple-500 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)]' 
-                            : isQualified 
-                              ? 'bg-yellow-900/10 hover:bg-yellow-900/20 border-gray-700' 
-                              : 'hover:bg-gray-700/50 border-gray-700'
+                          highlightedWowMemberId === member.id
+                            ? "bg-purple-800/40 border-purple-500 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)]"
+                            : isQualified
+                            ? "bg-yellow-900/10 hover:bg-yellow-900/20 border-gray-700"
+                            : "hover:bg-gray-700/50 border-gray-700"
                         }`}
                       >
                         <td className="px-6 py-5 text-center font-bold text-gray-400 text-lg">
@@ -6061,10 +7679,28 @@ export default function App() {
                             <div className="relative w-12 h-12 flex-shrink-0">
                               {member.isWowPartner ? (
                                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2.5px] shadow-[0_0_15px_rgba(250,204,21,0.5)]">
-                                  <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
+                                  <img
+                                    src={getWowAvatarSrc(member)}
+                                    onError={(e) => {
+                                      e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                    }}
+                                    alt={member.streamerName}
+                                    className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900"
+                                  />
                                 </div>
                               ) : (
-                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-full h-full rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
+                                <img
+                                  src={getWowAvatarSrc(member)}
+                                  onError={(e) => {
+                                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                  }}
+                                  alt={member.streamerName}
+                                  className={`w-full h-full rounded-full object-cover border-2 ${
+                                    isQualified
+                                      ? "border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]"
+                                      : "border-gray-600"
+                                  }`}
+                                />
                               )}
                               {member.isWowPartner && (
                                 <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-1 shadow-xl border border-yellow-500/50 z-10">
@@ -6085,16 +7721,27 @@ export default function App() {
                                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-500/10 via-transparent to-transparent opacity-50"></div>
                                   <Crown className="w-5 h-5 text-yellow-400 mb-2 relative z-10 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
                                   <p className="text-xs text-gray-300 leading-relaxed relative z-10 font-medium break-keep">
-                                    와우 컨텐츠를 진행.<br/>길드장 <strong className="text-yellow-400 font-black text-sm">『왁두』</strong>에게<br/>칭호를 하사받다.
+                                    와우 컨텐츠를 진행.
+                                    <br />
+                                    길드장{" "}
+                                    <strong className="text-yellow-400 font-black text-sm">
+                                      『왁두』
+                                    </strong>
+                                    에게
+                                    <br />
+                                    칭호를 하사받다.
                                   </p>
                                 </div>
                                 <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-yellow-500/40"></div>
                               </div>
                             )}
-
                           </div>
                         </td>
-                        <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
+                        <td
+                          className={`px-6 py-5 font-bold text-lg ${
+                            isQualified ? "text-yellow-100" : "text-white"
+                          }`}
+                        >
                           <div className="flex flex-col items-start gap-1">
                             <span>{member.streamerName}</span>
                             <div className="flex flex-wrap gap-1 mt-1">
@@ -6107,15 +7754,16 @@ export default function App() {
                                 <span className="bg-cyan-900/60 text-cyan-300 border border-cyan-400/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
                                   ⚔️ 줄구룹 신청완료
                                 </span>
-                              )}                            </div>
+                              )}{" "}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-5 text-blue-300 font-medium text-lg">
                           {member.wowNickname}
                         </td>
                         <td className="px-6 py-5">
-                          <span 
-                            style={getJobBadgeStyle(member.jobClass)} 
+                          <span
+                            style={getJobBadgeStyle(member.jobClass)}
                             className="px-3 py-1.5 rounded-md text-sm font-bold border whitespace-nowrap inline-block"
                           >
                             {member.jobClass}
@@ -6124,31 +7772,73 @@ export default function App() {
                         <td className="px-6 py-5 text-center">
                           {member.mainSpec ? (
                             <div className="flex items-center justify-center gap-1.5">
-                              <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span>
-                              {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > 1 && <span className={`inline-flex items-center px-1.5 py-1 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - 1}</span>}
+                              <span
+                                title={getWowSpecTagTitle(
+                                  member.jobClass,
+                                  member.mainSpec,
+                                  member.availableSpecs
+                                )}
+                                className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}
+                              >
+                                {member.mainSpec}
+                              </span>
+                              {normalizeAvailableSpecs(
+                                member.jobClass,
+                                member.availableSpecs
+                              ).length > 1 && (
+                                <span
+                                  className={`inline-flex items-center px-1.5 py-1 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}
+                                >
+                                  +
+                                  {normalizeAvailableSpecs(
+                                    member.jobClass,
+                                    member.availableSpecs
+                                  ).length - 1}
+                                </span>
+                              )}
                             </div>
-                          ) : <span className="text-sm text-gray-500">-</span>}
+                          ) : (
+                            <span className="text-sm text-gray-500">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-5 text-center">
                           <div className="flex flex-wrap gap-1.5 justify-center">
-                            {normalizePreferredPositions(member.preferredPositions).length > 0 ? normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                              <span key={positionId} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[15px] font-black border whitespace-nowrap leading-none ${getWowPositionTagClasses(positionId)}`}>
-                                {getWowPositionShortLabel(positionId)}
-                              </span>
-                            )) : (
+                            {normalizePreferredPositions(
+                              member.preferredPositions
+                            ).length > 0 ? (
+                              normalizePreferredPositions(
+                                member.preferredPositions
+                              ).map((positionId) => (
+                                <span
+                                  key={positionId}
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-md text-[15px] font-black border whitespace-nowrap leading-none ${getWowPositionTagClasses(
+                                    positionId
+                                  )}`}
+                                >
+                                  {getWowPositionShortLabel(positionId)}
+                                </span>
+                              ))
+                            ) : (
                               <span className="text-sm text-gray-500">-</span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-5 text-right">
                           <div className="flex items-center justify-end">
-                            <span className={`font-black text-2xl mr-3 ${isQualified ? 'text-yellow-400' : 'text-gray-300'}`}>
+                            <span
+                              className={`font-black text-2xl mr-3 ${
+                                isQualified
+                                  ? "text-yellow-400"
+                                  : "text-gray-300"
+                              }`}
+                            >
                               Lv. {member.level}
                             </span>
                             <div className="flex flex-col gap-1.5 items-end">
                               {isQualified && (
                                 <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-[11px] font-bold px-2 py-1 rounded shadow-md flex items-center">
-                                  <Ticket className="w-3 h-3 mr-1" /> 참가권 획득!
+                                  <Ticket className="w-3 h-3 mr-1" /> 참가권
+                                  획득!
                                 </span>
                               )}
                               {!isQualified && (
@@ -6164,7 +7854,10 @@ export default function App() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="8" className="px-6 py-16 text-center text-gray-500 flex-col items-center">
+                    <td
+                      colSpan="8"
+                      className="px-6 py-16 text-center text-gray-500 flex-col items-center"
+                    >
                       <Shield className="w-12 h-12 text-gray-700 mx-auto mb-3" />
                       선택한 필터 조건에 해당하는 길드원이 없습니다.
                     </td>
@@ -6188,46 +7881,60 @@ export default function App() {
     }, {});
     const raidLevelSummaryLabel = raidSelectedLevelFilters.includes("50+")
       ? "50+"
-      : [...raidSelectedLevelFilters].sort((a, b) => RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === a) - RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === b)).join(", ");
+      : [...raidSelectedLevelFilters]
+          .sort(
+            (a, b) =>
+              RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === a) -
+              RAID_LEVEL_FILTER_OPTIONS.findIndex((item) => item.id === b)
+          )
+          .join(", ");
 
-    const raidPartyGridClass = raidType === "40"
-      ? (isRaidWaitingRoomCollapsed ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4" : "grid-cols-1 md:grid-cols-2 2xl:grid-cols-4")
-      : raidType === "25"
-        ? (isRaidWaitingRoomCollapsed ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3")
-        : raidType === "20"
+    const raidPartyGridClass =
+      raidType === "40"
+        ? isRaidWaitingRoomCollapsed
           ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
-          : "grid-cols-1 md:grid-cols-2";
+          : "grid-cols-1 md:grid-cols-2 2xl:grid-cols-4"
+        : raidType === "25"
+        ? isRaidWaitingRoomCollapsed
+          ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+          : "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3"
+        : raidType === "20"
+        ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+        : "grid-cols-1 md:grid-cols-2";
 
-    const isDenseRaidLayout = raidType === "20" || raidType === "25" || raidType === "40";
+    const isDenseRaidLayout =
+      raidType === "20" || raidType === "25" || raidType === "40";
     const isUltraDenseRaidLayout = raidType === "40";
     const raidSlotMinHeightClass = isUltraDenseRaidLayout
       ? "min-h-[68px]"
       : raidType === "25"
-        ? "min-h-[74px]"
-        : raidType === "20"
-          ? "min-h-[80px]"
-          : "min-h-[90px]";
+      ? "min-h-[74px]"
+      : raidType === "20"
+      ? "min-h-[80px]"
+      : "min-h-[90px]";
     const raidSlotPaddingClass = isUltraDenseRaidLayout
       ? "p-2.5"
       : isDenseRaidLayout
-        ? "p-3"
-        : "p-3.5";
+      ? "p-3"
+      : "p-3.5";
     const raidSlotAvatarClass = isUltraDenseRaidLayout
       ? "w-9 h-9"
       : isDenseRaidLayout
-        ? "w-10 h-10"
-        : "w-11 h-11";
+      ? "w-10 h-10"
+      : "w-11 h-11";
     const raidSlotNameClass = isUltraDenseRaidLayout
       ? "text-[11px]"
       : isDenseRaidLayout
-        ? "text-[12px]"
-        : "text-[13px]";
-    const raidSlotInfoClass = isUltraDenseRaidLayout ? "text-[10px]" : "text-[11px]";
+      ? "text-[12px]"
+      : "text-[13px]";
+    const raidSlotInfoClass = isUltraDenseRaidLayout
+      ? "text-[10px]"
+      : "text-[11px]";
     const raidGroupInnerClass = isUltraDenseRaidLayout
       ? "p-2 space-y-1.5"
       : isDenseRaidLayout
-        ? "p-2.5 space-y-2"
-        : "p-3 space-y-2.5";
+      ? "p-2.5 space-y-2"
+      : "p-3 space-y-2.5";
     const raidLayoutGridClass = isRaidWaitingRoomCollapsed
       ? "grid-cols-1 xl:grid-cols-[92px_minmax(0,1fr)]"
       : "grid-cols-1 xl:grid-cols-[minmax(300px,30%)_minmax(0,70%)]";
@@ -6260,11 +7967,16 @@ export default function App() {
               disabled={isRaidCapturing}
               className={`inline-flex items-center px-3.5 py-2 rounded-xl border transition ${
                 isRaidCapturing
-                  ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100 cursor-wait'
-                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
+                  ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100 cursor-wait"
+                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
               }`}
             >
-              {isRaidCapturing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Camera className="w-4 h-4 mr-2" />} 스크린샷 저장
+              {isRaidCapturing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4 mr-2" />
+              )}{" "}
+              스크린샷 저장
             </button>
             <button
               onClick={handleResetRaid}
@@ -6282,26 +7994,39 @@ export default function App() {
           <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-3xl pt-0.5">
               <h2 className="text-3xl md:text-4xl font-black text-white flex items-center leading-none">
-                <span className="mr-3 text-3xl md:text-4xl">⚔️</span> 레이드 구성하기
+                <span className="mr-3 text-3xl md:text-4xl">⚔️</span> 레이드
+                구성하기
               </h2>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-full xl:min-w-[460px] self-start">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-gray-400 mb-1">현재 레이드</div>
-                <div className="text-2xl font-black text-white">{raidConfig.label}</div>
+                <div className="text-2xl font-black text-white">
+                  {raidConfig.label}
+                </div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-gray-400 mb-1">편성 인원</div>
-                <div className="text-2xl font-black text-white">{assignedCount}<span className="text-sm text-gray-400"> / {totalRaidSlots}</span></div>
+                <div className="text-2xl font-black text-white">
+                  {assignedCount}
+                  <span className="text-sm text-gray-400">
+                    {" "}
+                    / {totalRaidSlots}
+                  </span>
+                </div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-gray-400 mb-1">남은 자리</div>
-                <div className="text-2xl font-black text-fuchsia-300">{remainingCount}</div>
+                <div className="text-2xl font-black text-fuchsia-300">
+                  {remainingCount}
+                </div>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="text-xs text-gray-400 mb-1">고정 파티원</div>
-                <div className="text-lg font-black text-white truncate">{currentFixedRaidMember.streamerName}</div>
+                <div className="text-lg font-black text-white truncate">
+                  {currentFixedRaidMember.streamerName}
+                </div>
               </div>
             </div>
           </div>
@@ -6310,8 +8035,13 @@ export default function App() {
         <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="text-sm font-black text-white">레이드 종류 선택</div>
-              <div className="text-xs text-gray-400 mt-1">규모를 바꾸면 가능한 파티 수가 즉시 바뀌고, 기존 배치는 앞쪽부터 최대한 유지됩니다.</div>
+              <div className="text-sm font-black text-white">
+                레이드 종류 선택
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                규모를 바꾸면 가능한 파티 수가 즉시 바뀌고, 기존 배치는 앞쪽부터
+                최대한 유지됩니다.
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {RAID_TYPE_OPTIONS.map((option) => {
@@ -6345,11 +8075,15 @@ export default function App() {
                     className="w-full rounded-xl border border-gray-700 bg-gray-900/80 text-gray-200 hover:text-white hover:border-fuchsia-500/40 hover:bg-gray-900 transition px-2 py-3 flex flex-col items-center gap-1.5"
                   >
                     <Menu className="w-5 h-5" />
-                    <span className="text-[11px] font-black leading-tight text-center">대기실 열기</span>
+                    <span className="text-[11px] font-black leading-tight text-center">
+                      대기실 열기
+                    </span>
                   </button>
                   <div className="w-full rounded-xl border border-gray-700 bg-gray-900/60 px-2 py-2 text-center">
                     <div className="text-[10px] text-gray-500">대기 인원</div>
-                    <div className="text-base font-black text-white">{raidAvailableMembers.length}</div>
+                    <div className="text-base font-black text-white">
+                      {raidAvailableMembers.length}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6360,9 +8094,12 @@ export default function App() {
                 <div className="p-4 border-b border-gray-700 bg-gray-900/60 flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-black text-white flex items-center">
-                      <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
+                      <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실
+                      명단
                     </h3>
-                    <p className="mt-1.5 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
+                    <p className="mt-1.5 text-xs text-gray-400">
+                      참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -6389,156 +8126,229 @@ export default function App() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsRaidFilterPanelCollapsed((prev) => !prev)}
-                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition ${isRaidFilterPanelCollapsed ? 'border-fuchsia-400/40 bg-fuchsia-500/12 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                      onClick={() =>
+                        setIsRaidFilterPanelCollapsed((prev) => !prev)
+                      }
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition ${
+                        isRaidFilterPanelCollapsed
+                          ? "border-fuchsia-400/40 bg-fuchsia-500/12 text-fuchsia-100"
+                          : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                      }`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />
-                      {isRaidFilterPanelCollapsed ? '설정 펼치기' : '설정 접기'}
+                      {isRaidFilterPanelCollapsed ? "설정 펼치기" : "설정 접기"}
                     </button>
                   </div>
 
                   {!isRaidFilterPanelCollapsed && (
                     <>
-                  <div className="flex flex-wrap gap-2">
-                    {raidJobStats.sortedJobs.map((job) => {
-                      const count = raidJobStats.stats[job];
-                      if (count === 0) return null;
-                      const isSelected = raidSelectedJobFilters.includes(job);
-                      const baseStyle = job === "전체"
-                        ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
-                        : getJobBadgeStyle(job);
+                      <div className="flex flex-wrap gap-2">
+                        {raidJobStats.sortedJobs.map((job) => {
+                          const count = raidJobStats.stats[job];
+                          if (count === 0) return null;
+                          const isSelected =
+                            raidSelectedJobFilters.includes(job);
+                          const baseStyle =
+                            job === "전체"
+                              ? {
+                                  color: "#e2e8f0",
+                                  backgroundColor: "rgba(51, 65, 85, 0.4)",
+                                  borderColor: "rgba(71, 85, 105, 0.6)",
+                                }
+                              : getJobBadgeStyle(job);
 
-                      return (
-                        <button
-                          key={job}
-                          onClick={() => handleRaidJobFilterToggle(job)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
-                            isSelected ? 'ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]' : 'opacity-75 hover:opacity-100'
-                          }`}
-                          style={{
-                            ...baseStyle,
-                            backgroundColor: isSelected ? baseStyle.color : baseStyle.backgroundColor,
-                            color: isSelected ? '#020617' : baseStyle.color,
-                            borderColor: isSelected ? 'transparent' : baseStyle.borderColor,
-                          }}
-                        >
-                          {job}
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${isSelected ? 'bg-black/25 text-white' : 'bg-gray-900 text-gray-300'}`}>
-                            {count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsRaidLevelFilterOpen((prev) => !prev)}
-                        className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-black transition ${
-                          isRaidLevelFilterOpen ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
-                        }`}
-                      >
-                        <Filter className="w-3.5 h-3.5" /> 레벨
-                        <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100">{raidLevelSummaryLabel}</span>
-                        {isRaidLevelFilterOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-
-                    {isRaidLevelFilterOpen && (
-                      <div className="flex flex-wrap items-center gap-2 pl-0.5">
-                        {RAID_LEVEL_FILTER_OPTIONS.map((option) => {
-                          const isSelected = raidSelectedLevelFilters.includes(option.id);
                           return (
                             <button
-                              key={option.id}
-                              type="button"
-                              onClick={() => handleRaidLevelFilterToggle(option.id)}
-                              className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${
+                              key={job}
+                              onClick={() => handleRaidJobFilterToggle(job)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
                                 isSelected
-                                  ? 'border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]'
-                                  : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                                  ? "ring-2 ring-white/40 shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+                                  : "opacity-75 hover:opacity-100"
                               }`}
+                              style={{
+                                ...baseStyle,
+                                backgroundColor: isSelected
+                                  ? baseStyle.color
+                                  : baseStyle.backgroundColor,
+                                color: isSelected ? "#020617" : baseStyle.color,
+                                borderColor: isSelected
+                                  ? "transparent"
+                                  : baseStyle.borderColor,
+                              }}
                             >
-                              {option.label}
+                              {job}
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
+                                  isSelected
+                                    ? "bg-black/25 text-white"
+                                    : "bg-gray-900 text-gray-300"
+                                }`}
+                              >
+                                {count}
+                              </span>
                             </button>
                           );
                         })}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col gap-2 pt-0.5">
-                    <div className="text-[11px] font-black text-gray-400 pl-0.5">특성</div>
-                    {raidSelectedJobFilters.includes("전체") ? (
-                      <div className="text-[11px] text-gray-500 pl-0.5">직업을 선택하면 해당 직업의 특성 필터가 열립니다.</div>
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleRaidSpecFilterToggle("전체")}
-                          className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${raidSelectedSpecFilters.includes("전체") ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                        >
-                          전체
-                        </button>
-                        {raidAvailableSpecOptions.map((spec) => {
-                          const isSelected = raidSelectedSpecFilters.includes(spec);
-                          return (
-                            <button
-                              key={spec}
-                              type="button"
-                              onClick={() => handleRaidSpecFilterToggle(spec)}
-                              className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                            >
-                              {spec}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 pt-0.5">
-                    <div className="text-[11px] font-black text-gray-400 pl-0.5">선호 포지션</div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {raidPositionStats.orderedIds.map((positionId) => {
-                        const meta = getWowPositionMeta(positionId);
-                        const count = raidPositionStats.stats[positionId] || 0;
-                        const isSelected = raidSelectedPositionFilters.includes(positionId);
-                        return (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
-                            key={positionId}
                             type="button"
-                            onClick={() => handleRaidPositionFilterToggle(positionId)}
-                            className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${
-                              getWowPositionFilterButtonClasses(positionId, isSelected)
+                            onClick={() =>
+                              setIsRaidLevelFilterOpen((prev) => !prev)
+                            }
+                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-black transition ${
+                              isRaidLevelFilterOpen
+                                ? "border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100"
+                                : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
                             }`}
                           >
-                            {meta?.label}
-                            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${getWowPositionCountClasses(positionId, isSelected)}`}>
-                              {count}
+                            <Filter className="w-3.5 h-3.5" /> 레벨
+                            <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100">
+                              {raidLevelSummaryLabel}
                             </span>
+                            {isRaidLevelFilterOpen ? (
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            )}
                           </button>
-                        );
-                      })}
-                      {filteredWowRaidRosterCandidates.length === 0 && (
-                        <div className="text-sm text-gray-500 text-center py-6">검색 결과가 없습니다.</div>
-                      )}
-                    </div>
-                  </div>
+                        </div>
 
+                        {isRaidLevelFilterOpen && (
+                          <div className="flex flex-wrap items-center gap-2 pl-0.5">
+                            {RAID_LEVEL_FILTER_OPTIONS.map((option) => {
+                              const isSelected =
+                                raidSelectedLevelFilters.includes(option.id);
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() =>
+                                    handleRaidLevelFilterToggle(option.id)
+                                  }
+                                  className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${
+                                    isSelected
+                                      ? "border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]"
+                                      : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2 pt-0.5">
+                        <div className="text-[11px] font-black text-gray-400 pl-0.5">
+                          특성
+                        </div>
+                        {raidSelectedJobFilters.includes("전체") ? (
+                          <div className="text-[11px] text-gray-500 pl-0.5">
+                            직업을 선택하면 해당 직업의 특성 필터가 열립니다.
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleRaidSpecFilterToggle("전체")}
+                              className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${
+                                raidSelectedSpecFilters.includes("전체")
+                                  ? WOW_SPEC_TAG_CLASS
+                                  : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                              }`}
+                            >
+                              전체
+                            </button>
+                            {raidAvailableSpecOptions.map((spec) => {
+                              const isSelected =
+                                raidSelectedSpecFilters.includes(spec);
+                              return (
+                                <button
+                                  key={spec}
+                                  type="button"
+                                  onClick={() =>
+                                    handleRaidSpecFilterToggle(spec)
+                                  }
+                                  className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${
+                                    isSelected
+                                      ? WOW_SPEC_TAG_CLASS
+                                      : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                  }`}
+                                >
+                                  {spec}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2 pt-0.5">
+                        <div className="text-[11px] font-black text-gray-400 pl-0.5">
+                          선호 포지션
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {raidPositionStats.orderedIds.map((positionId) => {
+                            const meta = getWowPositionMeta(positionId);
+                            const count =
+                              raidPositionStats.stats[positionId] || 0;
+                            const isSelected =
+                              raidSelectedPositionFilters.includes(positionId);
+                            return (
+                              <button
+                                key={positionId}
+                                type="button"
+                                onClick={() =>
+                                  handleRaidPositionFilterToggle(positionId)
+                                }
+                                className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${getWowPositionFilterButtonClasses(
+                                  positionId,
+                                  isSelected
+                                )}`}
+                              >
+                                {meta?.label}
+                                <span
+                                  className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${getWowPositionCountClasses(
+                                    positionId,
+                                    isSelected
+                                  )}`}
+                                >
+                                  {count}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {filteredWowRaidRosterCandidates.length === 0 && (
+                            <div className="text-sm text-gray-500 text-center py-6">
+                              검색 결과가 없습니다.
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </>
                   )}
 
-                  <div className={`${isRaidFilterPanelCollapsed ? 'max-h-[calc(100vh-230px)]' : 'max-h-[calc(100vh-300px)]'} min-h-[420px] overflow-y-auto custom-scrollbar pr-1`}>
+                  <div
+                    className={`${
+                      isRaidFilterPanelCollapsed
+                        ? "max-h-[calc(100vh-230px)]"
+                        : "max-h-[calc(100vh-300px)]"
+                    } min-h-[420px] overflow-y-auto custom-scrollbar pr-1`}
+                  >
                     <div className="grid grid-cols-1 gap-2">
                       {raidAvailableMembers.map((member) => {
                         return (
                           <div
                             key={member.id}
                             draggable
-                            onDragStart={(event) => handleRaidDragStart(event, member.id)}
+                            onDragStart={(event) =>
+                              handleRaidDragStart(event, member.id)
+                            }
                             onDragEnd={clearRaidDragState}
                             onClick={() => handleQuickAddRaidMember(member.id)}
                             className="rounded-xl border p-2.5 transition cursor-grab active:cursor-grabbing border-gray-700 bg-gray-900/60 hover:border-gray-500 hover:bg-gray-900"
@@ -6546,26 +8356,49 @@ export default function App() {
                             <div className="flex items-center gap-2.5">
                               <img
                                 src={getWowAvatarSrc(member)}
-                                onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                                onError={(e) => {
+                                  e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                }}
                                 alt={member.streamerName}
                                 className="w-10 h-10 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
                               />
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap leading-tight">
-                                  <div className="text-sm font-black text-white break-words">{member.streamerName}</div>
-                                  <span className="text-[11px] font-black text-gray-300 whitespace-nowrap">Lv. {member.level}</span>
+                                  <div className="text-sm font-black text-white break-words">
+                                    {member.streamerName}
+                                  </div>
+                                  <span className="text-[11px] font-black text-gray-300 whitespace-nowrap">
+                                    Lv. {member.level}
+                                  </span>
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                  <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                                  <span
+                                    style={getJobBadgeStyle(member.jobClass)}
+                                    className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap"
+                                  >
                                     {member.jobClass}
                                   </span>
                                   {member.mainSpec && (
-                                    <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>
+                                    <span
+                                      title={getWowSpecTagTitle(
+                                        member.jobClass,
+                                        member.mainSpec,
+                                        member.availableSpecs
+                                      )}
+                                      className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}
+                                    >
                                       {member.mainSpec}
                                     </span>
                                   )}
-                                  {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                                    <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>
+                                  {normalizePreferredPositions(
+                                    member.preferredPositions
+                                  ).map((positionId) => (
+                                    <span
+                                      key={positionId}
+                                      className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(
+                                        positionId
+                                      )}`}
+                                    >
                                       {getWowPositionShortLabel(positionId)}
                                     </span>
                                   ))}
@@ -6599,7 +8432,11 @@ export default function App() {
             </div>
           )}
 
-          <div className="space-y-5" ref={raidScreenshotRef} data-raid-screenshot-root="true">
+          <div
+            className="space-y-5"
+            ref={raidScreenshotRef}
+            data-raid-screenshot-root="true"
+          >
             <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60">
                 <div className="flex flex-col gap-2.5">
@@ -6607,9 +8444,13 @@ export default function App() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-lg font-black text-white flex items-center">
-                          <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
+                          <Shield className="w-5 h-5 mr-2 text-blue-300" />{" "}
+                          {raidConfig.label} 레이드 파티 구성
                         </h3>
-                        <div className="relative" data-raid-floating-layer="true">
+                        <div
+                          className="relative"
+                          data-raid-floating-layer="true"
+                        >
                           <button
                             type="button"
                             onClick={() => {
@@ -6617,29 +8458,51 @@ export default function App() {
                               setIsRaidFixedMemberMenuOpen(false);
                             }}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
-                              isRaidRoleGuideOpen ? 'border-violet-400/40 bg-violet-500/15 text-violet-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
+                              isRaidRoleGuideOpen
+                                ? "border-violet-400/40 bg-violet-500/15 text-violet-100"
+                                : "border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500"
                             }`}
                           >
                             <Sparkles className="w-3.5 h-3.5" /> 역할 안내
                           </button>
                           {isRaidRoleGuideOpen && (
-                            <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
-                              <div className="text-[11px] font-black text-white mb-2">레이드 역할 안내</div>
+                            <div
+                              data-raid-role-panel="true"
+                              className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl"
+                            >
+                              <div className="text-[11px] font-black text-white mb-2">
+                                레이드 역할 안내
+                              </div>
                               <div className="space-y-1.5">
                                 {RAID_ROLE_OPTIONS.map((role) => (
-                                  <div key={role.id} className="flex items-center gap-2 text-xs text-gray-200">
-                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-lg border ${role.chipClass}`}>
-                                      {renderRaidRoleIcon(role.id, "w-3.5 h-3.5")}
+                                  <div
+                                    key={role.id}
+                                    className="flex items-center gap-2 text-xs text-gray-200"
+                                  >
+                                    <span
+                                      className={`inline-flex items-center justify-center w-6 h-6 rounded-lg border ${role.chipClass}`}
+                                    >
+                                      {renderRaidRoleIcon(
+                                        role.id,
+                                        "w-3.5 h-3.5"
+                                      )}
                                     </span>
-                                    <span className="font-semibold">{role.label}</span>
+                                    <span className="font-semibold">
+                                      {role.label}
+                                    </span>
                                   </div>
                                 ))}
                               </div>
-                              <p className="mt-2 text-[10px] text-gray-400">참가자마다 여러 역할을 함께 지정할 수 있습니다.</p>
+                              <p className="mt-2 text-[10px] text-gray-400">
+                                참가자마다 여러 역할을 함께 지정할 수 있습니다.
+                              </p>
                             </div>
                           )}
                         </div>
-                        <div className="relative" data-raid-floating-layer="true">
+                        <div
+                          className="relative"
+                          data-raid-floating-layer="true"
+                        >
                           <button
                             type="button"
                             onClick={() => {
@@ -6647,55 +8510,96 @@ export default function App() {
                               setIsRaidRoleGuideOpen(false);
                             }}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-black transition ${
-                              isRaidFixedMemberMenuOpen ? 'border-amber-400/40 bg-amber-500/15 text-amber-100' : 'border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500'
+                              isRaidFixedMemberMenuOpen
+                                ? "border-amber-400/40 bg-amber-500/15 text-amber-100"
+                                : "border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:border-gray-500"
                             }`}
                           >
                             <Users className="w-3.5 h-3.5" /> 고정 길드원 바꾸기
                           </button>
                           {isRaidFixedMemberMenuOpen && (
-                            <div data-raid-role-panel="true" className="absolute left-0 top-[calc(100%+10px)] z-30 w-80 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl">
-                              <div className="text-[11px] font-black text-white mb-2">고정 길드원 선택</div>
+                            <div
+                              data-raid-role-panel="true"
+                              className="absolute left-0 top-[calc(100%+10px)] z-30 w-80 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-3 shadow-2xl"
+                            >
+                              <div className="text-[11px] font-black text-white mb-2">
+                                고정 길드원 선택
+                              </div>
                               <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
                                 <button
                                   type="button"
-                                  onClick={() => handleSelectFixedRaidMemberOption(DEFAULT_FIXED_RAID_MEMBER_OPTION_ID)}
+                                  onClick={() =>
+                                    handleSelectFixedRaidMemberOption(
+                                      DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+                                    )
+                                  }
                                   className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
-                                    selectedFixedRaidMemberOptionId === DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
-                                      ? 'border-amber-400/50 bg-amber-500/10 text-amber-100'
-                                      : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                                    selectedFixedRaidMemberOptionId ===
+                                    DEFAULT_FIXED_RAID_MEMBER_OPTION_ID
+                                      ? "border-amber-400/50 bg-amber-500/10 text-amber-100"
+                                      : "border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800"
                                   }`}
                                 >
-                                  <div className="w-10 h-10 rounded-full border border-yellow-400 bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 flex items-center justify-center shrink-0 text-lg">👑</div>
+                                  <div className="w-10 h-10 rounded-full border border-yellow-400 bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 flex items-center justify-center shrink-0 text-lg">
+                                    👑
+                                  </div>
                                   <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-black truncate">길드장 우왁굳</div>
-                                    <div className="text-[11px] text-gray-400">성기사 · Lv.60</div>
+                                    <div className="text-sm font-black truncate">
+                                      길드장 우왁굳
+                                    </div>
+                                    <div className="text-[11px] text-gray-400">
+                                      성기사 · Lv.60
+                                    </div>
                                   </div>
                                 </button>
                                 {sortedFixedRaidMembers.map((member) => {
-                                  const isSelected = selectedFixedRaidMemberOptionId === member.id;
+                                  const isSelected =
+                                    selectedFixedRaidMemberOptionId ===
+                                    member.id;
                                   return (
                                     <button
                                       key={member.id}
                                       type="button"
-                                      onClick={() => handleSelectFixedRaidMemberOption(member.id)}
+                                      onClick={() =>
+                                        handleSelectFixedRaidMemberOption(
+                                          member.id
+                                        )
+                                      }
                                       className={`w-full flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition ${
                                         isSelected
-                                          ? 'border-amber-400/50 bg-amber-500/10 text-amber-100'
-                                          : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                                          ? "border-amber-400/50 bg-amber-500/10 text-amber-100"
+                                          : "border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800"
                                       }`}
                                     >
                                       <img
                                         src={getWowAvatarSrc(member)}
-                                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
+                                        onError={(e) => {
+                                          e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                        }}
                                         alt={member.streamerName}
                                         className="w-10 h-10 rounded-full object-cover border border-gray-700 bg-gray-950 shrink-0"
                                       />
                                       <div className="min-w-0 flex-1">
-                                        <div className="text-sm font-black truncate">{member.streamerName}</div>
-                                        <div className="text-[11px] text-gray-400">{member.jobClass} · Lv.{member.level}</div>
+                                        <div className="text-sm font-black truncate">
+                                          {member.streamerName}
+                                        </div>
+                                        <div className="text-[11px] text-gray-400">
+                                          {member.jobClass} · Lv.{member.level}
+                                        </div>
                                         <div className="flex flex-wrap gap-1 mt-1">
-                                          {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
+                                          {normalizePreferredPositions(
+                                            member.preferredPositions
+                                          ).map((positionId) => (
+                                            <span
+                                              key={positionId}
+                                              className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(
+                                                positionId
+                                              )}`}
+                                            >
+                                              {getWowPositionShortLabel(
+                                                positionId
+                                              )}
+                                            </span>
                                           ))}
                                         </div>
                                       </div>
@@ -6703,7 +8607,10 @@ export default function App() {
                                   );
                                 })}
                                 {sortedFixedRaidMembers.length === 0 && (
-                                  <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/60 px-3 py-4 text-xs text-gray-400 text-center">관리자 모드에서 등록한 고정 길드원이 아직 없습니다.</div>
+                                  <div className="rounded-xl border border-dashed border-gray-700 bg-gray-900/60 px-3 py-4 text-xs text-gray-400 text-center">
+                                    관리자 모드에서 등록한 고정 길드원이 아직
+                                    없습니다.
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -6713,31 +8620,59 @@ export default function App() {
                     </div>
 
                     <div className="flex flex-wrap gap-2 justify-start xl:justify-end xl:max-w-[45%] xl:pt-0.5">
-                      {Object.entries(assignedClassStats).length > 0 ? Object.entries(assignedClassStats).sort((a, b) => b[1] - a[1]).map(([job, count]) => (
-                        <span key={job} style={getJobBadgeStyle(job)} className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border">
-                          {job} <span className="ml-1 opacity-80">{count}</span>
+                      {Object.entries(assignedClassStats).length > 0 ? (
+                        Object.entries(assignedClassStats)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([job, count]) => (
+                            <span
+                              key={job}
+                              style={getJobBadgeStyle(job)}
+                              className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border"
+                            >
+                              {job}{" "}
+                              <span className="ml-1 opacity-80">{count}</span>
+                            </span>
+                          ))
+                      ) : (
+                        <span className="text-sm text-gray-500">
+                          아직 편성된 직업이 없습니다.
                         </span>
-                      )) : (
-                        <span className="text-sm text-gray-500">아직 편성된 직업이 없습니다.</span>
                       )}
                     </div>
                   </div>
 
                   <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                     <p className="text-xs text-gray-400 font-medium leading-relaxed">
-                      참가자의 선호 포지션 말고도 다른 포지션을 지정할 수 있습니다.
+                      참가자의 선호 포지션 말고도 다른 포지션을 지정할 수
+                      있습니다.
                     </p>
                     <div className="flex flex-wrap gap-2 justify-start xl:justify-end">
-                      {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
-                        const countLabel = option.id === 'heal' ? option.label : option.shortLabel;
+                      {WOW_POSITION_OPTIONS.filter(
+                        (option) => option.id !== "전체"
+                      ).map((option) => {
+                        const countLabel =
+                          option.id === "heal"
+                            ? option.label
+                            : option.shortLabel;
                         return (
-                          <span key={option.id} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-black border ${getWowPositionTagClasses(option.id)}`}>
-                            {countLabel} <span className="ml-1">{raidAssignedPositionStats[option.id] || 0}</span>
+                          <span
+                            key={option.id}
+                            className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-black border ${getWowPositionTagClasses(
+                              option.id
+                            )}`}
+                          >
+                            {countLabel}{" "}
+                            <span className="ml-1">
+                              {raidAssignedPositionStats[option.id] || 0}
+                            </span>
                           </span>
                         );
                       })}
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-900 text-gray-200 text-[11px] font-black border border-gray-700">
-                        미정 <span className="ml-1">{raidAssignedPositionStats.undecided}</span>
+                        미정{" "}
+                        <span className="ml-1">
+                          {raidAssignedPositionStats.undecided}
+                        </span>
                       </span>
                     </div>
                   </div>
@@ -6745,449 +8680,472 @@ export default function App() {
               </div>
 
               <div className={`p-3 grid gap-3 ${raidPartyGridClass}`}>
-                {Array.from({ length: raidConfig.groupCount }).map((_, groupIndex) => {
-                  const groupMembers = raidAssignments[groupIndex] || [];
-                  const filledCount = groupMembers.filter(Boolean).length;
+                {Array.from({ length: raidConfig.groupCount }).map(
+                  (_, groupIndex) => {
+                    const groupMembers = raidAssignments[groupIndex] || [];
+                    const filledCount = groupMembers.filter(Boolean).length;
 
-                  return (
-                    <div key={groupIndex} className="relative rounded-2xl border border-gray-700 bg-gray-900/55 overflow-visible">
-                      <div className={`px-3 ${isUltraDenseRaidLayout ? 'py-2' : 'py-2.5'} border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-between`}>
-                        <div className={`${isUltraDenseRaidLayout ? 'text-sm' : 'text-base'} font-black text-white`}>파티 {groupIndex + 1}</div>
-                        <div className={`${raidSlotInfoClass} text-gray-400`}>{filledCount} / {RAID_SLOT_SIZE}</div>
-                      </div>
+                    return (
+                      <div
+                        key={groupIndex}
+                        className="relative rounded-2xl border border-gray-700 bg-gray-900/55 overflow-visible"
+                      >
+                        <div
+                          className={`px-3 ${
+                            isUltraDenseRaidLayout ? "py-2" : "py-2.5"
+                          } border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-between`}
+                        >
+                          <div
+                            className={`${
+                              isUltraDenseRaidLayout ? "text-sm" : "text-base"
+                            } font-black text-white`}
+                          >
+                            파티 {groupIndex + 1}
+                          </div>
+                          <div className={`${raidSlotInfoClass} text-gray-400`}>
+                            {filledCount} / {RAID_SLOT_SIZE}
+                          </div>
+                        </div>
 
-                      <div className={raidGroupInnerClass}>
-                        {groupMembers.map((memberId, slotIndex) => {
-                          const member = memberId ? raidMemberMap[memberId] : null;
-                          const isFixedRaidMember = isFixedRaidMemberId(memberId);
-                          const isSelected = memberId && selectedRaidMemberId === memberId;
-                          const slotKey = `${groupIndex}-${slotIndex}`;
-                          const isDropTarget = raidDragOverSlot === slotKey;
-                          const isTargetSlotSelected = !member && selectedRaidTargetSlotKey === slotKey;
-                          const roleIds = member ? (raidRoleAssignments[member.id] || []) : [];
-                          const visibleRoleIds = roleIds.slice(0, 2);
-                          const hiddenRoleCount = Math.max(roleIds.length - visibleRoleIds.length, 0);
-                          const isRoleMenuOpen = raidRoleMenuSlotKey === slotKey;
-                          const roleTooltip = roleIds.map((roleId) => getRaidRoleMeta(roleId)?.label).filter(Boolean).join(', ');
+                        <div className={raidGroupInnerClass}>
+                          {groupMembers.map((memberId, slotIndex) => {
+                            const member = memberId
+                              ? raidMemberMap[memberId]
+                              : null;
+                            const isFixedRaidMember =
+                              isFixedRaidMemberId(memberId);
+                            const isSelected =
+                              memberId && selectedRaidMemberId === memberId;
+                            const slotKey = `${groupIndex}-${slotIndex}`;
+                            const isDropTarget = raidDragOverSlot === slotKey;
+                            const isTargetSlotSelected =
+                              !member && selectedRaidTargetSlotKey === slotKey;
+                            const roleIds = member
+                              ? raidRoleAssignments[member.id] || []
+                              : [];
+                            const visibleRoleIds = roleIds.slice(0, 2);
+                            const hiddenRoleCount = Math.max(
+                              roleIds.length - visibleRoleIds.length,
+                              0
+                            );
+                            const isRoleMenuOpen =
+                              raidRoleMenuSlotKey === slotKey;
+                            const roleTooltip = roleIds
+                              .map((roleId) => getRaidRoleMeta(roleId)?.label)
+                              .filter(Boolean)
+                              .join(", ");
 
-                          return (
-                            <div
-                              key={slotKey}
-                              role="button"
-                              tabIndex={0}
-                              onClick={() => handleRaidSlotClick(groupIndex, slotIndex)}
-                              onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                  event.preventDefault();
-                                  handleRaidSlotClick(groupIndex, slotIndex);
+                            return (
+                              <div
+                                key={slotKey}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() =>
+                                  handleRaidSlotClick(groupIndex, slotIndex)
                                 }
-                              }}
-                              onDragOver={(event) => handleRaidSlotDragOver(event, groupIndex, slotIndex)}
-                              onDrop={(event) => handleRaidSlotDrop(event, groupIndex, slotIndex)}
-                              onDragLeave={() => setRaidDragOverSlot((prev) => prev === slotKey ? null : prev)}
-                              draggable={Boolean(member)}
-                              onDragStart={(event) => handleRaidDragStart(event, memberId)}
-                              onDragEnd={clearRaidDragState}
-                              className={`w-full rounded-xl border text-left transition overflow-visible ${
-                                isDropTarget
-                                  ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_22px_rgba(168,85,247,0.18)]'
-                                  : isSelected
-                                    ? 'border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_20px_rgba(168,85,247,0.12)]'
+                                onKeyDown={(event) => {
+                                  if (
+                                    event.key === "Enter" ||
+                                    event.key === " "
+                                  ) {
+                                    event.preventDefault();
+                                    handleRaidSlotClick(groupIndex, slotIndex);
+                                  }
+                                }}
+                                onDragOver={(event) =>
+                                  handleRaidSlotDragOver(
+                                    event,
+                                    groupIndex,
+                                    slotIndex
+                                  )
+                                }
+                                onDrop={(event) =>
+                                  handleRaidSlotDrop(
+                                    event,
+                                    groupIndex,
+                                    slotIndex
+                                  )
+                                }
+                                onDragLeave={() =>
+                                  setRaidDragOverSlot((prev) =>
+                                    prev === slotKey ? null : prev
+                                  )
+                                }
+                                draggable={Boolean(member)}
+                                onDragStart={(event) =>
+                                  handleRaidDragStart(event, memberId)
+                                }
+                                onDragEnd={clearRaidDragState}
+                                className={`w-full rounded-xl border text-left transition overflow-visible ${
+                                  isDropTarget
+                                    ? "border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_22px_rgba(168,85,247,0.18)]"
+                                    : isSelected
+                                    ? "border-fuchsia-400 bg-fuchsia-500/10 shadow-[0_0_20px_rgba(168,85,247,0.12)]"
                                     : isTargetSlotSelected
-                                      ? 'border-cyan-400 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.12)]'
-                                      : member
-                                        ? 'border-gray-700 bg-gray-800/90 hover:border-blue-400/50 hover:bg-gray-800'
-                                        : 'border-dashed border-gray-700 bg-gray-900/60 hover:border-fuchsia-500/40 hover:bg-gray-900'
-                              } ${member ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
-                            >
-                              <div className={`flex items-center gap-2.5 ${raidSlotPaddingClass} ${raidSlotMinHeightClass}`}>
-                                {member ? (
-                                  <>
-                                    {member.isGuildMaster ? (
-                                      <div className={`${raidSlotAvatarClass} rounded-full bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 border border-yellow-400 shadow-[0_0_16px_rgba(250,204,21,0.28)] flex items-center justify-center shrink-0 ${isUltraDenseRaidLayout ? 'text-base' : 'text-lg'}`}>
-                                        👑
-                                      </div>
-                                    ) : (
-                                      <img
-                                        src={getWowAvatarSrc(member)}
-                                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                                        alt={member.streamerName}
-                                        className={`${raidSlotAvatarClass} rounded-full object-cover border ${isFixedRaidMember ? 'border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.35)]' : 'border-gray-700'} bg-gray-950 shrink-0`}
-                                      />
-                                    )}
+                                    ? "border-cyan-400 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
+                                    : member
+                                    ? "border-gray-700 bg-gray-800/90 hover:border-blue-400/50 hover:bg-gray-800"
+                                    : "border-dashed border-gray-700 bg-gray-900/60 hover:border-fuchsia-500/40 hover:bg-gray-900"
+                                } ${
+                                  member
+                                    ? "cursor-grab active:cursor-grabbing"
+                                    : "cursor-pointer"
+                                }`}
+                              >
+                                <div
+                                  className={`flex items-center gap-2.5 ${raidSlotPaddingClass} ${raidSlotMinHeightClass}`}
+                                >
+                                  {member ? (
+                                    <>
+                                      {member.isGuildMaster ? (
+                                        <div
+                                          className={`${raidSlotAvatarClass} rounded-full bg-gradient-to-br from-yellow-300/25 via-amber-300/10 to-yellow-500/25 border border-yellow-400 shadow-[0_0_16px_rgba(250,204,21,0.28)] flex items-center justify-center shrink-0 ${
+                                            isUltraDenseRaidLayout
+                                              ? "text-base"
+                                              : "text-lg"
+                                          }`}
+                                        >
+                                          👑
+                                        </div>
+                                      ) : (
+                                        <img
+                                          src={getWowAvatarSrc(member)}
+                                          onError={(e) => {
+                                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                          }}
+                                          alt={member.streamerName}
+                                          className={`${raidSlotAvatarClass} rounded-full object-cover border ${
+                                            isFixedRaidMember
+                                              ? "border-yellow-400 shadow-[0_0_14px_rgba(250,204,21,0.35)]"
+                                              : "border-gray-700"
+                                          } bg-gray-950 shrink-0`}
+                                        />
+                                      )}
 
+                                      <div className="min-w-0 flex-1">
+                                        <div
+                                          className={`${raidSlotNameClass} font-black text-white truncate`}
+                                        >
+                                          {member.streamerName}
+                                        </div>
+                                        <div
+                                          className={`flex items-center gap-1.5 mt-1 flex-wrap ${raidSlotInfoClass}`}
+                                        >
+                                          <span
+                                            style={getJobBadgeStyle(
+                                              member.jobClass
+                                            )}
+                                            className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap"
+                                          >
+                                            {member.jobClass}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </>
+                                  ) : (
                                     <div className="min-w-0 flex-1">
-                                      <div className={`${raidSlotNameClass} font-black text-white truncate`}>{member.streamerName}</div>
-                                      <div className={`flex items-center gap-1.5 mt-1 flex-wrap ${raidSlotInfoClass}`}>
-                                        <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
-                                          {member.jobClass}
-                                        </span>
+                                      <div
+                                        className={`${raidSlotNameClass} font-black text-gray-400`}
+                                      >
+                                        빈 슬롯
                                       </div>
                                     </div>
-                                  </>
-                                ) : (
-                                  <div className="min-w-0 flex-1">
-                                    <div className={`${raidSlotNameClass} font-black text-gray-400`}>빈 슬롯</div>
-                                  </div>
-                                )}
+                                  )}
 
-                                {member && (
-                                  <div className="relative shrink-0 flex items-center gap-1.5" data-raid-floating-layer="true">
-                                    {(() => {
-                                      const preferredPositionIds = normalizePreferredPositions(member.preferredPositions);
-                                      const assignedPositionId = raidAssignedPreferredPositions[member.id];
-                                      const fallbackPositionId = preferredPositionIds[0] || null;
-                                      const displayPositionId = assignedPositionId && WOW_POSITION_IDS.includes(assignedPositionId)
-                                        ? assignedPositionId
-                                        : fallbackPositionId;
-                                      const assignedPositionLabel = displayPositionId ? getWowPositionShortLabel(displayPositionId) : '미정';
-                                      const isPositionMenuOpen = raidPositionMenuSlotKey === slotKey;
-                                      return (
-                                        <div className="relative" data-raid-floating-layer="true">
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setRaidPositionMenuSlotKey((prev) => prev === slotKey ? null : slotKey);
-                                              setRaidRoleMenuSlotKey(null);
-                                            }}
-                                            title={preferredPositionIds.length > 0
-                                              ? `선호 포지션: ${preferredPositionIds.map((positionId) => getWowPositionShortLabel(positionId)).join(', ')} / 현재 배정: ${assignedPositionLabel}`
-                                              : `배정 포지션: ${assignedPositionLabel}`}
-                                            className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
-                                              displayPositionId
-                                                ? `${getWowPositionTagClasses(displayPositionId)} hover:brightness-110`
-                                                : 'border-gray-700 bg-gray-900 text-gray-200 hover:text-white hover:border-white/50'
-                                            }`}
+                                  {member && (
+                                    <div
+                                      className="relative shrink-0 flex items-center gap-1.5"
+                                      data-raid-floating-layer="true"
+                                    >
+                                      {(() => {
+                                        const preferredPositionIds =
+                                          normalizePreferredPositions(
+                                            member.preferredPositions
+                                          );
+                                        const assignedPositionId =
+                                          raidAssignedPreferredPositions[
+                                            member.id
+                                          ];
+                                        const fallbackPositionId =
+                                          preferredPositionIds[0] || null;
+                                        const displayPositionId =
+                                          assignedPositionId &&
+                                          WOW_POSITION_IDS.includes(
+                                            assignedPositionId
+                                          )
+                                            ? assignedPositionId
+                                            : fallbackPositionId;
+                                        const assignedPositionLabel =
+                                          displayPositionId
+                                            ? getWowPositionShortLabel(
+                                                displayPositionId
+                                              )
+                                            : "미정";
+                                        const isPositionMenuOpen =
+                                          raidPositionMenuSlotKey === slotKey;
+                                        return (
+                                          <div
+                                            className="relative"
+                                            data-raid-floating-layer="true"
                                           >
-                                            <span className="text-[10px] font-black">{assignedPositionLabel}</span>
-                                          </button>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setRaidPositionMenuSlotKey(
+                                                  (prev) =>
+                                                    prev === slotKey
+                                                      ? null
+                                                      : slotKey
+                                                );
+                                                setRaidRoleMenuSlotKey(null);
+                                              }}
+                                              title={
+                                                preferredPositionIds.length > 0
+                                                  ? `선호 포지션: ${preferredPositionIds
+                                                      .map((positionId) =>
+                                                        getWowPositionShortLabel(
+                                                          positionId
+                                                        )
+                                                      )
+                                                      .join(
+                                                        ", "
+                                                      )} / 현재 배정: ${assignedPositionLabel}`
+                                                  : `배정 포지션: ${assignedPositionLabel}`
+                                              }
+                                              className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
+                                                displayPositionId
+                                                  ? `${getWowPositionTagClasses(
+                                                      displayPositionId
+                                                    )} hover:brightness-110`
+                                                  : "border-gray-700 bg-gray-900 text-gray-200 hover:text-white hover:border-white/50"
+                                              }`}
+                                            >
+                                              <span className="text-[10px] font-black">
+                                                {assignedPositionLabel}
+                                              </span>
+                                            </button>
 
-                                          {isPositionMenuOpen && (
-                                            <div data-raid-role-panel="true" className="absolute right-0 top-[calc(100%+10px)] z-30 w-40 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl">
-                                              <div className="px-2 pb-2 text-[10px] font-black text-gray-400">배정 포지션</div>
-                                              <div className="space-y-1">
+                                            {isPositionMenuOpen && (
+                                              <div
+                                                data-raid-role-panel="true"
+                                                className="absolute right-0 top-[calc(100%+10px)] z-30 w-40 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl"
+                                              >
+                                                <div className="px-2 pb-2 text-[10px] font-black text-gray-400">
+                                                  배정 포지션
+                                                </div>
+                                                <div className="space-y-1">
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleSelectRaidAssignedPosition(
+                                                        member.id,
+                                                        null
+                                                      );
+                                                      setRaidPositionMenuSlotKey(
+                                                        null
+                                                      );
+                                                    }}
+                                                    className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
+                                                      !assignedPositionId &&
+                                                      !fallbackPositionId
+                                                        ? "border-gray-500 bg-gray-800 text-white"
+                                                        : "border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800"
+                                                    }`}
+                                                  >
+                                                    <span>미정</span>
+                                                    {!assignedPositionId &&
+                                                      !fallbackPositionId && (
+                                                        <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+                                                      )}
+                                                  </button>
+                                                  {WOW_POSITION_OPTIONS.filter(
+                                                    (option) =>
+                                                      option.id !== "전체"
+                                                  ).map((option) => {
+                                                    const isActive =
+                                                      assignedPositionId ===
+                                                        option.id ||
+                                                      (!assignedPositionId &&
+                                                        fallbackPositionId ===
+                                                          option.id);
+                                                    return (
+                                                      <button
+                                                        key={option.id}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          handleSelectRaidAssignedPosition(
+                                                            member.id,
+                                                            option.id
+                                                          );
+                                                          setRaidPositionMenuSlotKey(
+                                                            null
+                                                          );
+                                                        }}
+                                                        className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
+                                                          isActive
+                                                            ? getWowPositionMenuOptionClasses(
+                                                                option.id,
+                                                                true
+                                                              )
+                                                            : getWowPositionMenuOptionClasses(
+                                                                option.id,
+                                                                false
+                                                              )
+                                                        }`}
+                                                      >
+                                                        <span>
+                                                          {option.label}
+                                                        </span>
+                                                        {isActive && (
+                                                          <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+                                                        )}
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setRaidRoleMenuSlotKey((prev) =>
+                                            prev === slotKey ? null : slotKey
+                                          );
+                                          setRaidPositionMenuSlotKey(null);
+                                        }}
+                                        title={roleTooltip || "역할 지정"}
+                                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
+                                          roleIds.length > 0
+                                            ? "border-violet-400/30 bg-violet-500/10 text-violet-100 hover:bg-violet-500/15"
+                                            : "border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-violet-400/30"
+                                        }`}
+                                      >
+                                        {roleIds.length > 0 ? (
+                                          <>
+                                            {visibleRoleIds.map((roleId) => (
+                                              <span
+                                                key={roleId}
+                                                className="inline-flex"
+                                              >
+                                                {renderRaidRoleIcon(
+                                                  roleId,
+                                                  "w-3.5 h-3.5"
+                                                )}
+                                              </span>
+                                            ))}
+                                            {hiddenRoleCount > 0 && (
+                                              <span className="text-[10px] font-black text-violet-100">
+                                                +{hiddenRoleCount}
+                                              </span>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CheckSquare className="w-3.5 h-3.5" />
+                                            <span className="text-[10px] font-black">
+                                              역할
+                                            </span>
+                                          </>
+                                        )}
+                                      </button>
+
+                                      {isRoleMenuOpen && (
+                                        <div
+                                          data-raid-role-panel="true"
+                                          className="absolute right-0 top-[calc(100%+10px)] z-30 w-44 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl"
+                                        >
+                                          <div className="px-2 pb-2 text-[10px] font-black text-gray-400">
+                                            역할 배지 설정
+                                          </div>
+                                          <div className="space-y-1">
+                                            {RAID_ROLE_OPTIONS.map((role) => {
+                                              const isActive = roleIds.includes(
+                                                role.id
+                                              );
+                                              return (
                                                 <button
+                                                  key={role.id}
                                                   type="button"
                                                   onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleSelectRaidAssignedPosition(member.id, null);
-                                                    setRaidPositionMenuSlotKey(null);
+                                                    handleToggleRaidRole(
+                                                      member.id,
+                                                      role.id
+                                                    );
                                                   }}
                                                   className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
-                                                    !assignedPositionId && !fallbackPositionId
-                                                      ? 'border-gray-500 bg-gray-800 text-white'
-                                                      : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
+                                                    isActive
+                                                      ? `${role.chipClass} shadow-[0_0_12px_rgba(255,255,255,0.06)]`
+                                                      : "border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800"
                                                   }`}
                                                 >
-                                                  <span>미정</span>
-                                                  {!assignedPositionId && !fallbackPositionId && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
+                                                  <span className="flex items-center gap-2 min-w-0">
+                                                    {renderRaidRoleIcon(
+                                                      role.id,
+                                                      "w-3.5 h-3.5"
+                                                    )}
+                                                    <span className="truncate">
+                                                      {role.label}
+                                                    </span>
+                                                  </span>
+                                                  {isActive && (
+                                                    <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+                                                  )}
                                                 </button>
-                                                {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
-                                                  const isActive = assignedPositionId === option.id || (!assignedPositionId && fallbackPositionId === option.id);
-                                                  return (
-                                                    <button
-                                                      key={option.id}
-                                                      type="button"
-                                                      onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleSelectRaidAssignedPosition(member.id, option.id);
-                                                        setRaidPositionMenuSlotKey(null);
-                                                      }}
-                                                      className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
-                                                        isActive
-                                                          ? getWowPositionMenuOptionClasses(option.id, true)
-                                                          : getWowPositionMenuOptionClasses(option.id, false)
-                                                      }`}
-                                                    >
-                                                      <span>{option.label}</span>
-                                                      {isActive && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
-                                                    </button>
-                                                  );
-                                                })}
-                                              </div>
-                                            </div>
-                                          )}
+                                              );
+                                            })}
+                                          </div>
                                         </div>
-                                      );
-                                    })()}
+                                      )}
+                                    </div>
+                                  )}
 
+                                  {member && !isFixedRaidMember && (
                                     <button
                                       type="button"
+                                      data-no-screenshot="true"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        setRaidRoleMenuSlotKey((prev) => prev === slotKey ? null : slotKey);
-                                        setRaidPositionMenuSlotKey(null);
+                                        handleRemoveRaidMember(
+                                          groupIndex,
+                                          slotIndex
+                                        );
                                       }}
-                                      title={roleTooltip || '역할 지정'}
-                                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
-                                        roleIds.length > 0
-                                          ? 'border-violet-400/30 bg-violet-500/10 text-violet-100 hover:bg-violet-500/15'
-                                          : 'border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-violet-400/30'
-                                      }`}
+                                      className={`${
+                                        isUltraDenseRaidLayout
+                                          ? "w-6 h-6"
+                                          : "w-7 h-7"
+                                      } rounded-full border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-red-400/40 hover:bg-red-500/10 flex items-center justify-center transition shrink-0`}
+                                      aria-label="슬롯에서 제거"
                                     >
-                                      {roleIds.length > 0 ? (
-                                        <>
-                                          {visibleRoleIds.map((roleId) => (
-                                            <span key={roleId} className="inline-flex">{renderRaidRoleIcon(roleId, "w-3.5 h-3.5")}</span>
-                                          ))}
-                                          {hiddenRoleCount > 0 && <span className="text-[10px] font-black text-violet-100">+{hiddenRoleCount}</span>}
-                                        </>
-                                      ) : (
-                                        <>
-                                          <CheckSquare className="w-3.5 h-3.5" />
-                                          <span className="text-[10px] font-black">역할</span>
-                                        </>
-                                      )}
+                                      <X
+                                        className={`${
+                                          isUltraDenseRaidLayout
+                                            ? "w-3 h-3"
+                                            : "w-3.5 h-3.5"
+                                        }`}
+                                      />
                                     </button>
-
-                                    {isRoleMenuOpen && (
-                                      <div data-raid-role-panel="true" className="absolute right-0 top-[calc(100%+10px)] z-30 w-44 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl">
-                                        <div className="px-2 pb-2 text-[10px] font-black text-gray-400">역할 배지 설정</div>
-                                        <div className="space-y-1">
-                                          {RAID_ROLE_OPTIONS.map((role) => {
-                                            const isActive = roleIds.includes(role.id);
-                                            return (
-                                              <button
-                                                key={role.id}
-                                                type="button"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleToggleRaidRole(member.id, role.id);
-                                                }}
-                                                className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
-                                                  isActive
-                                                    ? `${role.chipClass} shadow-[0_0_12px_rgba(255,255,255,0.06)]`
-                                                    : 'border-gray-700 bg-gray-900 text-gray-200 hover:border-gray-500 hover:bg-gray-800'
-                                                }`}
-                                              >
-                                                <span className="flex items-center gap-2 min-w-0">
-                                                  {renderRaidRoleIcon(role.id, 'w-3.5 h-3.5')}
-                                                  <span className="truncate">{role.label}</span>
-                                                </span>
-                                                {isActive && <CheckSquare className="w-3.5 h-3.5 shrink-0" />}
-                                              </button>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-
-                                {member && !isFixedRaidMember && (
-                                  <button
-                                    type="button"
-                                    data-no-screenshot="true"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveRaidMember(groupIndex, slotIndex);
-                                    }}
-                                    className={`${isUltraDenseRaidLayout ? 'w-6 h-6' : 'w-7 h-7'} rounded-full border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-red-400/40 hover:bg-red-500/10 flex items-center justify-center transition shrink-0`}
-                                    aria-label="슬롯에서 제거"
-                                  >
-                                    <X className={`${isUltraDenseRaidLayout ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
-                                  </button>
-                                )}
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderEventAdminSection = () => {
-    const sortedAdminTeams = [...eventAdminTeams].sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999));
-    const syncedAdminMatches = syncEventMatchesWithTeams(eventAdminMatches, eventAdminTeams);
-    const matchesByRound = {
-      quarterfinal: syncedAdminMatches.filter((match) => match.round === "quarterfinal"),
-      semifinal: syncedAdminMatches.filter((match) => match.round === "semifinal"),
-      final: syncedAdminMatches.filter((match) => match.round === "final"),
-    };
-
-    return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center"><Sparkles className="w-6 h-6 mr-2 text-amber-300" /> 이벤트 기본 설정</h2>
-              <p className="text-sm text-gray-400 mt-2 break-keep">이벤트 제목, 일정, 공개 여부를 설정합니다. 공개를 켜면 상단 메뉴에 이벤트 탭이 노출됩니다.</p>
-            </div>
-            <button type="button" onClick={handleSaveEventSettings} disabled={isEventSettingsSaving} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-black rounded-lg transition flex items-center justify-center shadow-lg">
-              {isEventSettingsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />} 기본 설정 저장
-            </button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">이벤트 제목</label>
-              <input type="text" value={eventAdminSettings.title} onChange={(e) => handleEventSettingsFieldChange("title", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">시작 일시</label>
-              <input type="datetime-local" value={eventAdminSettings.startAt} onChange={(e) => handleEventSettingsFieldChange("startAt", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-gray-300">부제</label>
-              <input type="text" value={eventAdminSettings.subtitle} onChange={(e) => handleEventSettingsFieldChange("subtitle", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">이벤트 상태</label>
-              <select value={eventAdminSettings.status} onChange={(e) => handleEventSettingsFieldChange("status", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none">
-                {EVENT_STATUS_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-              </select>
-            </div>
-            <div className="rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 flex items-center justify-between">
-              <div>
-                <div className="text-sm font-bold text-white">이벤트 탭 공개</div>
-                <div className="text-xs text-gray-400 mt-1">끄면 관리자 외에는 이벤트 탭이 보이지 않습니다.</div>
-              </div>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={eventAdminSettings.isVisible} onChange={(e) => handleEventSettingsFieldChange("isVisible", e.target.checked)} className="w-5 h-5 accent-amber-400 rounded bg-gray-800 border-gray-600" />
-                <span className="text-sm font-black text-amber-300">{eventAdminSettings.isVisible ? "공개" : "비공개"}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center"><Users className="w-6 h-6 mr-2 text-cyan-300" /> 참가 팀 생성 및 멤버 편성</h2>
-              <p className="text-sm text-gray-400 mt-2 break-keep">직업별 팀을 만들고, WOW 명단 참가자 또는 이벤트 전용 참가자를 추가합니다. 팀당 인원은 정확히 5명입니다.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleFillEventTeamsDraft} disabled={sortedAdminTeams.length >= 8} className="px-4 py-2.5 bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-lg border border-gray-600 transition disabled:opacity-50">빈 팀 {Math.max(8 - sortedAdminTeams.length, 0)}개 채우기</button>
-              <button type="button" onClick={handleSaveEventTeams} disabled={isEventTeamsSaving} className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-lg transition flex items-center shadow-lg">
-                {isEventTeamsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Users className="w-4 h-4 mr-2" />} 팀 저장
-              </button>
-            </div>
-          </div>
-          {sortedAdminTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/60 px-4 py-12 text-center text-gray-500">아직 생성된 이벤트 팀이 없습니다. 먼저 빈 팀 8개를 만들고 직업을 배정해주세요.</div>
-          ) : (
-            <div className="space-y-5">
-              {sortedAdminTeams.map((team, teamIndex) => {
-                const guestDraft = eventGuestDrafts[team.id] || createEmptyEventGuestForm();
-                const eligibleWowMembers = wowRoster.filter((member) => !team.jobClass || normalizeWowJobClassKey(member.jobClass) === team.jobClass).filter((member) => !eventAdminTeams.some((eventTeam) => eventTeam.members.some((participant) => participant.sourceType === "wowRoster" && participant.sourceMemberId === member.id))).sort((a, b) => (a.streamerName || "").localeCompare(b.streamerName || "", "ko"));
-                return (
-                  <div key={team.id} className="rounded-3xl border p-5 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between mb-5">
-                      <div>
-                        <div className="text-xs font-black tracking-[0.16em] text-white/55 uppercase">Team #{teamIndex + 1}</div>
-                        <h3 className="text-2xl font-black text-white mt-1">{team.teamName || "TEAM 이름 미정"}</h3>
-                        <div className="mt-2 text-sm text-white/75">현재 등록 인원 {team.members.length} / 5명</div>
-                      </div>
-                      <button type="button" onClick={() => handleRemoveEventTeamDraft(team.id)} className="self-start px-3 py-2 rounded-lg bg-red-900/30 hover:bg-red-600 text-red-300 hover:text-white transition border border-red-800/40 text-sm font-bold"><Trash2 className="w-4 h-4 inline mr-1.5" /> 팀 삭제</button>
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <select value={team.jobClass} onChange={(e) => handleEventTeamFieldChange(team.id, "jobClass", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35"><option value="">직업 선택</option>{WOW_JOB_OPTIONS.map((jobClass) => <option key={jobClass} value={jobClass}>{jobClass}</option>)}</select>
-                      <input type="text" value={team.teamName} onChange={(e) => handleEventTeamFieldChange(team.id, "teamName", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35" placeholder={createDefaultEventTeamName(team.jobClass)} />
-                      <input type="text" value={team.imageUrl || ""} onChange={(e) => handleEventTeamFieldChange(team.id, "imageUrl", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35" placeholder="대표 이미지 주소" />
-                      <input type="text" value={team.note || ""} onChange={(e) => handleEventTeamFieldChange(team.id, "note", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35" placeholder="팀 소개 한 줄" />
-                    </div>
-                    <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
-                      <div className="space-y-2">
-                        {team.members.length > 0 ? team.members.map((member) => (
-                          <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                            <img src={getEventMemberAvatar(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }} alt={member.displayName} className="w-10 h-10 rounded-full border border-white/15 bg-gray-900 object-cover" />
-                            <div className="min-w-0 flex-1"><div className="truncate text-sm font-black text-white">{member.displayName}</div><div className="truncate text-[11px] text-white/70">{member.wowNickname}</div></div>
-                            <span className="rounded-full border px-2 py-1 text-[10px] font-black" style={getJobBadgeStyle(team.jobClass || member.jobClass)}>{team.jobClass || member.jobClass || "직업 미정"}</span>
-                            <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${member.sourceType === "guest" ? "border-emerald-300/20 bg-emerald-500/12 text-emerald-200" : "border-cyan-300/20 bg-cyan-500/12 text-cyan-200"}`}>{member.sourceType === "guest" ? "이벤트 참가자" : "WOW 명단"}</span>
-                            <button type="button" onClick={() => handleRemoveEventTeamMember(team.id, member.id)} className="p-2 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition"><X className="w-4 h-4" /></button>
-                          </div>
-                        )) : <div className="rounded-2xl border border-dashed border-white/15 bg-black/15 px-4 py-8 text-center text-sm text-white/50">아직 팀 인원이 등록되지 않았습니다.</div>}
-                      </div>
-                      <div className="space-y-4">
-                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <div className="text-sm font-black text-white mb-3">WOW 명단에서 추가</div>
-                          <select value={eventRosterSelections[team.id] || ""} onChange={(e) => setEventRosterSelections((prev) => ({ ...prev, [team.id]: e.target.value }))} disabled={!team.jobClass || team.members.length >= 5} className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35 disabled:opacity-50">
-                            <option value="">{team.jobClass ? `${team.jobClass} WOW 길드원 선택` : "먼저 팀 직업을 선택해주세요"}</option>
-                            {eligibleWowMembers.map((member) => <option key={member.id} value={member.id}>{member.streamerName} · {member.wowNickname || member.streamerName}</option>)}
-                          </select>
-                          <button type="button" onClick={() => handleAddEventRosterMemberToTeam(team.id)} disabled={!(eventRosterSelections[team.id] || "") || team.members.length >= 5} className="mt-3 w-full rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-400 text-gray-950 px-4 py-3 font-black transition">WOW 명단 참가자 추가</button>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <div className="text-sm font-black text-white mb-3">이벤트 전용 참가자 추가</div>
-                          <div className="space-y-3">
-                            <input type="text" value={guestDraft.displayName || ""} onChange={(e) => handleEventGuestDraftChange(team.id, "displayName", e.target.value)} placeholder="표시 이름" className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35" />
-                            <input type="text" value={guestDraft.wowNickname || ""} onChange={(e) => handleEventGuestDraftChange(team.id, "wowNickname", e.target.value)} placeholder="와우 닉네임" className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35" />
-                            <input type="text" value={guestDraft.imageUrl || ""} onChange={(e) => handleEventGuestDraftChange(team.id, "imageUrl", e.target.value)} placeholder="이미지 주소 (선택)" className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35" />
-                            <button type="button" onClick={() => handleAddEventGuestToTeam(team.id)} disabled={team.members.length >= 5} className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:text-gray-400 text-gray-950 px-4 py-3 font-black transition">이벤트 참가자 추가</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center"><Swords className="w-6 h-6 mr-2 text-rose-300" /> 8강 토너먼트 대진 및 결과</h2>
-              <p className="text-sm text-gray-400 mt-2 break-keep">8강은 직접 팀을 배정하고, 승리 팀을 선택하면 4강과 결승 슬롯이 자동으로 채워집니다.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleResetEventMatchesDraft} className="px-4 py-2.5 bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-lg border border-gray-600 transition">대진표 초기화</button>
-              <button type="button" onClick={handleSaveEventMatches} disabled={isEventMatchesSaving} className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-lg transition flex items-center shadow-lg">{isEventMatchesSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Swords className="w-4 h-4 mr-2" />} 대진 및 결과 저장</button>
-            </div>
-          </div>
-          <div className="grid gap-5 xl:grid-cols-3">
-            {(["quarterfinal", "semifinal", "final"]).map((roundKey) => (
-              <section key={roundKey} className="rounded-2xl border border-gray-700 bg-gray-900/70 p-4">
-                <div className="mb-4 flex items-center justify-between"><h3 className="text-xl font-black text-white">{EVENT_ROUND_LABELS[roundKey]}</h3><span className="text-xs text-gray-400">{matchesByRound[roundKey].length}경기</span></div>
-                <div className="space-y-4">
-                  {matchesByRound[roundKey].map((match) => {
-                    const participantOptions = [match.teamAId, match.teamBId].filter(Boolean);
-                    return (
-                      <div key={match.id} className="rounded-2xl border border-gray-700 bg-gray-950/70 p-4">
-                        <div className="text-sm font-black text-white mb-3">{match.label}</div>
-                        {roundKey === "quarterfinal" ? (
-                          <div className="grid gap-3">
-                            <select value={match.teamAId} onChange={(e) => handleEventMatchFieldChange(match.id, "teamAId", e.target.value)} className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"><option value="">TEAM A 선택</option>{sortedAdminTeams.map((team) => <option key={team.id} value={team.id}>{team.teamName || createDefaultEventTeamName(team.jobClass)}</option>)}</select>
-                            <select value={match.teamBId} onChange={(e) => handleEventMatchFieldChange(match.id, "teamBId", e.target.value)} className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"><option value="">TEAM B 선택</option>{sortedAdminTeams.map((team) => <option key={team.id} value={team.id}>{team.teamName || createDefaultEventTeamName(team.jobClass)}</option>)}</select>
-                          </div>
-                        ) : (
-                          <div className="grid gap-2">
-                            <div className="rounded-xl border border-gray-700 bg-gray-900/80 px-4 py-3 text-white">TEAM A: {eventAdminTeams.find((team) => team.id === match.teamAId)?.teamName || "자동 배정 대기"}</div>
-                            <div className="rounded-xl border border-gray-700 bg-gray-900/80 px-4 py-3 text-white">TEAM B: {eventAdminTeams.find((team) => team.id === match.teamBId)?.teamName || "자동 배정 대기"}</div>
-                          </div>
-                        )}
-                        <div className="mt-3">
-                          <input
-                            type="text"
-                            value={match.displayDate || ""}
-                            onChange={(e) => handleEventMatchFieldChange(match.id, "displayDate", e.target.value)}
-                            placeholder="예: 4/12(일) 20:00"
-                            className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"
-                          />
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                          <input type="number" min="0" value={match.teamAScore} onChange={(e) => handleEventMatchFieldChange(match.id, "teamAScore", e.target.value)} placeholder="TEAM A 점수" className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400" />
-                          <input type="number" min="0" value={match.teamBScore} onChange={(e) => handleEventMatchFieldChange(match.id, "teamBScore", e.target.value)} placeholder="TEAM B 점수" className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400" />
-                        </div>
-                        <div className="mt-3 grid gap-3 md:grid-cols-2">
-                          <select value={match.status} onChange={(e) => handleEventMatchFieldChange(match.id, "status", e.target.value)} className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400">{EVENT_STATUS_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select>
-                          <select value={match.winnerTeamId} onChange={(e) => handleEventMatchFieldChange(match.id, "winnerTeamId", e.target.value)} className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"><option value="">승리 팀 선택</option>{participantOptions.map((teamId) => { const team = eventAdminTeams.find((item) => item.id === teamId); return <option key={teamId} value={teamId}>{team?.teamName || "팀 이름 미정"}</option>; })}</select>
+                            );
+                          })}
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              </section>
-            ))}
+                  }
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -7217,28 +9175,48 @@ export default function App() {
               className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-center border border-gray-600 focus:border-green-500 outline-none"
               required
             />
-            <button type="submit" disabled={isAdminLoggingIn} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition flex items-center justify-center shadow-lg">
-              {isAdminLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : "안전하게 접속하기"}
+            <button
+              type="submit"
+              disabled={isAdminLoggingIn}
+              className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition flex items-center justify-center shadow-lg"
+            >
+              {isAdminLoggingIn ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                "안전하게 접속하기"
+              )}
             </button>
           </form>
         </div>
       );
 
     const handleCleanGhostData = async () => {
-      if (!user || !window.confirm("경기 기록이 전혀 없는 '유령 선수'들을 찾아 명단에서 모두 삭제하시겠습니까?")) return;
+      if (
+        !user ||
+        !window.confirm(
+          "경기 기록이 전혀 없는 '유령 선수'들을 찾아 명단에서 모두 삭제하시겠습니까?"
+        )
+      )
+        return;
       setIsCleaningGhosts(true);
       try {
         let deletedCount = 0;
         for (const p of players) {
-          const hasMatch = matches.some((m) => m.results?.some((r) => r.playerName === p.name));
+          const hasMatch = matches.some((m) =>
+            m.results?.some((r) => r.playerName === p.name)
+          );
           if (!hasMatch) {
-            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", p.id));
+            await deleteDoc(
+              doc(db, "artifacts", appId, "public", "data", "players", p.id)
+            );
             deletedCount++;
           }
         }
         await updateLastModifiedTime();
         if (deletedCount > 0) {
-          showToast(`총 ${deletedCount}명의 유령 데이터를 성공적으로 청소했습니다!`);
+          showToast(
+            `총 ${deletedCount}명의 유령 데이터를 성공적으로 청소했습니다!`
+          );
         } else {
           showToast("삭제할 유령 데이터가 없습니다. (모두 정상입니다)");
         }
@@ -7250,9 +9228,17 @@ export default function App() {
     };
 
     const handleDeletePlayer = async (playerId, playerName) => {
-      if (!user || !window.confirm(`정말 [${playerName}] 선수를 명단에서 강제 삭제하시겠습니까?\n\n(주의: 이 선수가 참여한 경기 기록이 남아있다면 데이터가 꼬일 수 있으니, 경기 기록이 없는 '유령 선수'만 삭제해주세요!)`)) return;
+      if (
+        !user ||
+        !window.confirm(
+          `정말 [${playerName}] 선수를 명단에서 강제 삭제하시겠습니까?\n\n(주의: 이 선수가 참여한 경기 기록이 남아있다면 데이터가 꼬일 수 있으니, 경기 기록이 없는 '유령 선수'만 삭제해주세요!)`
+        )
+      )
+        return;
       try {
-        await deleteDoc(doc(db, "artifacts", appId, "public", "data", "players", playerId));
+        await deleteDoc(
+          doc(db, "artifacts", appId, "public", "data", "players", playerId)
+        );
         await updateLastModifiedTime();
         showToast(`[${playerName}] 선수가 명단에서 영구 삭제되었습니다.`);
       } catch (error) {
@@ -7261,36 +9247,71 @@ export default function App() {
     };
 
     const ensureDraftPlayersExistForMatchResults = async (results = []) => {
-      const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+      const uniqueNames = [
+        ...new Set(
+          (results || [])
+            .map((r) => (r.playerName || "").trim())
+            .filter(Boolean)
+        ),
+      ];
       for (const playerName of uniqueNames) {
         const existingPlayer = players.find((p) => p.name === playerName);
         const existingDraft = draftPlayers.find((p) => p.name === playerName);
         if (!existingPlayer && !existingDraft) {
-          await addDoc(collection(db, "artifacts", appId, "public", "data", "draft_players"), {
-            name: playerName,
-            imageUrl: "",
-            broadcastUrl: "",
-            createdAt: new Date().toISOString(),
-          });
+          await addDoc(
+            collection(
+              db,
+              "artifacts",
+              appId,
+              "public",
+              "data",
+              "draft_players"
+            ),
+            {
+              name: playerName,
+              imageUrl: "",
+              broadcastUrl: "",
+              createdAt: new Date().toISOString(),
+            }
+          );
         }
       }
     };
 
     const ensurePlayersExistForPublishedMatchResults = async (results = []) => {
-      const uniqueNames = [...new Set((results || []).map((r) => (r.playerName || "").trim()).filter(Boolean))];
+      const uniqueNames = [
+        ...new Set(
+          (results || [])
+            .map((r) => (r.playerName || "").trim())
+            .filter(Boolean)
+        ),
+      ];
       for (const playerName of uniqueNames) {
         const existing = players.find((p) => p.name === playerName);
         if (existing) continue;
         const existingDraft = draftPlayers.find((p) => p.name === playerName);
-        await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), {
-          name: playerName,
-          points: 0,
-          imageUrl: existingDraft?.imageUrl || "",
-          broadcastUrl: existingDraft?.broadcastUrl || "",
-          createdAt: new Date().toISOString(),
-        });
+        await addDoc(
+          collection(db, "artifacts", appId, "public", "data", "players"),
+          {
+            name: playerName,
+            points: 0,
+            imageUrl: existingDraft?.imageUrl || "",
+            broadcastUrl: existingDraft?.broadcastUrl || "",
+            createdAt: new Date().toISOString(),
+          }
+        );
         if (existingDraft?.id) {
-          await deleteDoc(doc(db, "artifacts", appId, "public", "data", "draft_players", existingDraft.id));
+          await deleteDoc(
+            doc(
+              db,
+              "artifacts",
+              appId,
+              "public",
+              "data",
+              "draft_players",
+              existingDraft.id
+            )
+          );
         }
       }
     };
@@ -7311,12 +9332,16 @@ export default function App() {
       const allNames = new Set([...oldMap.keys(), ...newMap.keys()]);
 
       for (const playerName of allNames) {
-        const delta = (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
+        const delta =
+          (newMap.get(playerName) || 0) - (oldMap.get(playerName) || 0);
         if (!delta) continue;
 
         let player = players.find((p) => p.name === playerName);
         if (!player) {
-          const playerQuery = query(collection(db, "artifacts", appId, "public", "data", "players"), where("name", "==", playerName));
+          const playerQuery = query(
+            collection(db, "artifacts", appId, "public", "data", "players"),
+            where("name", "==", playerName)
+          );
           const playerSnapshot = await getDocs(playerQuery);
           if (!playerSnapshot.empty) {
             const playerDoc = playerSnapshot.docs[0];
@@ -7325,43 +9350,55 @@ export default function App() {
         }
 
         if (player) {
-          await updateDoc(doc(db, "artifacts", appId, "public", "data", "players", player.id), { points: increment(delta) });
+          await updateDoc(
+            doc(db, "artifacts", appId, "public", "data", "players", player.id),
+            { points: increment(delta) }
+          );
         } else if (delta > 0) {
-          await addDoc(collection(db, "artifacts", appId, "public", "data", "players"), { name: playerName, points: delta, createdAt: new Date().toISOString() });
+          await addDoc(
+            collection(db, "artifacts", appId, "public", "data", "players"),
+            {
+              name: playerName,
+              points: delta,
+              createdAt: new Date().toISOString(),
+            }
+          );
         }
       }
     };
 
     const handleSubmitMatch = async (e, publishNow = false) => {
       e?.preventDefault?.();
-      if (!gameName.trim()) return showToast("게임 이름을 입력해주세요.", "error");
+      if (!gameName.trim())
+        return showToast("게임 이름을 입력해주세요.", "error");
 
       let finalResults = [];
+      let nextTeamResults = [];
       if (matchMode === "individual") {
         finalResults = individualResults
           .filter((r) => r.playerName.trim() !== "")
-          .map(r => ({
-             playerName: r.playerName.trim(),
-             rank: r.rank,
-             scoreChange: r.scoreChange,
-             ...(hasFunding ? { fundingRatio: Number(r.fundingRatio) || 0, fundingAmount: Number(r.fundingAmount) || 0 } : {})
+          .map((r) => ({
+            playerName: r.playerName.trim(),
+            rank: r.rank,
+            scoreChange: r.scoreChange,
+            ...(hasFunding
+              ? {
+                  fundingRatio: Number(r.fundingRatio) || 0,
+                  fundingAmount: Number(r.fundingAmount) || 0,
+                }
+              : {}),
           }));
       } else {
-        teamResults.forEach((team) => {
-          team.players.forEach((pName) => {
-            if (pName.trim() !== "") {
-              finalResults.push({ 
-                 playerName: pName.trim(), 
-                 rank: team.rank, 
-                 scoreChange: team.scoreChange,
-                 ...(hasFunding ? { fundingRatio: Number(team.fundingRatio) || 0, fundingAmount: Number(team.fundingAmount) || 0 } : {})
-              });
-            }
-          });
-        });
+        const teamPayload = buildTeamMatchPayload(teamResults, hasFunding);
+        finalResults = teamPayload.results;
+        nextTeamResults = teamPayload.teamResults;
       }
 
-      if (finalResults.length === 0) return showToast("최소 1명 이상의 유효한 참가자를 입력해주세요.", "error");
+      if (finalResults.length === 0)
+        return showToast(
+          "최소 1명 이상의 유효한 참가자를 입력해주세요.",
+          "error"
+        );
 
       setIsSubmitting(true);
       try {
@@ -7371,17 +9408,21 @@ export default function App() {
           await ensureDraftPlayersExistForMatchResults(finalResults);
         }
 
-        await addDoc(collection(db, "artifacts", appId, "public", "data", "matches"), {
-          date: matchDate, 
-          gameName, 
-          createdAt: new Date().toISOString(), 
-          matchType: matchMode,
-          hasFunding, 
-          totalFunding: hasFunding ? Number(totalFunding) || 0 : 0,
-          results: finalResults,
-          isPublished: publishNow,
-          publishedAt: publishNow ? new Date().toISOString() : null,
-        });
+        await addDoc(
+          collection(db, "artifacts", appId, "public", "data", "matches"),
+          {
+            date: matchDate,
+            gameName,
+            createdAt: new Date().toISOString(),
+            matchType: matchMode,
+            hasFunding,
+            totalFunding: hasFunding ? Number(totalFunding) || 0 : 0,
+            results: finalResults,
+            teamResults: matchMode === "team" ? nextTeamResults : [],
+            isPublished: publishNow,
+            publishedAt: publishNow ? new Date().toISOString() : null,
+          }
+        );
 
         if (publishNow) {
           await applyMatchScoreDelta([], finalResults);
@@ -7390,10 +9431,29 @@ export default function App() {
         setGameName("");
         setHasFunding(false);
         setTotalFunding("");
-        setIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
-        setTeamResults([{ id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" }, { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" }]);
-        await updateLastModifiedTime(); 
-        showToast(publishNow ? "경기 기록이 공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
+        setIndividualResults([
+          {
+            playerName: "",
+            rank: 1,
+            scoreChange: 100,
+            fundingRatio: "",
+            fundingAmount: "",
+          },
+          {
+            playerName: "",
+            rank: 2,
+            scoreChange: 50,
+            fundingRatio: "",
+            fundingAmount: "",
+          },
+        ]);
+        setTeamResults(createDefaultTeamMatchResults());
+        await updateLastModifiedTime();
+        showToast(
+          publishNow
+            ? "경기 기록이 공개되었습니다."
+            : "경기 기록이 임시 저장되었습니다."
+        );
         if (publishNow) navigateTo("tier");
       } catch (error) {
         showToast("오류 발생", "error");
@@ -7404,50 +9464,69 @@ export default function App() {
 
     return (
       <div className="max-w-3xl mx-auto space-y-8">
-        
         {/* 상단 관리자 접속 현황 */}
         <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center">
-              <Activity className="w-4 h-4 mr-1.5 text-green-400" /> 현재 활동 중인 관리자 ({activeAdmins.length}명)
+              <Activity className="w-4 h-4 mr-1.5 text-green-400" /> 현재 활동
+              중인 관리자 ({activeAdmins.length}명)
             </h3>
             <div className="flex flex-wrap gap-2">
-              {activeAdmins.map(admin => (
-                <span key={admin.id} className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${admin.name === currentAdminName ? 'bg-green-900/50 text-green-400 border border-green-500/50' : 'bg-gray-700 text-gray-300'}`}>
+              {activeAdmins.map((admin) => (
+                <span
+                  key={admin.id}
+                  className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${
+                    admin.name === currentAdminName
+                      ? "bg-green-900/50 text-green-400 border border-green-500/50"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                >
                   <span className="w-2.5 h-2.5 rounded-full bg-green-400 mr-2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse"></span>
-                  {admin.name} {admin.name === currentAdminName && <span className="ml-1 opacity-60 text-xs">(나)</span>}
+                  {admin.name}{" "}
+                  {admin.name === currentAdminName && (
+                    <span className="ml-1 opacity-60 text-xs">(나)</span>
+                  )}
                 </span>
               ))}
             </div>
           </div>
-          <button onClick={handleAdminLogout} className="text-sm font-bold flex items-center text-red-400 hover:text-white bg-red-900/30 hover:bg-red-600 px-4 py-2 rounded-lg transition shrink-0 border border-red-800/50">
+          <button
+            onClick={handleAdminLogout}
+            className="text-sm font-bold flex items-center text-red-400 hover:text-white bg-red-900/30 hover:bg-red-600 px-4 py-2 rounded-lg transition shrink-0 border border-red-800/50"
+          >
             <Unlock className="w-4 h-4 mr-1.5" /> 로그아웃
           </button>
         </div>
 
         {/* ★ 관리자 탭 분리 메뉴 ★ */}
         <div className="flex gap-2 bg-gray-900 p-1.5 rounded-xl border border-gray-700">
-          <button 
-            onClick={() => setAdminInnerTab("league")} 
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "league" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+          <button
+            onClick={() => setAdminInnerTab("league")}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${
+              adminInnerTab === "league"
+                ? "bg-gray-700 text-white shadow-md border border-gray-600"
+                : "text-gray-400 hover:text-white hover:bg-gray-800"
+            }`}
           >
             <Swords className="w-4 h-4 mr-2" /> 버종리 설정
           </button>
-          <button 
-            onClick={() => setAdminInnerTab("wow")} 
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "wow" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+          <button
+            onClick={() => setAdminInnerTab("wow")}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${
+              adminInnerTab === "wow"
+                ? "bg-gray-700 text-white shadow-md border border-gray-600"
+                : "text-gray-400 hover:text-white hover:bg-gray-800"
+            }`}
           >
             <Shield className="w-4 h-4 mr-2" /> 와우 설정
           </button>
           <button
-            onClick={() => setAdminInnerTab("event")}
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "event" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-          >
-            <Sparkles className="w-4 h-4 mr-2" /> 이벤트 설정
-          </button>
-          <button
             onClick={() => setAdminInnerTab("etc")}
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "etc" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${
+              adminInnerTab === "etc"
+                ? "bg-gray-700 text-white shadow-md border border-gray-600"
+                : "text-gray-400 hover:text-white hover:bg-gray-800"
+            }`}
           >
             <Layers className="w-4 h-4 mr-2" /> 기타 설정 (공지 등)
           </button>
@@ -7461,27 +9540,47 @@ export default function App() {
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-white flex items-center">
-                  <PlusCircle className="w-6 h-6 mr-2 text-green-400" /> 새 경기 결과 등록
+                  <PlusCircle className="w-6 h-6 mr-2 text-green-400" /> 새 경기
+                  결과 등록
                 </h2>
               </div>
 
               <div className="flex bg-gray-900 p-1 rounded-lg mb-6 border border-gray-700">
-                <button type="button" onClick={() => setMatchMode("individual")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${matchMode === "individual" ? "bg-gray-700 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
+                <button
+                  type="button"
+                  onClick={() => setMatchMode("individual")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${
+                    matchMode === "individual"
+                      ? "bg-gray-700 text-white shadow"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
                   <User className="w-4 h-4 mr-2" /> 개인전
                 </button>
-                <button type="button" onClick={() => setMatchMode("team")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${matchMode === "team" ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
+                <button
+                  type="button"
+                  onClick={() => setMatchMode("team")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${
+                    matchMode === "team"
+                      ? "bg-indigo-600 text-white shadow"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
                   <Users className="w-4 h-4 mr-2" /> 팀전
                 </button>
               </div>
 
-              <form onSubmit={(e) => handleSubmitMatch(e, false)} className="space-y-6">
+              <form
+                onSubmit={(e) => handleSubmitMatch(e, false)}
+                className="space-y-6"
+              >
                 <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
                   <label className="flex items-center gap-3 cursor-pointer w-fit">
-                    <input 
-                      type="checkbox" 
-                      checked={hasFunding} 
-                      onChange={(e) => setHasFunding(e.target.checked)} 
-                      className="w-5 h-5 accent-yellow-500 rounded bg-gray-800 border-gray-600 cursor-pointer" 
+                    <input
+                      type="checkbox"
+                      checked={hasFunding}
+                      onChange={(e) => setHasFunding(e.target.checked)}
+                      className="w-5 h-5 accent-yellow-500 rounded bg-gray-800 border-gray-600 cursor-pointer"
                     />
                     <span className="text-yellow-400 font-bold flex items-center text-base select-none">
                       <Coins className="w-5 h-5 mr-2" /> 펀딩/상금 결산 추가하기
@@ -7489,123 +9588,375 @@ export default function App() {
                   </label>
                   {hasFunding && (
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-800 p-4 rounded-lg border border-gray-700">
-                        <span className="text-sm text-gray-300 font-bold whitespace-nowrap">총 모인 별풍선 개수:</span>
-                        <div className="flex items-center w-full sm:w-auto">
-                          <input 
-                            type="number" 
-                            placeholder="예: 100000" 
-                            value={totalFunding} 
-                            onChange={(e) => setTotalFunding(e.target.value)} 
-                            className="w-full sm:w-48 bg-gray-900 border border-gray-600 text-yellow-400 font-black rounded-l-lg px-4 py-2 focus:border-yellow-500 outline-none text-right" 
-                          />
-                          <span className="bg-gray-700 border border-l-0 border-gray-600 text-gray-300 px-4 py-2 rounded-r-lg font-bold">개</span>
-                        </div>
+                      <span className="text-sm text-gray-300 font-bold whitespace-nowrap">
+                        총 모인 별풍선 개수:
+                      </span>
+                      <div className="flex items-center w-full sm:w-auto">
+                        <input
+                          type="number"
+                          placeholder="예: 100000"
+                          value={totalFunding}
+                          onChange={(e) => setTotalFunding(e.target.value)}
+                          className="w-full sm:w-48 bg-gray-900 border border-gray-600 text-yellow-400 font-black rounded-l-lg px-4 py-2 focus:border-yellow-500 outline-none text-right"
+                        />
+                        <span className="bg-gray-700 border border-l-0 border-gray-600 text-gray-300 px-4 py-2 rounded-r-lg font-bold">
+                          개
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <input type="text" value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder="게임 이름" className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
-                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+                  <input
+                    type="text"
+                    value={gameName}
+                    onChange={(e) => setGameName(e.target.value)}
+                    placeholder="게임 이름"
+                    className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2"
+                    required
+                  />
+                  <input
+                    type="date"
+                    value={matchDate}
+                    onChange={(e) => setMatchDate(e.target.value)}
+                    className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2"
+                    required
+                  />
                 </div>
 
                 {matchMode === "individual" && (
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3">
-                    <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 입력합니다.</p>
+                    <p className="text-xs font-bold text-gray-500 mb-2">
+                      개인별 순위와 점수를 입력합니다.
+                    </p>
                     {individualResults.map((r, idx) => (
-                      <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
+                      <div
+                        key={idx}
+                        className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50"
+                      >
                         <div className="flex gap-2">
-                          <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                          <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                          <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                          <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults(individualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
+                          <input
+                            type="number"
+                            value={r.rank}
+                            onChange={(e) => {
+                              const n = [...individualResults];
+                              n[idx].rank = Number(e.target.value);
+                              setIndividualResults(n);
+                            }}
+                            className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600"
+                          />
+                          <input
+                            type="text"
+                            value={r.playerName}
+                            onChange={(e) => {
+                              const n = [...individualResults];
+                              n[idx].playerName = e.target.value;
+                              setIndividualResults(n);
+                            }}
+                            placeholder="참가자 이름"
+                            className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600"
+                          />
+                          <input
+                            type="number"
+                            value={r.scoreChange}
+                            onChange={(e) => {
+                              const n = [...individualResults];
+                              n[idx].scoreChange = Number(e.target.value);
+                              setIndividualResults(n);
+                            }}
+                            placeholder="점수"
+                            className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (individualResults.length > 1)
+                                setIndividualResults(
+                                  individualResults.filter((_, i) => i !== idx)
+                                );
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-400"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         </div>
                         {hasFunding && (
                           <div className="flex gap-2 items-center sm:pl-[72px]">
-                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                            <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                              const val = e.target.value;
-                              const n = [...individualResults];
-                              n[idx].fundingRatio = val;
-                              n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
-                              setIndividualResults(n);
-                            }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                            <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                              const n = [...individualResults];
-                              n[idx].fundingAmount = e.target.value;
-                              n[idx].fundingRatio = "";
-                              setIndividualResults(n);
-                            }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">
+                              💰 상금:
+                            </span>
+                            <input
+                              type="number"
+                              placeholder="비율(%)"
+                              value={r.fundingRatio || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const n = [...individualResults];
+                                n[idx].fundingRatio = val;
+                                n[idx].fundingAmount =
+                                  val && totalFunding
+                                    ? Math.floor(
+                                        (Number(totalFunding) * Number(val)) /
+                                          100
+                                      )
+                                    : "";
+                                setIndividualResults(n);
+                              }}
+                              className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none"
+                            />
+                            <span className="text-gray-500 text-xs font-bold">
+                              % ➔
+                            </span>
+                            <input
+                              type="number"
+                              placeholder="별풍선(직접수정 가능)"
+                              value={r.fundingAmount || ""}
+                              onChange={(e) => {
+                                const n = [...individualResults];
+                                n[idx].fundingAmount = e.target.value;
+                                n[idx].fundingRatio = "";
+                                setIndividualResults(n);
+                              }}
+                              className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none"
+                            />
+                            <span className="text-gray-500 text-xs font-bold mr-8">
+                              개
+                            </span>
                           </div>
                         )}
                       </div>
                     ))}
-                    <button type="button" onClick={() => setIndividualResults([...individualResults, { playerName: "", rank: individualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setIndividualResults([
+                          ...individualResults,
+                          {
+                            playerName: "",
+                            rank: individualResults.length + 1,
+                            scoreChange: 0,
+                            fundingRatio: "",
+                            fundingAmount: "",
+                          },
+                        ])
+                      }
+                      className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition"
+                    >
+                      참가자 추가
+                    </button>
                   </div>
                 )}
 
                 {matchMode === "team" && (
                   <div className="space-y-4">
-                    <p className="text-xs font-bold text-indigo-400 mb-2">팀 단위로 순위와 점수를 한 번만 입력하고, 팀원 이름을 추가하세요.</p>
+                    <p className="text-xs font-bold text-indigo-400 mb-2">
+                      팀 단위로 순위와 점수를 한 번만 입력하고, 팀원 이름을
+                      추가하세요.
+                    </p>
                     {teamResults.map((team, tIdx) => (
-                      <div key={team.id} className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 relative overflow-hidden flex flex-col">
+                      <div
+                        key={team.id}
+                        className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 relative overflow-hidden flex flex-col"
+                      >
                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
                         <div className="flex gap-2 mb-3 pb-3 border-b border-gray-800">
                           <div className="flex flex-col">
-                            <span className="text-[10px] text-gray-500 mb-1">순위</span>
-                            <input type="number" value={team.rank} onChange={(e) => { const n = [...teamResults]; n[tIdx].rank = Number(e.target.value); setTeamResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
+                            <span className="text-[10px] text-gray-500 mb-1">
+                              순위
+                            </span>
+                            <input
+                              type="number"
+                              value={team.rank}
+                              onChange={(e) => {
+                                const n = [...teamResults];
+                                n[tIdx].rank = Number(e.target.value);
+                                setTeamResults(n);
+                              }}
+                              className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1"
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 mb-1">
+                              세트 승수
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={team.setWins}
+                              onChange={(e) => {
+                                const n = [...teamResults];
+                                n[tIdx].setWins =
+                                  e.target.value === ""
+                                    ? ""
+                                    : Math.max(0, Number(e.target.value) || 0);
+                                setTeamResults(n);
+                              }}
+                              placeholder="예: 7"
+                              className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600 py-1"
+                            />
                           </div>
                           <div className="flex flex-col flex-1">
-                            <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
-                            <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...teamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
+                            <span className="text-[10px] text-gray-500 mb-1">
+                              팀 전체 획득/감소 점수
+                            </span>
+                            <input
+                              type="number"
+                              value={team.scoreChange}
+                              onChange={(e) => {
+                                const n = [...teamResults];
+                                n[tIdx].scoreChange = Number(e.target.value);
+                                setTeamResults(n);
+                              }}
+                              placeholder="점수"
+                              className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1"
+                            />
                           </div>
                           <div className="flex flex-col justify-end">
-                            <button type="button" onClick={() => { if (teamResults.length > 2) setTeamResults(teamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (teamResults.length > 2)
+                                  setTeamResults(
+                                    teamResults.filter((_, i) => i !== tIdx)
+                                  );
+                              }}
+                              className="p-2 text-gray-500 hover:text-red-400 transition"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
                           </div>
                         </div>
                         {hasFunding && (
                           <div className="flex gap-2 items-center bg-gray-800/50 p-2 rounded-lg border border-gray-700/50 mb-2">
-                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 팀상금:</span>
-                            <input type="number" placeholder="비율(%)" value={team.fundingRatio || ""} onChange={(e) => {
-                              const val = e.target.value;
-                              const n = [...teamResults];
-                              n[tIdx].fundingRatio = val;
-                              n[tIdx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
-                              setTeamResults(n);
-                            }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                            <input type="number" placeholder="팀에 분배될 별풍선(수동수정 가능)" value={team.fundingAmount || ""} onChange={(e) => {
-                              const n = [...teamResults];
-                              n[tIdx].fundingAmount = e.target.value;
-                              n[tIdx].fundingRatio = "";
-                              setTeamResults(n);
-                            }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold">개</span>
+                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">
+                              💰 팀상금:
+                            </span>
+                            <input
+                              type="number"
+                              placeholder="비율(%)"
+                              value={team.fundingRatio || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const n = [...teamResults];
+                                n[tIdx].fundingRatio = val;
+                                n[tIdx].fundingAmount =
+                                  val && totalFunding
+                                    ? Math.floor(
+                                        (Number(totalFunding) * Number(val)) /
+                                          100
+                                      )
+                                    : "";
+                                setTeamResults(n);
+                              }}
+                              className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none"
+                            />
+                            <span className="text-gray-500 text-xs font-bold">
+                              % ➔
+                            </span>
+                            <input
+                              type="number"
+                              placeholder="팀에 분배될 별풍선(수동수정 가능)"
+                              value={team.fundingAmount || ""}
+                              onChange={(e) => {
+                                const n = [...teamResults];
+                                n[tIdx].fundingAmount = e.target.value;
+                                n[tIdx].fundingRatio = "";
+                                setTeamResults(n);
+                              }}
+                              className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none"
+                            />
+                            <span className="text-gray-500 text-xs font-bold">
+                              개
+                            </span>
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-2">
                           {team.players.map((pName, pIdx) => (
                             <div key={pIdx} className="flex gap-1">
-                              <input type="text" value={pName} onChange={(e) => { const n = [...teamResults]; n[tIdx].players[pIdx] = e.target.value; setTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
-                              <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...teamResults]; n[tIdx].players.splice(pIdx, 1); setTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                              <input
+                                type="text"
+                                value={pName}
+                                onChange={(e) => {
+                                  const n = [...teamResults];
+                                  n[tIdx].players[pIdx] = e.target.value;
+                                  setTeamResults(n);
+                                }}
+                                placeholder="팀원 이름"
+                                className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (team.players.length > 1) {
+                                    const n = [...teamResults];
+                                    n[tIdx].players.splice(pIdx, 1);
+                                    setTeamResults(n);
+                                  }
+                                }}
+                                className="text-gray-500 hover:text-red-400 px-1"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           ))}
                         </div>
-                        <button type="button" onClick={() => { const n = [...teamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const n = [...teamResults];
+                            n[tIdx].players.push("");
+                            setTeamResults(n);
+                          }}
+                          className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50"
+                        >
+                          + 팀원 추가
+                        </button>
                       </div>
                     ))}
-                    <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTeamResults([
+                          ...teamResults,
+                          createEmptyTeamMatchResult(
+                            Date.now(),
+                            teamResults.length + 1,
+                            0
+                          ),
+                        ])
+                      }
+                      className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm"
+                    >
+                      새로운 팀 라인 추가
+                    </button>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button type="button" onClick={(e) => handleSubmitMatch(e, false)} disabled={isSubmitting} className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg border border-gray-600">
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "임시 저장"}
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmitMatch(e, false)}
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg border border-gray-600"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      "임시 저장"
+                    )}
                   </button>
-                  <button type="button" onClick={(e) => handleSubmitMatch(e, true)} disabled={isSubmitting} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "공개하기"}
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmitMatch(e, true)}
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      "공개하기"
+                    )}
                   </button>
                 </div>
               </form>
@@ -7620,73 +9971,168 @@ export default function App() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-gradient-to-b from-amber-900/20 to-gray-800 rounded-xl p-6 border border-amber-800/40 shadow-lg">
               <h2 className="text-xl font-bold text-amber-200 mb-2 flex items-center">
-                <Users className="w-5 h-5 mr-2 text-amber-300" /> 고정 파티원 관리
+                <Users className="w-5 h-5 mr-2 text-amber-300" /> 고정 파티원
+                관리
               </h2>
               <p className="text-sm text-gray-400 mb-6 break-keep">
-                레이드 1번 파티 1번 슬롯에 고정할 길드원을 별도로 등록합니다. 이 목록은 WOW 길드 명단과는 분리되어 관리됩니다.
+                레이드 1번 파티 1번 슬롯에 고정할 길드원을 별도로 등록합니다. 이
+                목록은 WOW 길드 명단과는 분리되어 관리됩니다.
               </p>
 
-              <form onSubmit={handleSaveFixedRaidMember} className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4">
+              <form
+                onSubmit={handleSaveFixedRaidMember}
+                className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <input type="text" value={fixedRaidMemberForm.streamerName} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, streamerName: e.target.value }))} placeholder="이름" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
-                  <input type="text" value={fixedRaidMemberForm.jobClass} onChange={(e) => handleFixedRaidMemberJobClassChange(e.target.value)} placeholder="직업" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
-                  <input type="number" value={fixedRaidMemberForm.level} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, level: e.target.value }))} placeholder="레벨" min="1" max="70" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" required />
-                  <input type="text" value={fixedRaidMemberForm.imageUrl} onChange={(e) => setFixedRaidMemberForm((prev) => ({ ...prev, imageUrl: e.target.value }))} placeholder="프로필 이미지 주소" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500" />
+                  <input
+                    type="text"
+                    value={fixedRaidMemberForm.streamerName}
+                    onChange={(e) =>
+                      setFixedRaidMemberForm((prev) => ({
+                        ...prev,
+                        streamerName: e.target.value,
+                      }))
+                    }
+                    placeholder="이름"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={fixedRaidMemberForm.jobClass}
+                    onChange={(e) =>
+                      handleFixedRaidMemberJobClassChange(e.target.value)
+                    }
+                    placeholder="직업"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500"
+                    required
+                  />
+                  <input
+                    type="number"
+                    value={fixedRaidMemberForm.level}
+                    onChange={(e) =>
+                      setFixedRaidMemberForm((prev) => ({
+                        ...prev,
+                        level: e.target.value,
+                      }))
+                    }
+                    placeholder="레벨"
+                    min="1"
+                    max="70"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={fixedRaidMemberForm.imageUrl}
+                    onChange={(e) =>
+                      setFixedRaidMemberForm((prev) => ({
+                        ...prev,
+                        imageUrl: e.target.value,
+                      }))
+                    }
+                    placeholder="프로필 이미지 주소"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-amber-500"
+                  />
                 </div>
                 <div className="space-y-2">
                   <div className="text-xs font-black text-gray-400">특성</div>
-                  {getWowSpecOptions(fixedRaidMemberForm.jobClass).length > 0 ? (
+                  {getWowSpecOptions(fixedRaidMemberForm.jobClass).length >
+                  0 ? (
                     <>
                       <div className="flex flex-wrap gap-2">
-                        {getWowSpecOptions(fixedRaidMemberForm.jobClass).map((spec) => {
-                          const isSelected = fixedRaidMemberForm.availableSpecs.includes(spec);
-                          return (
-                            <button
-                              key={spec}
-                              type="button"
-                              onClick={() => handleToggleFixedRaidMemberAvailableSpec(spec)}
-                              className={`px-3 py-1 rounded-full text-xs font-black border transition ${isSelected ? 'border-slate-300/40 bg-slate-700/70 text-slate-50' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                            >
-                              {spec}
-                            </button>
-                          );
-                        })}
+                        {getWowSpecOptions(fixedRaidMemberForm.jobClass).map(
+                          (spec) => {
+                            const isSelected =
+                              fixedRaidMemberForm.availableSpecs.includes(spec);
+                            return (
+                              <button
+                                key={spec}
+                                type="button"
+                                onClick={() =>
+                                  handleToggleFixedRaidMemberAvailableSpec(spec)
+                                }
+                                className={`px-3 py-1 rounded-full text-xs font-black border transition ${
+                                  isSelected
+                                    ? "border-slate-300/40 bg-slate-700/70 text-slate-50"
+                                    : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                }`}
+                              >
+                                {spec}
+                              </button>
+                            );
+                          }
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-[11px] font-black text-gray-500">주 특성</span>
-                        {fixedRaidMemberForm.availableSpecs.length > 0 ? fixedRaidMemberForm.availableSpecs.map((spec) => {
-                          const isActive = fixedRaidMemberForm.mainSpec === spec;
-                          return (
-                            <button
-                              key={spec}
-                              type="button"
-                              onClick={() => handleSelectFixedRaidMemberMainSpec(spec)}
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${isActive ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                            >
-                              {spec}
-                            </button>
-                          );
-                        }) : <span className="text-xs text-gray-500">가능 특성을 먼저 선택하세요.</span>}
+                        <span className="text-[11px] font-black text-gray-500">
+                          주 특성
+                        </span>
+                        {fixedRaidMemberForm.availableSpecs.length > 0 ? (
+                          fixedRaidMemberForm.availableSpecs.map((spec) => {
+                            const isActive =
+                              fixedRaidMemberForm.mainSpec === spec;
+                            return (
+                              <button
+                                key={spec}
+                                type="button"
+                                onClick={() =>
+                                  handleSelectFixedRaidMemberMainSpec(spec)
+                                }
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${
+                                  isActive
+                                    ? WOW_SPEC_TAG_CLASS
+                                    : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                }`}
+                              >
+                                {spec}
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            가능 특성을 먼저 선택하세요.
+                          </span>
+                        )}
                       </div>
                     </>
                   ) : (
-                    <div className="text-xs text-gray-500">직업을 입력하면 해당 직업의 특성을 선택할 수 있습니다.</div>
+                    <div className="text-xs text-gray-500">
+                      직업을 입력하면 해당 직업의 특성을 선택할 수 있습니다.
+                    </div>
                   )}
                 </div>
                 <div>
-                  <div className="text-xs font-black text-gray-400 mb-2">선호 포지션</div>
+                  <div className="text-xs font-black text-gray-400 mb-2">
+                    선호 포지션
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
-                      const isSelected = fixedRaidMemberForm.preferredPositions.includes(option.id);
+                    {WOW_POSITION_OPTIONS.filter(
+                      (option) => option.id !== "전체"
+                    ).map((option) => {
+                      const isSelected =
+                        fixedRaidMemberForm.preferredPositions.includes(
+                          option.id
+                        );
                       return (
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => handleToggleFixedRaidMemberPreferredPosition(option.id)}
+                          onClick={() =>
+                            handleToggleFixedRaidMemberPreferredPosition(
+                              option.id
+                            )
+                          }
                           className={`px-3 py-1 rounded-full text-xs font-black border transition ${
                             isSelected
-                              ? getWowPositionFilterButtonClasses(option.id, true)
-                              : getWowPositionFilterButtonClasses(option.id, false)
+                              ? getWowPositionFilterButtonClasses(
+                                  option.id,
+                                  true
+                                )
+                              : getWowPositionFilterButtonClasses(
+                                  option.id,
+                                  false
+                                )
                           }`}
                         >
                           {option.shortLabel}
@@ -7696,46 +10142,110 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={resetFixedRaidMemberForm} className="px-4 py-2 rounded-lg font-bold text-sm transition bg-gray-700 hover:bg-gray-600 text-white border border-gray-500">초기화</button>
-                  <button type="submit" disabled={isFixedRaidMemberSaving} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isFixedRaidMemberSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-500 text-white'}`}>
-                    {isFixedRaidMemberSaving ? '저장 중...' : '고정 길드원 등록'}
+                  <button
+                    type="button"
+                    onClick={resetFixedRaidMemberForm}
+                    className="px-4 py-2 rounded-lg font-bold text-sm transition bg-gray-700 hover:bg-gray-600 text-white border border-gray-500"
+                  >
+                    초기화
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isFixedRaidMemberSaving}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
+                      isFixedRaidMemberSaving
+                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        : "bg-amber-600 hover:bg-amber-500 text-white"
+                    }`}
+                  >
+                    {isFixedRaidMemberSaving
+                      ? "저장 중..."
+                      : "고정 길드원 등록"}
                   </button>
                 </div>
               </form>
 
               <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
-                {sortedFixedRaidMembers.length > 0 ? sortedFixedRaidMembers.map((member) => (
-                  <div key={member.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <img
-                        src={getWowAvatarSrc(member)}
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }}
-                        alt={member.streamerName}
-                        className="w-11 h-11 rounded-full bg-gray-800 object-cover border border-gray-600"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-bold text-white truncate">{member.streamerName}</p>
-                          {raidPublicSettings.activeFixedRaidMemberOptionId === member.id && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">레이드 적용중</span>}
-                        </div>
-                        <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
-                        <div className="flex flex-wrap gap-1 mt-1 items-center">
-                          {member.mainSpec && (
-                            <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span>
-                          )}
-                          {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
-                          ))}
+                {sortedFixedRaidMembers.length > 0 ? (
+                  sortedFixedRaidMembers.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={getWowAvatarSrc(member)}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                          }}
+                          alt={member.streamerName}
+                          className="w-11 h-11 rounded-full bg-gray-800 object-cover border border-gray-600"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-bold text-white truncate">
+                              {member.streamerName}
+                            </p>
+                            {raidPublicSettings.activeFixedRaidMemberOptionId ===
+                              member.id && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-200 border border-amber-400/30">
+                                레이드 적용중
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 truncate">
+                            {member.jobClass} · Lv.{member.level}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-1 items-center">
+                            {member.mainSpec && (
+                              <span
+                                title={getWowSpecTagTitle(
+                                  member.jobClass,
+                                  member.mainSpec,
+                                  member.availableSpecs
+                                )}
+                                className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}
+                              >
+                                {member.mainSpec}
+                              </span>
+                            )}
+                            {normalizePreferredPositions(
+                              member.preferredPositions
+                            ).map((positionId) => (
+                              <span
+                                key={positionId}
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(
+                                  positionId
+                                )}`}
+                              >
+                                {getWowPositionShortLabel(positionId)}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() =>
+                            handleApplyFixedRaidMemberGlobally(member.id)
+                          }
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-amber-500/10 text-amber-200 border-amber-400/30 hover:bg-amber-500/20"
+                        >
+                          레이드에 적용
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFixedRaidMember(member.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => handleApplyFixedRaidMemberGlobally(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-amber-500/10 text-amber-200 border-amber-400/30 hover:bg-amber-500/20">레이드에 적용</button>
-                      <button onClick={() => handleDeleteFixedRaidMember(member.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white">삭제</button>
-                    </div>
-                  </div>
-                )) : (
-                  <p className="text-center text-gray-500 py-6">등록된 고정 길드원이 아직 없습니다.</p>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 py-6">
+                    등록된 고정 길드원이 아직 없습니다.
+                  </p>
                 )}
               </div>
             </div>
@@ -7745,18 +10255,60 @@ export default function App() {
                 <Shield className="w-5 h-5 mr-2" /> WOW 왁타버스 길드 관리
               </h2>
               <p className="text-sm text-gray-400 mb-6">
-                와우 서버에서 플레이 중인 버튜버 캐릭터를 등록하고, 방송을 보며 실시간으로 레벨을 갱신해주세요.
+                와우 서버에서 플레이 중인 버튜버 캐릭터를 등록하고, 방송을 보며
+                실시간으로 레벨을 갱신해주세요.
               </p>
 
-              <form onSubmit={handleAddWowMember} className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4">
+              <form
+                onSubmit={handleAddWowMember}
+                className="bg-gray-900 p-4 rounded-lg border border-gray-700 mb-6 space-y-4"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <input type="text" value={wowStreamerName} onChange={e=>setWowStreamerName(e.target.value)} placeholder="스트리머명 (예: 단답벌레)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-                  <input type="text" value={wowNickname} onChange={e=>setWowNickname(e.target.value)} placeholder="와우 닉네임" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-                  <input type="text" value={wowJobClass} onChange={e=>handleWowJobClassChange(e.target.value)} placeholder="직업 (예: 전사)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
+                  <input
+                    type="text"
+                    value={wowStreamerName}
+                    onChange={(e) => setWowStreamerName(e.target.value)}
+                    placeholder="스트리머명 (예: 단답벌레)"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={wowNickname}
+                    onChange={(e) => setWowNickname(e.target.value)}
+                    placeholder="와우 닉네임"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={wowJobClass}
+                    onChange={(e) => handleWowJobClassChange(e.target.value)}
+                    placeholder="직업 (예: 전사)"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                    required
+                  />
                   <div className="flex gap-2">
-                    <input type="number" value={wowLevel} onChange={e=>setWowLevel(e.target.value)} placeholder="레벨" min="1" max="70" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500" required />
-                    <button type="submit" disabled={isWowSubmitting} className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap">
-                      {isWowSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "등록"}
+                    <input
+                      type="number"
+                      value={wowLevel}
+                      onChange={(e) => setWowLevel(e.target.value)}
+                      placeholder="레벨"
+                      min="1"
+                      max="70"
+                      className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-blue-500"
+                      required
+                    />
+                    <button
+                      type="submit"
+                      disabled={isWowSubmitting}
+                      className="bg-blue-600 hover:bg-blue-500 text-white px-4 rounded font-bold transition whitespace-nowrap"
+                    >
+                      {isWowSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "등록"
+                      )}
                     </button>
                   </div>
                 </div>
@@ -7766,13 +10318,20 @@ export default function App() {
                     <>
                       <div className="flex flex-wrap gap-2">
                         {getWowSpecOptions(wowJobClass).map((spec) => {
-                          const isSelected = wowAvailableSpecsSelection.includes(spec);
+                          const isSelected =
+                            wowAvailableSpecsSelection.includes(spec);
                           return (
                             <button
                               key={spec}
                               type="button"
-                              onClick={() => handleToggleWowFormAvailableSpec(spec)}
-                              className={`px-3 py-1 rounded-full text-xs font-black border transition ${isSelected ? 'border-slate-300/40 bg-slate-700/70 text-slate-50' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                              onClick={() =>
+                                handleToggleWowFormAvailableSpec(spec)
+                              }
+                              className={`px-3 py-1 rounded-full text-xs font-black border transition ${
+                                isSelected
+                                  ? "border-slate-300/40 bg-slate-700/70 text-slate-50"
+                                  : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                              }`}
                             >
                               {spec}
                             </button>
@@ -7780,24 +10339,40 @@ export default function App() {
                         })}
                       </div>
                       <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-[11px] font-black text-gray-500">주 특성</span>
-                        {wowAvailableSpecsSelection.length > 0 ? wowAvailableSpecsSelection.map((spec) => {
-                          const isActive = wowMainSpec === spec;
-                          return (
-                            <button
-                              key={spec}
-                              type="button"
-                              onClick={() => handleSelectWowMainSpecLocal(spec)}
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${isActive ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                            >
-                              {spec}
-                            </button>
-                          );
-                        }) : <span className="text-xs text-gray-500">가능 특성을 먼저 선택하세요.</span>}
+                        <span className="text-[11px] font-black text-gray-500">
+                          주 특성
+                        </span>
+                        {wowAvailableSpecsSelection.length > 0 ? (
+                          wowAvailableSpecsSelection.map((spec) => {
+                            const isActive = wowMainSpec === spec;
+                            return (
+                              <button
+                                key={spec}
+                                type="button"
+                                onClick={() =>
+                                  handleSelectWowMainSpecLocal(spec)
+                                }
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${
+                                  isActive
+                                    ? WOW_SPEC_TAG_CLASS
+                                    : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                }`}
+                              >
+                                {spec}
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <span className="text-xs text-gray-500">
+                            가능 특성을 먼저 선택하세요.
+                          </span>
+                        )}
                       </div>
                     </>
                   ) : (
-                    <div className="text-xs text-gray-500">직업을 입력하면 해당 직업의 특성을 선택할 수 있습니다.</div>
+                    <div className="text-xs text-gray-500">
+                      직업을 입력하면 해당 직업의 특성을 선택할 수 있습니다.
+                    </div>
                   )}
                 </div>
               </form>
@@ -7833,248 +10408,531 @@ export default function App() {
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {wowRoster
-                  .filter(member => 
-                    member.streamerName.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
-                    member.wowNickname.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
-                    member.jobClass.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()) ||
-                    normalizeAvailableSpecs(member.jobClass, member.availableSpecs).some((spec) => spec.toLowerCase().includes(wowAdminSearchTerm.toLowerCase()))
+                  .filter(
+                    (member) =>
+                      member.streamerName
+                        .toLowerCase()
+                        .includes(wowAdminSearchTerm.toLowerCase()) ||
+                      member.wowNickname
+                        .toLowerCase()
+                        .includes(wowAdminSearchTerm.toLowerCase()) ||
+                      member.jobClass
+                        .toLowerCase()
+                        .includes(wowAdminSearchTerm.toLowerCase()) ||
+                      normalizeAvailableSpecs(
+                        member.jobClass,
+                        member.availableSpecs
+                      ).some((spec) =>
+                        spec
+                          .toLowerCase()
+                          .includes(wowAdminSearchTerm.toLowerCase())
+                      )
                   )
-                  .sort((a,b) => {
-                    if (wowAdminSortOption === 'levelDesc') return b.level - a.level;
-                    if (wowAdminSortOption === 'levelAsc') return a.level - b.level;
-                    if (wowAdminSortOption === 'nameAsc') return a.streamerName.localeCompare(b.streamerName);
+                  .sort((a, b) => {
+                    if (wowAdminSortOption === "levelDesc")
+                      return b.level - a.level;
+                    if (wowAdminSortOption === "levelAsc")
+                      return a.level - b.level;
+                    if (wowAdminSortOption === "nameAsc")
+                      return a.streamerName.localeCompare(b.streamerName);
                     return 0;
                   })
-                  .map(member => (
-                  <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
-                        <div className="relative w-10 h-10 flex-shrink-0">
-                          {member.isWowPartner ? (
-                            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
-                              <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
-                            </div>
-                          ) : (
-                            <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full bg-gray-900 object-cover border border-gray-600" />
-                          )}
+                  .map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
+                          <div className="relative w-10 h-10 flex-shrink-0">
+                            {member.isWowPartner ? (
+                              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
+                                <img
+                                  src={getWowAvatarSrc(member)}
+                                  onError={(e) => {
+                                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                  }}
+                                  alt="avatar"
+                                  className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900"
+                                />
+                              </div>
+                            ) : (
+                              <img
+                                src={getWowAvatarSrc(member)}
+                                onError={(e) => {
+                                  e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                }}
+                                alt="avatar"
+                                className="w-full h-full rounded-full bg-gray-900 object-cover border border-gray-600"
+                              />
+                            )}
+                            {member.isWowPartner && (
+                              <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-0.5 shadow-lg border border-yellow-500/50 z-10">
+                                <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                              </div>
+                            )}
+                          </div>
                           {member.isWowPartner && (
-                            <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-0.5 shadow-lg border border-yellow-500/50 z-10">
-                              <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                            </div>
+                            <span className="text-[9px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest select-none whitespace-nowrap">
+                              와트너
+                            </span>
                           )}
                         </div>
-                        {member.isWowPartner && (
-                          <span className="text-[9px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest select-none whitespace-nowrap">
-                            와트너
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white">{member.streamerName}</span>
-                          <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
-                            {member.jobClass}
-                          </span>
-                        </div>
-                        <div className="text-xs text-blue-400">{member.wowNickname}</div>
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {member.mainSpec ? <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span> : <span className="text-[10px] text-gray-500">특성 미설정</span>}
-                          {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > (member.mainSpec ? 1 : 0) && (
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - (member.mainSpec ? 1 : 0)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="flex flex-col items-end gap-2 mr-2 min-w-[240px]">
-                        <div className="grid grid-cols-2 gap-2 w-full">
-                        <button
-                          onClick={() => handleToggleWowPartner(member.id, member.isWowPartner)}
-                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
-                            member.isWowPartner 
-                              ? 'bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800' 
-                              : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
-                          }`}
-                        >
-                          {member.isWowPartner ? '👑 와트너 해제' : '🎬 와트너 임명'}
-                        </button>
-                        <button
-                          onClick={() => handleToggleWowApply(member.id, member.isApplied)}
-                          disabled={Number(member.level) < 40}
-                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
-                            Number(member.level) < 40
-                              ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
-                              : member.isApplied 
-                                ? 'bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800' 
-                                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
-                          }`}
-                        >
-                          {member.isApplied ? '✅ 버종리 신청 ON' : '📝 버종리 신청 OFF'}
-                        </button>
-                        <button
-                          onClick={() => handleToggleRaidApply(member.id, member.isRaidApplied, member.level)}
-                          disabled={Number(member.level) < 50}
-                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
-                            Number(member.level) < 50
-                              ? 'bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed'
-                              : member.isRaidApplied
-                                ? 'bg-cyan-900/50 text-cyan-300 border-cyan-500/50 hover:bg-cyan-800'
-                                : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
-                          }`}
-                        >
-                          {member.isRaidApplied ? '⚔️ 레이드 신청 ON' : '⚔️ 레이드 신청 OFF'}
-                        </button>
-                        </div>
-                        <div className="flex items-center gap-1.5 w-full justify-end">
-                          {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
-                            const isSelected = normalizePreferredPositions(member.preferredPositions).includes(option.id);
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => handleToggleWowPreferredPosition(member.id, option.id, member.preferredPositions)}
-                                className={`px-2.5 py-1 rounded-full text-[11px] font-black border transition ${
-                                  getWowPositionFilterButtonClasses(option.id, isSelected)
-                                }`}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-white">
+                              {member.streamerName}
+                            </span>
+                            <span
+                              style={getJobBadgeStyle(member.jobClass)}
+                              className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap"
+                            >
+                              {member.jobClass}
+                            </span>
+                          </div>
+                          <div className="text-xs text-blue-400">
+                            {member.wowNickname}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {member.mainSpec ? (
+                              <span
+                                title={getWowSpecTagTitle(
+                                  member.jobClass,
+                                  member.mainSpec,
+                                  member.availableSpecs
+                                )}
+                                className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}
                               >
-                                {option.shortLabel}
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div className="w-full space-y-1.5">
-                          <div className="text-[10px] font-black text-gray-500 text-right">특성 설정</div>
-                          {getWowSpecOptions(member.jobClass).length > 0 ? (
-                            <>
-                              <div className="flex flex-wrap gap-1.5 justify-end">
-                                {getWowSpecOptions(member.jobClass).map((spec) => {
-                                  const isSelected = normalizeAvailableSpecs(member.jobClass, member.availableSpecs).includes(spec);
-                                  return (
-                                    <button
-                                      key={spec}
-                                      type="button"
-                                      onClick={() => handleToggleWowAvailableSpec(member.id, spec, member.jobClass, member.availableSpecs, member.mainSpec)}
-                                      className={`px-2.5 py-1 rounded-md text-[10px] font-black border transition ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                                    >
-                                      {spec}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              <div className="flex flex-wrap gap-1.5 justify-end">
-                                {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > 0 ? normalizeAvailableSpecs(member.jobClass, member.availableSpecs).map((spec) => {
-                                  const isActive = member.mainSpec === spec;
-                                  return (
-                                    <button
-                                      key={spec}
-                                      type="button"
-                                      onClick={() => handleSelectWowMainSpec(member.id, spec, member.jobClass, member.availableSpecs)}
-                                      className={`px-2 py-1 rounded-full text-[10px] font-black border transition ${isActive ? 'border-slate-200/60 bg-slate-100 text-slate-950' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
-                                    >
-                                      주 특성 {spec}
-                                    </button>
-                                  );
-                                }) : <span className="text-[10px] text-gray-500">가능 특성을 선택하세요.</span>}
-                              </div>
-                            </>
-                          ) : (
-                            <div className="text-[10px] text-gray-500 text-right">직업 입력 후 특성 선택 가능</div>
-                          )}
+                                {member.mainSpec}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-500">
+                                특성 미설정
+                              </span>
+                            )}
+                            {normalizeAvailableSpecs(
+                              member.jobClass,
+                              member.availableSpecs
+                            ).length > (member.mainSpec ? 1 : 0) && (
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}
+                              >
+                                +
+                                {normalizeAvailableSpecs(
+                                  member.jobClass,
+                                  member.availableSpecs
+                                ).length - (member.mainSpec ? 1 : 0)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
-                        <button onClick={() => handleUpdateWowLevel(member.id, member.level - 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Minus className="w-4 h-4"/></button>
-                        <span className="w-12 text-center font-black text-yellow-400">Lv {member.level}</span>
-                        <button onClick={() => handleUpdateWowLevel(member.id, member.level + 1)} className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"><Plus className="w-4 h-4"/></button>
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end gap-2 mr-2 min-w-[240px]">
+                          <div className="grid grid-cols-2 gap-2 w-full">
+                            <button
+                              onClick={() =>
+                                handleToggleWowPartner(
+                                  member.id,
+                                  member.isWowPartner
+                                )
+                              }
+                              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
+                                member.isWowPartner
+                                  ? "bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800"
+                                  : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white"
+                              }`}
+                            >
+                              {member.isWowPartner
+                                ? "👑 와트너 해제"
+                                : "🎬 와트너 임명"}
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleToggleWowApply(
+                                  member.id,
+                                  member.isApplied
+                                )
+                              }
+                              disabled={Number(member.level) < 40}
+                              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
+                                Number(member.level) < 40
+                                  ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed"
+                                  : member.isApplied
+                                  ? "bg-green-900/50 text-green-400 border-green-500/50 hover:bg-green-800"
+                                  : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white"
+                              }`}
+                            >
+                              {member.isApplied
+                                ? "✅ 버종리 신청 ON"
+                                : "📝 버종리 신청 OFF"}
+                            </button>
+                            <button
+                              onClick={() =>
+                                handleToggleRaidApply(
+                                  member.id,
+                                  member.isRaidApplied,
+                                  member.level
+                                )
+                              }
+                              disabled={Number(member.level) < 50}
+                              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
+                                Number(member.level) < 50
+                                  ? "bg-gray-800 text-gray-500 border-gray-700 cursor-not-allowed"
+                                  : member.isRaidApplied
+                                  ? "bg-cyan-900/50 text-cyan-300 border-cyan-500/50 hover:bg-cyan-800"
+                                  : "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white"
+                              }`}
+                            >
+                              {member.isRaidApplied
+                                ? "⚔️ 레이드 신청 ON"
+                                : "⚔️ 레이드 신청 OFF"}
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1.5 w-full justify-end">
+                            {WOW_POSITION_OPTIONS.filter(
+                              (option) => option.id !== "전체"
+                            ).map((option) => {
+                              const isSelected = normalizePreferredPositions(
+                                member.preferredPositions
+                              ).includes(option.id);
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() =>
+                                    handleToggleWowPreferredPosition(
+                                      member.id,
+                                      option.id,
+                                      member.preferredPositions
+                                    )
+                                  }
+                                  className={`px-2.5 py-1 rounded-full text-[11px] font-black border transition ${getWowPositionFilterButtonClasses(
+                                    option.id,
+                                    isSelected
+                                  )}`}
+                                >
+                                  {option.shortLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <div className="w-full space-y-1.5">
+                            <div className="text-[10px] font-black text-gray-500 text-right">
+                              특성 설정
+                            </div>
+                            {getWowSpecOptions(member.jobClass).length > 0 ? (
+                              <>
+                                <div className="flex flex-wrap gap-1.5 justify-end">
+                                  {getWowSpecOptions(member.jobClass).map(
+                                    (spec) => {
+                                      const isSelected =
+                                        normalizeAvailableSpecs(
+                                          member.jobClass,
+                                          member.availableSpecs
+                                        ).includes(spec);
+                                      return (
+                                        <button
+                                          key={spec}
+                                          type="button"
+                                          onClick={() =>
+                                            handleToggleWowAvailableSpec(
+                                              member.id,
+                                              spec,
+                                              member.jobClass,
+                                              member.availableSpecs,
+                                              member.mainSpec
+                                            )
+                                          }
+                                          className={`px-2.5 py-1 rounded-md text-[10px] font-black border transition ${
+                                            isSelected
+                                              ? WOW_SPEC_TAG_CLASS
+                                              : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                          }`}
+                                        >
+                                          {spec}
+                                        </button>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 justify-end">
+                                  {normalizeAvailableSpecs(
+                                    member.jobClass,
+                                    member.availableSpecs
+                                  ).length > 0 ? (
+                                    normalizeAvailableSpecs(
+                                      member.jobClass,
+                                      member.availableSpecs
+                                    ).map((spec) => {
+                                      const isActive = member.mainSpec === spec;
+                                      return (
+                                        <button
+                                          key={spec}
+                                          type="button"
+                                          onClick={() =>
+                                            handleSelectWowMainSpec(
+                                              member.id,
+                                              spec,
+                                              member.jobClass,
+                                              member.availableSpecs
+                                            )
+                                          }
+                                          className={`px-2 py-1 rounded-full text-[10px] font-black border transition ${
+                                            isActive
+                                              ? "border-slate-200/60 bg-slate-100 text-slate-950"
+                                              : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                                          }`}
+                                        >
+                                          주 특성 {spec}
+                                        </button>
+                                      );
+                                    })
+                                  ) : (
+                                    <span className="text-[10px] text-gray-500">
+                                      가능 특성을 선택하세요.
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-[10px] text-gray-500 text-right">
+                                직업 입력 후 특성 선택 가능
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center bg-gray-900 rounded-lg border border-gray-700 p-1">
+                          <button
+                            onClick={() =>
+                              handleUpdateWowLevel(member.id, member.level - 1)
+                            }
+                            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="w-12 text-center font-black text-yellow-400">
+                            Lv {member.level}
+                          </span>
+                          <button
+                            onClick={() =>
+                              handleUpdateWowLevel(member.id, member.level + 1)
+                            }
+                            className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteWowMember(member.id)}
+                          className="text-gray-500 hover:text-red-400 transition p-2"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
-                      <button onClick={() => handleDeleteWowMember(member.id)} className="text-gray-500 hover:text-red-400 transition p-2">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
                     </div>
-                  </div>
-                ))}
-                {wowRoster.length === 0 && <p className="text-center text-gray-500 py-6">검색된 길드원이 없습니다.</p>}
+                  ))}
+                {wowRoster.length === 0 && (
+                  <p className="text-center text-gray-500 py-6">
+                    검색된 길드원이 없습니다.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="bg-gradient-to-b from-violet-900/20 to-gray-800 rounded-xl p-6 border border-violet-800/40 shadow-lg">
               <h2 className="text-xl font-bold text-violet-200 mb-2 flex items-center">
-                <Layers className="w-5 h-5 mr-2 text-violet-300" /> WOW 레이드 관리
+                <Layers className="w-5 h-5 mr-2 text-violet-300" /> WOW 레이드
+                관리
               </h2>
               <p className="text-sm text-gray-400 mb-6 break-keep">
-                WOW레이드 탭에 공개할 레이드 기록을 생성하고, 참가자와 통계 데이터를 수동으로 입력합니다. 참가자는 WOW 길드원 명단, 고정 길드원 목록, 일반인 참가자 추가하기를 통해 구성할 수 있습니다.
+                WOW레이드 탭에 공개할 레이드 기록을 생성하고, 참가자와 통계
+                데이터를 수동으로 입력합니다. 참가자는 WOW 길드원 명단, 고정
+                길드원 목록, 일반인 참가자 추가하기를 통해 구성할 수 있습니다.
               </p>
 
               <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-5 mb-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                  <input type="text" value={wowRaidForm.raidName} onChange={(e) => handleWowRaidFormFieldChange('raidName', e.target.value)} placeholder="레이드 이름" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none" />
-                  <input type="date" value={wowRaidForm.raidDate} onChange={(e) => handleWowRaidFormFieldChange('raidDate', e.target.value)} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none" />
-                  <input type="text" value={wowRaidForm.clearTime} onChange={(e) => handleWowRaidFormFieldChange('clearTime', e.target.value)} placeholder="토벌시간 (예: 14분 22초)" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none" />
+                  <input
+                    type="text"
+                    value={wowRaidForm.raidName}
+                    onChange={(e) =>
+                      handleWowRaidFormFieldChange("raidName", e.target.value)
+                    }
+                    placeholder="레이드 이름"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none"
+                  />
+                  <input
+                    type="date"
+                    value={wowRaidForm.raidDate}
+                    onChange={(e) =>
+                      handleWowRaidFormFieldChange("raidDate", e.target.value)
+                    }
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={wowRaidForm.clearTime}
+                    onChange={(e) =>
+                      handleWowRaidFormFieldChange("clearTime", e.target.value)
+                    }
+                    placeholder="토벌시간 (예: 14분 22초)"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none"
+                  />
                   <div className="flex items-center rounded border border-gray-600 bg-gray-800 overflow-hidden">
-                    <input type="number" min="1" step="1" value={wowRaidForm.raidGroupNumber} onChange={(e) => handleWowRaidFormFieldChange('raidGroupNumber', e.target.value.replace(/[^0-9]/g, ''))} placeholder="1" className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none" />
-                    <span className="px-3 text-sm font-black text-violet-200 border-l border-gray-600 bg-gray-900/60">군</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={wowRaidForm.raidGroupNumber}
+                      onChange={(e) =>
+                        handleWowRaidFormFieldChange(
+                          "raidGroupNumber",
+                          e.target.value.replace(/[^0-9]/g, "")
+                        )
+                      }
+                      placeholder="1"
+                      className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none"
+                    />
+                    <span className="px-3 text-sm font-black text-violet-200 border-l border-gray-600 bg-gray-900/60">
+                      군
+                    </span>
                   </div>
-                  <input type="text" value={wowRaidForm.imageUrl} onChange={(e) => handleWowRaidFormFieldChange('imageUrl', e.target.value)} placeholder="레이드 이미지 주소" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none md:col-span-2 xl:col-span-3" />
+                  <input
+                    type="text"
+                    value={wowRaidForm.imageUrl}
+                    onChange={(e) =>
+                      handleWowRaidFormFieldChange("imageUrl", e.target.value)
+                    }
+                    placeholder="레이드 이미지 주소"
+                    className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none md:col-span-2 xl:col-span-3"
+                  />
                   <div className="flex items-center gap-3 text-sm font-bold text-gray-300">
                     <label className="inline-flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={wowRaidForm.isCleared} onChange={(e) => handleWowRaidFormFieldChange('isCleared', e.target.checked)} className="rounded border-gray-600 bg-gray-800 text-violet-500 focus:ring-violet-500" />
+                      <input
+                        type="checkbox"
+                        checked={wowRaidForm.isCleared}
+                        onChange={(e) =>
+                          handleWowRaidFormFieldChange(
+                            "isCleared",
+                            e.target.checked
+                          )
+                        }
+                        className="rounded border-gray-600 bg-gray-800 text-violet-500 focus:ring-violet-500"
+                      />
                       클리어 완료
                     </label>
                     <label className="inline-flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={wowRaidForm.isPublished} onChange={(e) => handleWowRaidFormFieldChange('isPublished', e.target.checked)} className="rounded border-gray-600 bg-gray-800 text-violet-500 focus:ring-violet-500" />
+                      <input
+                        type="checkbox"
+                        checked={wowRaidForm.isPublished}
+                        onChange={(e) =>
+                          handleWowRaidFormFieldChange(
+                            "isPublished",
+                            e.target.checked
+                          )
+                        }
+                        className="rounded border-gray-600 bg-gray-800 text-violet-500 focus:ring-violet-500"
+                      />
                       WOW레이드 탭에 공개
                     </label>
                   </div>
                 </div>
-                <textarea value={wowRaidForm.note} onChange={(e) => handleWowRaidFormFieldChange('note', e.target.value)} rows={3} placeholder="레이드 메모 또는 간단한 설명" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none resize-y" />
+                <textarea
+                  value={wowRaidForm.note}
+                  onChange={(e) =>
+                    handleWowRaidFormFieldChange("note", e.target.value)
+                  }
+                  rows={3}
+                  placeholder="레이드 메모 또는 간단한 설명"
+                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none resize-y"
+                />
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4">
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-sm font-black text-white">WOW 길드원 참가자 선택</h3>
-                      <span className="text-xs text-gray-400">{wowRaidForm.rosterParticipantIds.length}명 선택</span>
+                      <h3 className="text-sm font-black text-white">
+                        WOW 길드원 참가자 선택
+                      </h3>
+                      <span className="text-xs text-gray-400">
+                        {wowRaidForm.rosterParticipantIds.length}명 선택
+                      </span>
                     </div>
                     <div className="relative mb-3">
                       <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={wowRaidRosterSearchInput}
-                        onChange={(e) => setWowRaidRosterSearchInput(e.target.value)}
+                        onChange={(e) =>
+                          setWowRaidRosterSearchInput(e.target.value)
+                        }
                         placeholder="참가자 검색 (이름, 닉네임, 직업, 특성)"
                         className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-violet-500 outline-none"
                       />
                     </div>
                     <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
-                      {filteredWowRaidRosterCandidates.length > 0 ? filteredWowRaidRosterCandidates
-                        .map((member) => {
-                          const isSelected = wowRaidForm.rosterParticipantIds.includes(member.id);
+                      {filteredWowRaidRosterCandidates.length > 0 ? (
+                        filteredWowRaidRosterCandidates.map((member) => {
+                          const isSelected =
+                            wowRaidForm.rosterParticipantIds.includes(
+                              member.id
+                            );
                           return (
                             <button
                               key={member.id}
                               type="button"
-                              onClick={() => handleToggleWowRaidParticipant('wow_roster', member.id)}
-                              className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? 'border-violet-400/50 bg-violet-500/10 text-white' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white'}`}
+                              onClick={() =>
+                                handleToggleWowRaidParticipant(
+                                  "wow_roster",
+                                  member.id
+                                )
+                              }
+                              className={`w-full text-left rounded-lg border px-3 py-2 transition ${
+                                isSelected
+                                  ? "border-violet-400/50 bg-violet-500/10 text-white"
+                                  : "border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white"
+                              }`}
                             >
                               <div className="flex items-center gap-3">
-                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-9 h-9 rounded-full object-cover bg-gray-900 border border-gray-600 flex-shrink-0" />
+                                <img
+                                  src={getWowAvatarSrc(member)}
+                                  onError={(e) => {
+                                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                  }}
+                                  alt={member.streamerName}
+                                  className="w-9 h-9 rounded-full object-cover bg-gray-900 border border-gray-600 flex-shrink-0"
+                                />
                                 <div className="min-w-0">
-                                  <div className="font-bold truncate">{member.streamerName}</div>
-                                  <div className="text-[11px] text-gray-400 truncate">{member.wowNickname} · {member.jobClass}</div>
+                                  <div className="font-bold truncate">
+                                    {member.streamerName}
+                                  </div>
+                                  <div className="text-[11px] text-gray-400 truncate">
+                                    {member.wowNickname} · {member.jobClass}
+                                  </div>
                                 </div>
                               </div>
                             </button>
                           );
-                        }) : <div className="text-sm text-gray-500 text-center py-8">검색 결과가 없거나 등록된 WOW 길드원이 없습니다.</div>}
+                        })
+                      ) : (
+                        <div className="text-sm text-gray-500 text-center py-8">
+                          검색 결과가 없거나 등록된 WOW 길드원이 없습니다.
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4">
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-sm font-black text-white">고정 길드원 포함</h3>
-                      <span className="text-xs text-gray-400">{wowRaidForm.fixedParticipantIds.length}명 선택</span>
+                      <h3 className="text-sm font-black text-white">
+                        고정 길드원 포함
+                      </h3>
+                      <span className="text-xs text-gray-400">
+                        {wowRaidForm.fixedParticipantIds.length}명 선택
+                      </span>
                     </div>
                     <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                       <div className="relative mb-3">
@@ -8082,30 +10940,60 @@ export default function App() {
                         <input
                           type="text"
                           value={wowRaidFixedSearchInput}
-                          onChange={(e) => setWowRaidFixedSearchInput(e.target.value)}
+                          onChange={(e) =>
+                            setWowRaidFixedSearchInput(e.target.value)
+                          }
                           placeholder="고정 길드원 검색 (이름, 닉네임, 직업, 특성)"
                           className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-amber-500 outline-none"
                         />
                       </div>
-                      {filteredWowRaidFixedCandidates.length > 0 ? filteredWowRaidFixedCandidates.map((member) => {
-                        const isSelected = wowRaidForm.fixedParticipantIds.includes(member.id);
-                        return (
-                          <button
-                            key={member.id}
-                            type="button"
-                            onClick={() => handleToggleWowRaidParticipant('fixed_member', member.id)}
-                            className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? 'border-amber-400/50 bg-amber-500/10 text-white' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white'}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-9 h-9 rounded-full object-cover bg-gray-900 border border-gray-600 flex-shrink-0" />
-                              <div className="min-w-0">
-                                <div className="font-bold truncate">{member.streamerName}</div>
-                                <div className="text-[11px] text-gray-400 truncate">{member.wowNickname || member.streamerName} · {member.jobClass}</div>
+                      {filteredWowRaidFixedCandidates.length > 0 ? (
+                        filteredWowRaidFixedCandidates.map((member) => {
+                          const isSelected =
+                            wowRaidForm.fixedParticipantIds.includes(member.id);
+                          return (
+                            <button
+                              key={member.id}
+                              type="button"
+                              onClick={() =>
+                                handleToggleWowRaidParticipant(
+                                  "fixed_member",
+                                  member.id
+                                )
+                              }
+                              className={`w-full text-left rounded-lg border px-3 py-2 transition ${
+                                isSelected
+                                  ? "border-amber-400/50 bg-amber-500/10 text-white"
+                                  : "border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={getWowAvatarSrc(member)}
+                                  onError={(e) => {
+                                    e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                                  }}
+                                  alt={member.streamerName}
+                                  className="w-9 h-9 rounded-full object-cover bg-gray-900 border border-gray-600 flex-shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <div className="font-bold truncate">
+                                    {member.streamerName}
+                                  </div>
+                                  <div className="text-[11px] text-gray-400 truncate">
+                                    {member.wowNickname || member.streamerName}{" "}
+                                    · {member.jobClass}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </button>
-                        );
-                      }) : <div className="text-sm text-gray-500 text-center py-8">검색 결과가 없거나 등록된 고정 길드원이 없습니다.</div>}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="text-sm text-gray-500 text-center py-8">
+                          검색 결과가 없거나 등록된 고정 길드원이 없습니다.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -8113,8 +11001,13 @@ export default function App() {
                 <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4 space-y-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
-                      <h3 className="text-sm font-black text-white">일반인 참가자 추가하기</h3>
-                      <p className="text-xs text-gray-400 mt-1">WOW 길드원 명단과 별개로 레이드에만 포함되는 참가자를 추가합니다.</p>
+                      <h3 className="text-sm font-black text-white">
+                        일반인 참가자 추가하기
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-1">
+                        WOW 길드원 명단과 별개로 레이드에만 포함되는 참가자를
+                        추가합니다.
+                      </p>
                     </div>
                     <button
                       type="button"
@@ -8129,7 +11022,9 @@ export default function App() {
                     <input
                       type="text"
                       value={wowRaidGuestSearchInput}
-                      onChange={(e) => setWowRaidGuestSearchInput(e.target.value)}
+                      onChange={(e) =>
+                        setWowRaidGuestSearchInput(e.target.value)
+                      }
                       placeholder="일반 참가자 검색 (이름, 닉네임, 직업, 특성)"
                       className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-emerald-500 outline-none"
                     />
@@ -8137,57 +11032,199 @@ export default function App() {
                   {filteredWowRaidGuestParticipants.length > 0 ? (
                     <div className="space-y-3">
                       {filteredWowRaidGuestParticipants.map((guest) => {
-                        const guestSpecOptions = getWowSpecOptions(guest.jobClass);
+                        const guestSpecOptions = getWowSpecOptions(
+                          guest.jobClass
+                        );
                         return (
-                          <div key={guest.id} className="rounded-xl border border-gray-700 bg-gray-900/70 p-4 space-y-3">
+                          <div
+                            key={guest.id}
+                            className="rounded-xl border border-gray-700 bg-gray-900/70 p-4 space-y-3"
+                          >
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <div className="text-sm font-black text-white">일반 참가자 정보</div>
-                                <div className="text-xs text-gray-400">이름과 닉네임, 직업/특성을 입력하면 통계 입력 대상에도 자동 포함됩니다.</div>
+                                <div className="text-sm font-black text-white">
+                                  일반 참가자 정보
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  이름과 닉네임, 직업/특성을 입력하면 통계 입력
+                                  대상에도 자동 포함됩니다.
+                                </div>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRemoveWowRaidGuestParticipant(guest.id)}
+                                onClick={() =>
+                                  handleRemoveWowRaidGuestParticipant(guest.id)
+                                }
                                 className="px-2.5 py-1.5 rounded-lg text-[11px] font-black border border-red-500/35 bg-red-500/10 text-red-200 hover:bg-red-500/20 transition"
                               >
                                 삭제
                               </button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                              <input type="text" value={guest.displayName} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'displayName', e.target.value)} placeholder="이름 입력" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
-                              <input type="text" value={guest.wowNickname} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'wowNickname', e.target.value)} placeholder="와우 닉네임 입력" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
-                              <select value={guest.jobClass} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'jobClass', e.target.value)} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
+                              <input
+                                type="text"
+                                value={guest.displayName}
+                                onChange={(e) =>
+                                  handleWowRaidGuestFieldChange(
+                                    guest.id,
+                                    "displayName",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="이름 입력"
+                                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                              />
+                              <input
+                                type="text"
+                                value={guest.wowNickname}
+                                onChange={(e) =>
+                                  handleWowRaidGuestFieldChange(
+                                    guest.id,
+                                    "wowNickname",
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="와우 닉네임 입력"
+                                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                              />
+                              <select
+                                value={guest.jobClass}
+                                onChange={(e) =>
+                                  handleWowRaidGuestFieldChange(
+                                    guest.id,
+                                    "jobClass",
+                                    e.target.value
+                                  )
+                                }
+                                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                              >
                                 <option value="">직업 선택</option>
-                                {WOW_JOB_OPTIONS.map((jobClass) => <option key={jobClass} value={jobClass}>{jobClass}</option>)}
+                                {WOW_JOB_OPTIONS.map((jobClass) => (
+                                  <option key={jobClass} value={jobClass}>
+                                    {jobClass}
+                                  </option>
+                                ))}
                               </select>
-                              <select value={guest.mainSpec} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'mainSpec', e.target.value)} disabled={!guest.jobClass} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none disabled:opacity-50">
+                              <select
+                                value={guest.mainSpec}
+                                onChange={(e) =>
+                                  handleWowRaidGuestFieldChange(
+                                    guest.id,
+                                    "mainSpec",
+                                    e.target.value
+                                  )
+                                }
+                                disabled={!guest.jobClass}
+                                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none disabled:opacity-50"
+                              >
                                 <option value="">특성 선택</option>
-                                {guestSpecOptions.map((specId) => <option key={specId} value={specId}>{specId}</option>)}
+                                {guestSpecOptions.map((specId) => (
+                                  <option key={specId} value={specId}>
+                                    {specId}
+                                  </option>
+                                ))}
                               </select>
-                              <select value={normalizePreferredPositions(guest.preferredPositions)[0] || ''} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'preferredPositions', e.target.value ? [e.target.value] : [])} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
+                              <select
+                                value={
+                                  normalizePreferredPositions(
+                                    guest.preferredPositions
+                                  )[0] || ""
+                                }
+                                onChange={(e) =>
+                                  handleWowRaidGuestFieldChange(
+                                    guest.id,
+                                    "preferredPositions",
+                                    e.target.value ? [e.target.value] : []
+                                  )
+                                }
+                                className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                              >
                                 <option value="">선호 포지션 선택</option>
-                                {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                                {WOW_POSITION_OPTIONS.filter(
+                                  (option) => option.id !== "전체"
+                                ).map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
                               </select>
                             </div>
                             <div className="space-y-3 rounded-xl border border-gray-700 bg-gray-950/40 p-3">
                               <div className="flex items-center gap-4 flex-wrap">
                                 <label className="inline-flex items-center gap-2 text-sm font-bold text-gray-200">
-                                  <input type="radio" checked={guest.imageMode !== 'custom'} onChange={() => handleWowRaidGuestFieldChange(guest.id, 'imageMode', 'default')} className="text-emerald-500 focus:ring-emerald-500" />
+                                  <input
+                                    type="radio"
+                                    checked={guest.imageMode !== "custom"}
+                                    onChange={() =>
+                                      handleWowRaidGuestFieldChange(
+                                        guest.id,
+                                        "imageMode",
+                                        "default"
+                                      )
+                                    }
+                                    className="text-emerald-500 focus:ring-emerald-500"
+                                  />
                                   기본 이미지
                                 </label>
                                 <label className="inline-flex items-center gap-2 text-sm font-bold text-gray-200">
-                                  <input type="radio" checked={guest.imageMode === 'custom'} onChange={() => handleWowRaidGuestFieldChange(guest.id, 'imageMode', 'custom')} className="text-emerald-500 focus:ring-emerald-500" />
+                                  <input
+                                    type="radio"
+                                    checked={guest.imageMode === "custom"}
+                                    onChange={() =>
+                                      handleWowRaidGuestFieldChange(
+                                        guest.id,
+                                        "imageMode",
+                                        "custom"
+                                      )
+                                    }
+                                    className="text-emerald-500 focus:ring-emerald-500"
+                                  />
                                   이미지 주소 입력
                                 </label>
                               </div>
-                              {guest.imageMode === 'custom' ? (
-                                <input type="text" value={guest.imageUrl} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'imageUrl', e.target.value)} placeholder="이미지 주소 입력" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
+                              {guest.imageMode === "custom" ? (
+                                <input
+                                  type="text"
+                                  value={guest.imageUrl}
+                                  onChange={(e) =>
+                                    handleWowRaidGuestFieldChange(
+                                      guest.id,
+                                      "imageUrl",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="이미지 주소 입력"
+                                  className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                                />
                               ) : null}
                               <div className="flex items-center gap-3">
-                                <img src={guest.imageMode === 'custom' && guest.imageUrl ? guest.imageUrl : getDefaultWowRaidGuestAvatar(guest)} onError={(e) => { e.target.src = getDefaultWowRaidGuestAvatar(guest); }} alt={guest.displayName || '일반 참가자'} className="w-12 h-12 rounded-full object-cover border border-gray-600 bg-gray-900" />
+                                <img
+                                  src={
+                                    guest.imageMode === "custom" &&
+                                    guest.imageUrl
+                                      ? guest.imageUrl
+                                      : getDefaultWowRaidGuestAvatar(guest)
+                                  }
+                                  onError={(e) => {
+                                    e.target.src =
+                                      getDefaultWowRaidGuestAvatar(guest);
+                                  }}
+                                  alt={guest.displayName || "일반 참가자"}
+                                  className="w-12 h-12 rounded-full object-cover border border-gray-600 bg-gray-900"
+                                />
                                 <div className="min-w-0">
-                                  <div className="text-sm font-black text-white truncate">{guest.displayName || '이름 미입력'}</div>
-                                  <div className="text-xs text-gray-400 truncate">{guest.wowNickname || '와우 닉네임 미입력'}{guest.jobClass ? ` · ${guest.jobClass}` : ''}{guest.mainSpec ? ` · ${guest.mainSpec}` : ''}</div>
+                                  <div className="text-sm font-black text-white truncate">
+                                    {guest.displayName || "이름 미입력"}
+                                  </div>
+                                  <div className="text-xs text-gray-400 truncate">
+                                    {guest.wowNickname || "와우 닉네임 미입력"}
+                                    {guest.jobClass
+                                      ? ` · ${guest.jobClass}`
+                                      : ""}
+                                    {guest.mainSpec
+                                      ? ` · ${guest.mainSpec}`
+                                      : ""}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -8196,29 +11233,61 @@ export default function App() {
                       })}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-500 text-center py-6">추가된 일반 참가자가 없습니다.</div>
+                    <div className="text-sm text-gray-500 text-center py-6">
+                      추가된 일반 참가자가 없습니다.
+                    </div>
                   )}
                 </div>
 
                 <div className="bg-gray-800/60 rounded-xl border border-gray-700 p-4">
                   <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                    <h3 className="text-sm font-black text-white">레이드 참가자 미리보기</h3>
-                    <span className="text-xs text-gray-400">총 {wowRaidFormParticipants.length}명</span>
+                    <h3 className="text-sm font-black text-white">
+                      레이드 참가자 미리보기
+                    </h3>
+                    <span className="text-xs text-gray-400">
+                      총 {wowRaidFormParticipants.length}명
+                    </span>
                   </div>
                   {wowRaidFormParticipants.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {wowRaidFormParticipants.map((participant) => (
-                        <div key={participant.id} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-900/70">
-                          <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-7 h-7 rounded-full object-cover bg-gray-900 border border-gray-600" />
+                        <div
+                          key={participant.id}
+                          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-700 bg-gray-900/70"
+                        >
+                          <img
+                            src={getWowAvatarSrc(participant)}
+                            onError={(e) => {
+                              e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${
+                                participant.displayName ||
+                                participant.streamerName
+                              }`;
+                            }}
+                            alt={participant.streamerName}
+                            className="w-7 h-7 rounded-full object-cover bg-gray-900 border border-gray-600"
+                          />
                           <div className="min-w-0">
-                            <div className="text-xs font-black text-white truncate">{participant.displayName || participant.streamerName}</div>
-                            <div className="text-[10px] text-gray-400 truncate">{participant.jobClass}{participant.mainSpec ? ` · ${participant.mainSpec}` : ''}{participant.sourceType === 'guest' ? ' · 일반 참가자' : ''}</div>
+                            <div className="text-xs font-black text-white truncate">
+                              {participant.displayName ||
+                                participant.streamerName}
+                            </div>
+                            <div className="text-[10px] text-gray-400 truncate">
+                              {participant.jobClass}
+                              {participant.mainSpec
+                                ? ` · ${participant.mainSpec}`
+                                : ""}
+                              {participant.sourceType === "guest"
+                                ? " · 일반 참가자"
+                                : ""}
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-sm text-gray-500 text-center py-6">참가자를 선택하면 이곳에 미리보기가 표시됩니다.</div>
+                    <div className="text-sm text-gray-500 text-center py-6">
+                      참가자를 선택하면 이곳에 미리보기가 표시됩니다.
+                    </div>
                   )}
                 </div>
 
@@ -8227,124 +11296,269 @@ export default function App() {
                     {WOW_RAID_STAT_FIELDS.map((field) => {
                       const isActive = wowRaidAdminStatTab === field.id;
                       return (
-                        <button key={field.id} type="button" onClick={() => setWowRaidAdminStatTab(field.id)} className={`px-3 py-1.5 rounded-lg text-xs font-black border transition ${isActive ? 'bg-violet-600 text-white border-violet-400' : 'bg-gray-900/70 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white'}`}>
+                        <button
+                          key={field.id}
+                          type="button"
+                          onClick={() => setWowRaidAdminStatTab(field.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-black border transition ${
+                            isActive
+                              ? "bg-violet-600 text-white border-violet-400"
+                              : "bg-gray-900/70 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white"
+                          }`}
+                        >
                           {field.label}
                         </button>
                       );
                     })}
                   </div>
                   <div className="bg-gray-800/60 rounded-xl border border-gray-700 p-4">
-                    <div className="text-sm font-black text-white mb-3">{WOW_RAID_STAT_FIELDS.find((field) => field.id === wowRaidAdminStatTab)?.label} 입력</div>
+                    <div className="text-sm font-black text-white mb-3">
+                      {
+                        WOW_RAID_STAT_FIELDS.find(
+                          (field) => field.id === wowRaidAdminStatTab
+                        )?.label
+                      }{" "}
+                      입력
+                    </div>
                     <input
                       type="text"
                       value={wowRaidStatSearchInput}
-                      onChange={(e) => setWowRaidStatSearchInput(e.target.value)}
+                      onChange={(e) =>
+                        setWowRaidStatSearchInput(e.target.value)
+                      }
                       placeholder="통계 입력 대상 검색 (이름, 닉네임, 직업, 특성)"
                       className="w-full mb-3 bg-gray-900/80 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none"
                     />
                     {wowRaidFormParticipants.length > 0 ? (
                       <div className="space-y-2 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                         {filteredWowRaidStatParticipants.map((participant) => (
-                          <div key={participant.id} className="grid grid-cols-[minmax(0,1fr)_140px] gap-3 items-center bg-gray-900/70 border border-gray-700 rounded-lg p-2.5">
+                          <div
+                            key={participant.id}
+                            className="grid grid-cols-[minmax(0,1fr)_140px] gap-3 items-center bg-gray-900/70 border border-gray-700 rounded-lg p-2.5"
+                          >
                             <div className="min-w-0">
-                              <div className="font-bold text-white truncate">{participant.streamerName}</div>
-                              <div className="text-[11px] text-gray-400 truncate">{participant.wowNickname} · {participant.jobClass}{participant.mainSpec ? ` · ${participant.mainSpec}` : ''}</div>
+                              <div className="font-bold text-white truncate">
+                                {participant.streamerName}
+                              </div>
+                              <div className="text-[11px] text-gray-400 truncate">
+                                {participant.wowNickname} ·{" "}
+                                {participant.jobClass}
+                                {participant.mainSpec
+                                  ? ` · ${participant.mainSpec}`
+                                  : ""}
+                              </div>
                             </div>
                             <input
                               type="number"
                               min="0"
-                              value={wowRaidForm.stats?.[wowRaidAdminStatTab]?.[participant.id] ?? ''}
-                              onChange={(e) => handleWowRaidStatValueChange(wowRaidAdminStatTab, participant.id, e.target.value)}
+                              value={
+                                wowRaidForm.stats?.[wowRaidAdminStatTab]?.[
+                                  participant.id
+                                ] ?? ""
+                              }
+                              onChange={(e) =>
+                                handleWowRaidStatValueChange(
+                                  wowRaidAdminStatTab,
+                                  participant.id,
+                                  e.target.value
+                                )
+                              }
                               placeholder="0"
                               className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none text-right"
                             />
                           </div>
                         ))}
                         {filteredWowRaidStatParticipants.length === 0 && (
-                          <div className="text-sm text-gray-500 text-center py-6">검색 결과가 없습니다.</div>
+                          <div className="text-sm text-gray-500 text-center py-6">
+                            검색 결과가 없습니다.
+                          </div>
                         )}
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-500 text-center py-6">참가자를 먼저 선택해주세요.</div>
+                      <div className="text-sm text-gray-500 text-center py-6">
+                        참가자를 먼저 선택해주세요.
+                      </div>
                     )}
                   </div>
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                  <button type="button" onClick={resetWowRaidForm} className="px-4 py-2 rounded-lg font-bold text-sm transition bg-gray-700 hover:bg-gray-600 text-white border border-gray-500">입력 초기화</button>
-                  <button type="button" onClick={handleSaveWowRaid} disabled={isWowRaidSaving} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWowRaidSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-violet-600 hover:bg-violet-500 text-white'}`}>
-                    {isWowRaidSaving ? '저장 중...' : wowRaidForm.id ? '레이드 수정 저장' : '레이드 생성'}
+                  <button
+                    type="button"
+                    onClick={resetWowRaidForm}
+                    className="px-4 py-2 rounded-lg font-bold text-sm transition bg-gray-700 hover:bg-gray-600 text-white border border-gray-500"
+                  >
+                    입력 초기화
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveWowRaid}
+                    disabled={isWowRaidSaving}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
+                      isWowRaidSaving
+                        ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                        : "bg-violet-600 hover:bg-violet-500 text-white"
+                    }`}
+                  >
+                    {isWowRaidSaving
+                      ? "저장 중..."
+                      : wowRaidForm.id
+                      ? "레이드 수정 저장"
+                      : "레이드 생성"}
                   </button>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <h3 className="text-base font-black text-white">등록된 WOW 레이드 기록</h3>
-                  <span className="text-xs text-gray-400">총 {wowRaids.length}개</span>
+                  <h3 className="text-base font-black text-white">
+                    등록된 WOW 레이드 기록
+                  </h3>
+                  <span className="text-xs text-gray-400">
+                    총 {wowRaids.length}개
+                  </span>
                 </div>
-                {wowRaids.length > 0 ? wowRaids.map((raid) => (
-                  <div key={raid.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <p className="font-black text-white text-lg break-keep">{raid.raidName}</p>
-                        {raid.raidGroupNumber ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-100 border border-amber-400/30">{raid.raidGroupNumber}군</span> : null}
-                        {raid.isPublished ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-200 border border-emerald-400/30">공개중</span> : <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gray-700 text-gray-200 border border-gray-600">비공개</span>}
+                {wowRaids.length > 0 ? (
+                  wowRaids.map((raid) => (
+                    <div
+                      key={raid.id}
+                      className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <p className="font-black text-white text-lg break-keep">
+                            {raid.raidName}
+                          </p>
+                          {raid.raidGroupNumber ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-100 border border-amber-400/30">
+                              {raid.raidGroupNumber}군
+                            </span>
+                          ) : null}
+                          {raid.isPublished ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-200 border border-emerald-400/30">
+                              공개중
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gray-700 text-gray-200 border border-gray-600">
+                              비공개
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-400">
+                          {raid.raidDate || "-"} · 토벌시간{" "}
+                          {raid.clearTime || "-"} · 참가자{" "}
+                          {raid.participants.length}명
+                        </p>
+                        {raid.note && (
+                          <p className="text-xs text-gray-500 mt-1 break-keep">
+                            {raid.note}
+                          </p>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-400">{raid.raidDate || '-'} · 토벌시간 {raid.clearTime || '-'} · 참가자 {raid.participants.length}명</p>
-                      {raid.note && <p className="text-xs text-gray-500 mt-1 break-keep">{raid.note}</p>}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedWowRaidId(raid.id);
+                            setWowRaidDetailTab("participants");
+                            navigateTo("wowraid");
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-violet-500/10 text-violet-200 border-violet-400/30 hover:bg-violet-500/20"
+                        >
+                          상세 보기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditWowRaid(raid)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600"
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteWowRaid(raid.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white"
+                        >
+                          삭제
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <button type="button" onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); navigateTo('wowraid'); }} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-violet-500/10 text-violet-200 border-violet-400/30 hover:bg-violet-500/20">상세 보기</button>
-                      <button type="button" onClick={() => handleEditWowRaid(raid)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600">수정</button>
-                      <button type="button" onClick={() => handleDeleteWowRaid(raid.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white">삭제</button>
-                    </div>
-                  </div>
-                )) : (
-                  <p className="text-center text-gray-500 py-6">등록된 WOW 레이드 기록이 없습니다.</p>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 py-6">
+                    등록된 WOW 레이드 기록이 없습니다.
+                  </p>
                 )}
               </div>
             </div>
 
-
             {/* ★ WOW 길드원 프로필 이미지 관리 ★ */}
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-                <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원 프로필 이미지 관리
+                <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원
+                프로필 이미지 관리
               </h2>
               <p className="text-sm text-gray-400 mb-6">
-                인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 와우 캐릭터 혹은 버튜버 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+                인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 와우 캐릭터
+                혹은 버튜버 사진을 변경할 수 있습니다. <br />
+                (빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...wowRoster].sort((a,b) => a.streamerName.localeCompare(b.streamerName)).map(member => (
-                  <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                    <div className="flex items-center gap-3 w-32 flex-shrink-0">
-                      <img 
-                        src={getWowAvatarSrc(member)} 
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} 
-                        alt="avatar" 
-                        className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
-                      />
-                      <span className="font-bold text-white w-16 truncate" title={member.streamerName}>{member.streamerName}</span>
+                {[...wowRoster]
+                  .sort((a, b) => a.streamerName.localeCompare(b.streamerName))
+                  .map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 w-32 flex-shrink-0">
+                        <img
+                          src={getWowAvatarSrc(member)}
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`;
+                          }}
+                          alt="avatar"
+                          className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0"
+                        />
+                        <span
+                          className="font-bold text-white w-16 truncate"
+                          title={member.streamerName}
+                        >
+                          {member.streamerName}
+                        </span>
+                      </div>
+                      <div className="flex flex-1 gap-2">
+                        <input
+                          type="text"
+                          placeholder="https://..."
+                          value={
+                            wowImageInputs[member.id] !== undefined
+                              ? wowImageInputs[member.id]
+                              : member.imageUrl || ""
+                          }
+                          onChange={(e) =>
+                            setWowImageInputs({
+                              ...wowImageInputs,
+                              [member.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                        />
+                        <button
+                          onClick={() =>
+                            handleUpdateWowImage(
+                              member.id,
+                              wowImageInputs[member.id]
+                            )
+                          }
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                        >
+                          저장
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-1 gap-2">
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={wowImageInputs[member.id] !== undefined ? wowImageInputs[member.id] : (member.imageUrl || "")}
-                        onChange={(e) => setWowImageInputs({...wowImageInputs, [member.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
-                      />
-                      <button
-                        onClick={() => handleUpdateWowImage(member.id, wowImageInputs[member.id])}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                      >
-                        저장
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           </div>
@@ -8354,122 +11568,235 @@ export default function App() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-                <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그 참가자 이미지 관리
+                <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그
+                참가자 이미지 관리
               </h2>
               <p className="text-sm text-gray-400 mb-6">
-                인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 종겜 리그 참가자의 사진을 변경할 수 있습니다. <br/>(빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
+                인터넷에 올라와 있는 이미지 주소(URL)를 복사하여 종겜 리그
+                참가자의 사진을 변경할 수 있습니다. <br />
+                (빈칸으로 저장하면 다시 기본 아바타로 돌아갑니다.)
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
-                  <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                    <div className="flex items-center gap-3 w-32 flex-shrink-0 relative group/player">
-                      <img 
-                        src={(imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")) || getAvatarSrc(player.name)} 
-                        onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} 
-                        alt="avatar" 
-                        className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-bold text-white truncate w-16" title={player.name}>{player.name}</span>
-                        {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
-                        {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
-  {player._source !== "draft_players" && (
-                        <button type="button" onClick={() => handleDeletePlayer(player.id, player.name)} className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max">
-                          <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
+                {[...combinedLeaguePlayers]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((player) => (
+                    <div
+                      key={player.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 w-32 flex-shrink-0 relative group/player">
+                        <img
+                          src={
+                            (imageInputs[player.id] !== undefined
+                              ? imageInputs[player.id]
+                              : player.imageUrl || "") ||
+                            getAvatarSrc(player.name)
+                          }
+                          onError={(e) => {
+                            e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`;
+                          }}
+                          alt="avatar"
+                          className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0"
+                        />
+                        <div className="flex flex-col">
+                          <span
+                            className="font-bold text-white truncate w-16"
+                            title={player.name}
+                          >
+                            {player.name}
+                          </span>
+                          {player._source === "draft_players" && (
+                            <span className="text-[10px] text-yellow-300 mt-0.5">
+                              임시 저장
+                            </span>
+                          )}
+                          {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
+                          {player._source !== "draft_players" && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDeletePlayer(player.id, player.name)
+                              }
+                              className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max"
+                            >
+                              <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-1 gap-2">
+                        <input
+                          type="text"
+                          placeholder="https://..."
+                          value={
+                            imageInputs[player.id] !== undefined
+                              ? imageInputs[player.id]
+                              : player.imageUrl || ""
+                          }
+                          onChange={(e) =>
+                            setImageInputs({
+                              ...imageInputs,
+                              [player.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
+                        />
+                        <button
+                          onClick={() =>
+                            handleUpdateLeagueParticipantImage(
+                              player,
+                              imageInputs[player.id]
+                            )
+                          }
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                        >
+                          저장
                         </button>
-                      )}
                       </div>
                     </div>
-                    <div className="flex flex-1 gap-2">
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
-                        onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
-                      />
-                      <button
-                        onClick={() => handleUpdateLeagueParticipantImage(player, imageInputs[player.id])}
-                        className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                      >
-                        저장
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {combinedLeaguePlayers.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+                  ))}
+                {combinedLeaguePlayers.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">
+                    등록된 참가자가 없습니다.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
-                <Tv className="w-5 h-5 mr-2 text-indigo-400" /> 종겜 리그 참가자 방송국 주소 관리
+                <Tv className="w-5 h-5 mr-2 text-indigo-400" /> 종겜 리그 참가자
+                방송국 주소 관리
               </h2>
               <p className="text-sm text-gray-400 mb-6">
-                스트리머의 실제 방송국 주소(유튜브, 치지직, SOOP 등)를 입력해주세요. <br/>(빈칸으로 두시면 선수의 이름으로 자동 검색하여 SOOP으로 연결됩니다.)
+                스트리머의 실제 방송국 주소(유튜브, 치지직, SOOP 등)를
+                입력해주세요. <br />
+                (빈칸으로 두시면 선수의 이름으로 자동 검색하여 SOOP으로
+                연결됩니다.)
               </p>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
-                  <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
-                    <div className="flex flex-col justify-center w-28 flex-shrink-0">
-                      <span className="font-bold text-white truncate" title={player.name}>{player.name}</span>
-                      {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
-                      {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
-{player._source !== "draft_players" && (
-                      <button type="button" onClick={() => handleDeletePlayer(player.id, player.name)} className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max">
-                        <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
-                      </button>
-                    )}
+                {[...combinedLeaguePlayers]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((player) => (
+                    <div
+                      key={player.id}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg"
+                    >
+                      <div className="flex flex-col justify-center w-28 flex-shrink-0">
+                        <span
+                          className="font-bold text-white truncate"
+                          title={player.name}
+                        >
+                          {player.name}
+                        </span>
+                        {player._source === "draft_players" && (
+                          <span className="text-[10px] text-yellow-300 mt-0.5">
+                            임시 저장
+                          </span>
+                        )}
+                        {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
+                        {player._source !== "draft_players" && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDeletePlayer(player.id, player.name)
+                            }
+                            className="text-[10px] text-red-400 hover:text-red-300 flex items-center mt-0.5 opacity-60 hover:opacity-100 transition w-max"
+                          >
+                            <Trash2 className="w-3 h-3 mr-0.5" /> 삭제
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-1 gap-2">
+                        <input
+                          type="text"
+                          placeholder="https://..."
+                          value={
+                            broadcastUrlInputs[player.id] !== undefined
+                              ? broadcastUrlInputs[player.id]
+                              : player.broadcastUrl || ""
+                          }
+                          onChange={(e) =>
+                            setBroadcastUrlInputs({
+                              ...broadcastUrlInputs,
+                              [player.id]: e.target.value,
+                            })
+                          }
+                          className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
+                        />
+                        <button
+                          onClick={() =>
+                            handleUpdateLeagueParticipantBroadcastUrl(
+                              player,
+                              broadcastUrlInputs[player.id]
+                            )
+                          }
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
+                        >
+                          저장
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-1 gap-2">
-                      <input
-                        type="text"
-                        placeholder="https://..."
-                        value={broadcastUrlInputs[player.id] !== undefined ? broadcastUrlInputs[player.id] : (player.broadcastUrl || "")}
-                        onChange={(e) => setBroadcastUrlInputs({...broadcastUrlInputs, [player.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
-                      />
-                      <button
-                        onClick={() => handleUpdateLeagueParticipantBroadcastUrl(player, broadcastUrlInputs[player.id])}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded transition whitespace-nowrap"
-                      >
-                        저장
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {combinedLeaguePlayers.length === 0 && <p className="text-center text-gray-500 py-4">등록된 참가자가 없습니다.</p>}
+                  ))}
+                {combinedLeaguePlayers.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">
+                    등록된 참가자가 없습니다.
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <h2 className="text-xl font-bold text-white mb-4 flex items-center">
-                <Swords className="w-5 h-5 mr-2 text-red-400" /> 등록된 경기 관리 (수정 및 삭제)
+                <Swords className="w-5 h-5 mr-2 text-red-400" /> 등록된 경기
+                관리 (수정 및 삭제)
               </h2>
               <p className="text-sm text-gray-400 mb-4">
-                경기를 수정하거나 삭제하면 해당 경기로 증감된 참가자들의 점수가 자동으로 재계산/복구됩니다.
+                경기를 수정하거나 삭제하면 해당 경기로 증감된 참가자들의 점수가
+                자동으로 재계산/복구됩니다.
               </p>
 
               <div className="space-y-3">
                 {matches.length === 0 ? (
-                  <p className="text-gray-500 text-center py-4">등록된 경기가 없습니다.</p>
+                  <p className="text-gray-500 text-center py-4">
+                    등록된 경기가 없습니다.
+                  </p>
                 ) : (
                   matches.map((match) => (
-                    <div key={match.id} className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div
+                      key={match.id}
+                      className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg"
+                    >
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white">{match.gameName}</span>
-                        <span className="text-xs text-gray-400">{match.date}</span>
-                        <span className={`text-[11px] font-black px-2 py-1 rounded border ${match.isPublished !== false ? "bg-green-900/30 text-green-300 border-green-700/50" : "bg-yellow-900/30 text-yellow-300 border-yellow-700/50"}`}>
+                        <span className="font-bold text-white">
+                          {match.gameName}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {match.date}
+                        </span>
+                        <span
+                          className={`text-[11px] font-black px-2 py-1 rounded border ${
+                            match.isPublished !== false
+                              ? "bg-green-900/30 text-green-300 border-green-700/50"
+                              : "bg-yellow-900/30 text-yellow-300 border-yellow-700/50"
+                          }`}
+                        >
                           {match.isPublished !== false ? "공개" : "임시 저장"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleOpenEditMatch(match)} className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition">
+                        <button
+                          onClick={() => handleOpenEditMatch(match)}
+                          className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition"
+                        >
                           <Edit className="w-4 h-4 mr-1" /> 수정
                         </button>
-                        <button onClick={() => setMatchToDelete(match)} className="flex items-center text-sm bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded transition">
+                        <button
+                          onClick={() => setMatchToDelete(match)}
+                          className="flex items-center text-sm bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded transition"
+                        >
                           <Trash2 className="w-4 h-4 mr-1" /> 삭제
                         </button>
                       </div>
@@ -8482,29 +11809,50 @@ export default function App() {
             {/* ★ 유령 데이터 자동 청소기 구역 ★ */}
             <div className="bg-purple-900/30 border border-purple-700/50 rounded-xl p-6">
               <h3 className="text-lg font-bold text-purple-300 mb-2 flex items-center">
-                <Search className="w-5 h-5 mr-2" /> 👻 유령 데이터(빈 껍데기) 자동 청소
+                <Search className="w-5 h-5 mr-2" /> 👻 유령 데이터(빈 껍데기)
+                자동 청소
               </h3>
               <p className="text-sm text-gray-400 mb-4">
-                과거의 오류나 수정으로 인해 경기 기록은 없는데 티어표나 선수 명단에 이름만 남아있는 <strong className="text-white">유령 선수들을 한 번에 찾아내어 완전 삭제</strong>합니다.
+                과거의 오류나 수정으로 인해 경기 기록은 없는데 티어표나 선수
+                명단에 이름만 남아있는{" "}
+                <strong className="text-white">
+                  유령 선수들을 한 번에 찾아내어 완전 삭제
+                </strong>
+                합니다.
               </p>
-              <button type="button" onClick={handleCleanGhostData} disabled={isCleaningGhosts} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
-                {isCleaningGhosts ? <Loader2 className="w-5 h-5 animate-spin" /> : "🔍 유령 데이터 찾아서 영구 삭제하기"}
+              <button
+                type="button"
+                onClick={handleCleanGhostData}
+                disabled={isCleaningGhosts}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"
+              >
+                {isCleaningGhosts ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "🔍 유령 데이터 찾아서 영구 삭제하기"
+                )}
               </button>
             </div>
 
             <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
+              <h3 className="text-lg font-bold text-red-300 mb-2">
+                🚨 데이터베이스 완벽 초기화
+              </h3>
               <p className="text-sm text-gray-400 mb-4">
-                기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className="text-white">0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
+                기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가{" "}
+                <strong className="text-white">0명인 완전 초기 상태</strong>로
+                리셋합니다. (실전 오픈용)
               </p>
-              <button onClick={() => setShowResetModal(true)} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
-                <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로 시작하기
+              <button
+                onClick={() => setShowResetModal(true)}
+                className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고
+                백지상태로 시작하기
               </button>
             </div>
           </div>
         )}
-
-        {adminInnerTab === "event" && renderEventAdminSection()}
 
         {/* =========================================================
             [기타 설정] 탭 컨텐츠 (팝업 관리)
@@ -8513,16 +11861,24 @@ export default function App() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
               <h2 className="text-2xl font-bold text-white mb-2 flex items-center">
-                <Megaphone className="w-6 h-6 mr-2 text-indigo-400" /> 사이트 팝업(공지사항) 띄우기
+                <Megaphone className="w-6 h-6 mr-2 text-indigo-400" /> 사이트
+                팝업(공지사항) 띄우기
               </h2>
               <p className="text-sm text-gray-400 mb-6 break-keep">
-                사이트 방문자들이 접속했을 때 가운데에 나타나는 팝업창을 작성합니다.<br/>
-                유저가 <strong className="text-white">[오늘 하루 보지 않기]</strong>를 누르더라도, 여기서 내용을 새로 수정하여 저장하면 다시 유저들에게 나타납니다!
+                사이트 방문자들이 접속했을 때 가운데에 나타나는 팝업창을
+                작성합니다.
+                <br />
+                유저가{" "}
+                <strong className="text-white">[오늘 하루 보지 않기]</strong>를
+                누르더라도, 여기서 내용을 새로 수정하여 저장하면 다시 유저들에게
+                나타납니다!
               </p>
 
               <form onSubmit={handleSavePopup} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-300 ml-1">팝업 제목</label>
+                  <label className="text-sm font-bold text-gray-300 ml-1">
+                    팝업 제목
+                  </label>
                   <input
                     type="text"
                     value={popupTitleInput}
@@ -8533,7 +11889,9 @@ export default function App() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-300 ml-1">팝업 상세 내용</label>
+                  <label className="text-sm font-bold text-gray-300 ml-1">
+                    팝업 상세 내용
+                  </label>
                   <textarea
                     value={popupContentInput}
                     onChange={(e) => setPopupContentInput(e.target.value)}
@@ -8543,10 +11901,18 @@ export default function App() {
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
-                    <Megaphone className="w-5 h-5 mr-2" /> 새 내용으로 팝업 띄우기
+                  <button
+                    type="submit"
+                    className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"
+                  >
+                    <Megaphone className="w-5 h-5 mr-2" /> 새 내용으로 팝업
+                    띄우기
                   </button>
-                  <button type="button" onClick={handleDeletePopup} className="flex-1 py-3 bg-red-900/40 hover:bg-red-600 text-red-400 hover:text-white font-bold rounded-lg flex justify-center items-center border border-red-800/50 transition">
+                  <button
+                    type="button"
+                    onClick={handleDeletePopup}
+                    className="flex-1 py-3 bg-red-900/40 hover:bg-red-600 text-red-400 hover:text-white font-bold rounded-lg flex justify-center items-center border border-red-800/50 transition"
+                  >
                     <Trash2 className="w-5 h-5 mr-2" /> 팝업 내리기
                   </button>
                 </div>
@@ -8555,28 +11921,39 @@ export default function App() {
               {/* 팝업 미리보기 상태창 */}
               <div className="mt-8 pt-6 border-t border-gray-700">
                 <h3 className="text-lg font-bold text-white mb-4 flex items-center">
-                  <Activity className="w-5 h-5 mr-2 text-gray-400" /> 현재 팝업 송출 상태
+                  <Activity className="w-5 h-5 mr-2 text-gray-400" /> 현재 팝업
+                  송출 상태
                 </h3>
                 {sitePopup && sitePopup.isActive ? (
                   <div className="bg-gradient-to-b from-gray-900 to-gray-800 p-5 rounded-lg border border-indigo-500/30 shadow-inner">
                     <div className="flex justify-between items-start mb-3">
-                      <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded font-black tracking-wider">송출 중 (ON)</span>
-                      <span className="text-xs text-gray-500">최종 수정: {new Date(sitePopup.updatedAt).toLocaleString()}</span>
+                      <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded font-black tracking-wider">
+                        송출 중 (ON)
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        최종 수정:{" "}
+                        {new Date(sitePopup.updatedAt).toLocaleString()}
+                      </span>
                     </div>
-                    <h4 className="text-xl font-bold text-white mb-3">{sitePopup.title}</h4>
-                    <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{sitePopup.content}</p>
+                    <h4 className="text-xl font-bold text-white mb-3">
+                      {sitePopup.title}
+                    </h4>
+                    <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+                      {sitePopup.content}
+                    </p>
                   </div>
                 ) : (
                   <div className="bg-gray-900 p-5 rounded-lg border border-gray-700 flex flex-col items-center justify-center py-10">
                     <CheckSquare className="w-10 h-10 text-gray-600 mb-3" />
-                    <p className="text-gray-400 font-medium">현재 유저들에게 노출 중인 팝업이 없습니다.</p>
+                    <p className="text-gray-400 font-medium">
+                      현재 유저들에게 노출 중인 팝업이 없습니다.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
           </div>
         )}
-
       </div>
     );
   };
@@ -8590,7 +11967,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] font-sans pb-20">
-      
       {/* =========================================================
           ★ 유저 친화적인 사이트 공지사항(팝업) 모달 ★
           ========================================================= */}
@@ -8602,42 +11978,47 @@ export default function App() {
               <h3 className="text-lg font-black text-white flex items-center">
                 <Megaphone className="w-5 h-5 mr-2 text-indigo-400" /> 공지사항
               </h3>
-              <button 
-                onClick={() => setShowSitePopup(false)} 
+              <button
+                onClick={() => setShowSitePopup(false)}
                 className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             {/* 팝업 내용 */}
             <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-gray-900/50">
-              <h2 className="text-xl font-bold text-white mb-4 leading-tight">{sitePopup.title}</h2>
+              <h2 className="text-xl font-bold text-white mb-4 leading-tight">
+                {sitePopup.title}
+              </h2>
               <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap break-keep">
                 {sitePopup.content}
               </p>
             </div>
-            
+
             {/* 팝업 하단 (오늘 하루 보지 않기 + 닫기) */}
             <div className="p-3 border-t border-gray-700 bg-gray-800 flex justify-between items-center">
               <label className="flex items-center gap-2 cursor-pointer group px-2">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   onChange={(e) => {
                     if (e.target.checked) {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      localStorage.setItem('wak_popup_hidden_today', `${todayStr}_${sitePopup.updatedAt}`);
+                      const todayStr = new Date().toISOString().split("T")[0];
+                      localStorage.setItem(
+                        "wak_popup_hidden_today",
+                        `${todayStr}_${sitePopup.updatedAt}`
+                      );
                       setShowSitePopup(false);
                     }
                   }}
-                  className="w-4 h-4 accent-indigo-500 rounded bg-gray-700 border-gray-600 cursor-pointer" 
+                  className="w-4 h-4 accent-indigo-500 rounded bg-gray-700 border-gray-600 cursor-pointer"
                 />
                 <span className="text-xs font-medium text-gray-400 group-hover:text-gray-200 select-none transition-colors">
                   오늘 하루 보지 않기
                 </span>
               </label>
-              <button 
-                onClick={() => setShowSitePopup(false)} 
+              <button
+                onClick={() => setShowSitePopup(false)}
                 className="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg transition-colors"
               >
                 닫기
@@ -8648,7 +12029,11 @@ export default function App() {
       )}
 
       {toast.show && (
-        <div className={`fixed bottom-6 right-6 z-[300] px-6 py-3 rounded-lg shadow-2xl text-white ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}>
+        <div
+          className={`fixed bottom-6 right-6 z-[300] px-6 py-3 rounded-lg shadow-2xl text-white ${
+            toast.type === "error" ? "bg-red-600" : "bg-green-600"
+          }`}
+        >
           {toast.message}
         </div>
       )}
@@ -8656,163 +12041,439 @@ export default function App() {
       {matchToEdit && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4 py-10 backdrop-blur-sm overflow-y-auto">
           <div className="bg-gray-800 rounded-xl p-6 max-w-3xl w-full border border-blue-500/50 shadow-2xl relative my-auto">
-            <button onClick={() => setMatchToEdit(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
+            <button
+              onClick={() => setMatchToEdit(null)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white transition"
+            >
+              <X className="w-6 h-6" />
+            </button>
             <div className="flex items-center mb-6">
               <Edit className="w-6 h-6 mr-2 text-blue-400" />
               <h3 className="text-2xl font-bold text-white">경기 기록 수정</h3>
             </div>
-            
+
             <form onSubmit={handleSaveEditedMatch} className="space-y-6">
               <div className="flex bg-gray-900 p-1 rounded-lg mb-6 border border-gray-700">
-                <button type="button" onClick={() => setEditMatchMode("individual")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${editMatchMode === "individual" ? "bg-gray-700 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
+                <button
+                  type="button"
+                  onClick={() => setEditMatchMode("individual")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${
+                    editMatchMode === "individual"
+                      ? "bg-gray-700 text-white shadow"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
                   <User className="w-4 h-4 mr-2" /> 개인전
                 </button>
-                <button type="button" onClick={() => setEditMatchMode("team")} className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${editMatchMode === "team" ? "bg-indigo-600 text-white shadow" : "text-gray-400 hover:text-gray-200"}`}>
+                <button
+                  type="button"
+                  onClick={() => setEditMatchMode("team")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md flex justify-center items-center transition ${
+                    editMatchMode === "team"
+                      ? "bg-indigo-600 text-white shadow"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
                   <Users className="w-4 h-4 mr-2" /> 팀전
                 </button>
               </div>
 
               <div className="bg-gray-900 border border-yellow-700/50 rounded-lg p-4 flex flex-col gap-4">
                 <label className="flex items-center gap-3 cursor-pointer w-fit">
-                   <input 
-                     type="checkbox" 
-                     checked={editHasFunding} 
-                     onChange={(e) => setEditHasFunding(e.target.checked)} 
-                     className="w-5 h-5 accent-yellow-500 rounded bg-gray-800 border-gray-600 cursor-pointer" 
-                   />
-                   <span className="text-yellow-400 font-bold flex items-center text-base select-none">
-                     <Coins className="w-5 h-5 mr-2" /> 펀딩/상금 결산 추가하기
-                   </span>
+                  <input
+                    type="checkbox"
+                    checked={editHasFunding}
+                    onChange={(e) => setEditHasFunding(e.target.checked)}
+                    className="w-5 h-5 accent-yellow-500 rounded bg-gray-800 border-gray-600 cursor-pointer"
+                  />
+                  <span className="text-yellow-400 font-bold flex items-center text-base select-none">
+                    <Coins className="w-5 h-5 mr-2" /> 펀딩/상금 결산 추가하기
+                  </span>
                 </label>
                 {editHasFunding && (
-                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-800 p-4 rounded-lg border border-gray-700">
-                      <span className="text-sm text-gray-300 font-bold whitespace-nowrap">총 모인 별풍선 개수:</span>
-                      <div className="flex items-center w-full sm:w-auto">
-                        <input 
-                          type="number" 
-                          placeholder="예: 100000" 
-                          value={editTotalFunding} 
-                          onChange={(e) => setEditTotalFunding(e.target.value)} 
-                          className="w-full sm:w-48 bg-gray-900 border border-gray-600 text-yellow-400 font-black rounded-l-lg px-4 py-2 focus:border-yellow-500 outline-none text-right" 
-                        />
-                        <span className="bg-gray-700 border border-l-0 border-gray-600 text-gray-300 px-4 py-2 rounded-r-lg font-bold">개</span>
-                      </div>
-                   </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-800 p-4 rounded-lg border border-gray-700">
+                    <span className="text-sm text-gray-300 font-bold whitespace-nowrap">
+                      총 모인 별풍선 개수:
+                    </span>
+                    <div className="flex items-center w-full sm:w-auto">
+                      <input
+                        type="number"
+                        placeholder="예: 100000"
+                        value={editTotalFunding}
+                        onChange={(e) => setEditTotalFunding(e.target.value)}
+                        className="w-full sm:w-48 bg-gray-900 border border-gray-600 text-yellow-400 font-black rounded-l-lg px-4 py-2 focus:border-yellow-500 outline-none text-right"
+                      />
+                      <span className="bg-gray-700 border border-l-0 border-gray-600 text-gray-300 px-4 py-2 rounded-r-lg font-bold">
+                        개
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <input type="text" value={editGameName} onChange={(e) => setEditGameName(e.target.value)} placeholder="게임 이름" className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
-                <input type="date" value={editMatchDate} onChange={(e) => setEditMatchDate(e.target.value)} className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2" required />
+                <input
+                  type="text"
+                  value={editGameName}
+                  onChange={(e) => setEditGameName(e.target.value)}
+                  placeholder="게임 이름"
+                  className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2"
+                  required
+                />
+                <input
+                  type="date"
+                  value={editMatchDate}
+                  onChange={(e) => setEditMatchDate(e.target.value)}
+                  className="bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-2"
+                  required
+                />
               </div>
 
               <div className="bg-gray-900 border border-blue-700/40 rounded-lg p-4">
                 <label className="flex items-center gap-3 cursor-pointer w-fit">
-                  <input type="checkbox" checked={editIsPublished} onChange={(e) => setEditIsPublished(e.target.checked)} className="w-5 h-5 accent-blue-500 rounded bg-gray-800 border-gray-600 cursor-pointer" />
+                  <input
+                    type="checkbox"
+                    checked={editIsPublished}
+                    onChange={(e) => setEditIsPublished(e.target.checked)}
+                    className="w-5 h-5 accent-blue-500 rounded bg-gray-800 border-gray-600 cursor-pointer"
+                  />
                   <span className="text-blue-300 font-bold flex items-center text-base select-none">
                     <Globe className="w-5 h-5 mr-2" /> 일반 사용자에게 공개하기
                   </span>
                 </label>
-                <p className="text-xs text-gray-400 mt-2">체크를 끄면 임시 저장 상태로 유지되며, 홈/경기 기록/티어표에는 반영되지 않습니다.</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  체크를 끄면 임시 저장 상태로 유지되며, 홈/경기 기록/티어표에는
+                  반영되지 않습니다.
+                </p>
               </div>
 
               {editMatchMode === "individual" && (
                 <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 mt-4">
-                  <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 수정합니다.</p>
+                  <p className="text-xs font-bold text-gray-500 mb-2">
+                    개인별 순위와 점수를 수정합니다.
+                  </p>
                   {editIndividualResults.map((r, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
+                    <div
+                      key={idx}
+                      className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50"
+                    >
                       <div className="flex gap-2">
-                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
+                        <input
+                          type="number"
+                          value={r.rank}
+                          onChange={(e) => {
+                            const n = [...editIndividualResults];
+                            n[idx].rank = Number(e.target.value);
+                            setEditIndividualResults(n);
+                          }}
+                          className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600"
+                        />
+                        <input
+                          type="text"
+                          value={r.playerName}
+                          onChange={(e) => {
+                            const n = [...editIndividualResults];
+                            n[idx].playerName = e.target.value;
+                            setEditIndividualResults(n);
+                          }}
+                          placeholder="참가자 이름"
+                          className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600"
+                        />
+                        <input
+                          type="number"
+                          value={r.scoreChange}
+                          onChange={(e) => {
+                            const n = [...editIndividualResults];
+                            n[idx].scoreChange = Number(e.target.value);
+                            setEditIndividualResults(n);
+                          }}
+                          placeholder="점수"
+                          className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (editIndividualResults.length > 1)
+                              setEditIndividualResults(
+                                editIndividualResults.filter(
+                                  (_, i) => i !== idx
+                                )
+                              );
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-400"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
                       </div>
                       {editHasFunding && (
                         <div className="flex gap-2 items-center sm:pl-[72px]">
-                          <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                          <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                            const val = e.target.value;
-                            const n = [...editIndividualResults];
-                            n[idx].fundingRatio = val;
-                            n[idx].fundingAmount = val && editTotalFunding ? Math.floor((Number(editTotalFunding) * Number(val)) / 100) : "";
-                            setEditIndividualResults(n);
-                          }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                          <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                            const n = [...editIndividualResults];
-                            n[idx].fundingAmount = e.target.value;
-                            n[idx].fundingRatio = "";
-                            setEditIndividualResults(n);
-                          }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                          <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">
+                            💰 상금:
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="비율(%)"
+                            value={r.fundingRatio || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const n = [...editIndividualResults];
+                              n[idx].fundingRatio = val;
+                              n[idx].fundingAmount =
+                                val && editTotalFunding
+                                  ? Math.floor(
+                                      (Number(editTotalFunding) * Number(val)) /
+                                        100
+                                    )
+                                  : "";
+                              setEditIndividualResults(n);
+                            }}
+                            className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none"
+                          />
+                          <span className="text-gray-500 text-xs font-bold">
+                            % ➔
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="별풍선(직접수정 가능)"
+                            value={r.fundingAmount || ""}
+                            onChange={(e) => {
+                              const n = [...editIndividualResults];
+                              n[idx].fundingAmount = e.target.value;
+                              n[idx].fundingRatio = "";
+                              setEditIndividualResults(n);
+                            }}
+                            className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none"
+                          />
+                          <span className="text-gray-500 text-xs font-bold mr-8">
+                            개
+                          </span>
                         </div>
                       )}
                     </div>
                   ))}
-                  <button type="button" onClick={() => setEditIndividualResults([...editIndividualResults, { playerName: "", rank: editIndividualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditIndividualResults([
+                        ...editIndividualResults,
+                        {
+                          playerName: "",
+                          rank: editIndividualResults.length + 1,
+                          scoreChange: 0,
+                          fundingRatio: "",
+                          fundingAmount: "",
+                        },
+                      ])
+                    }
+                    className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition"
+                  >
+                    참가자 추가
+                  </button>
                 </div>
               )}
 
               {editMatchMode === "team" && (
                 <div className="space-y-4 mt-4">
-                  <p className="text-xs font-bold text-indigo-400 mb-2">팀 기록을 수정합니다.</p>
+                  <p className="text-xs font-bold text-indigo-400 mb-2">
+                    팀 기록을 수정합니다.
+                  </p>
                   {editTeamResults.map((team, tIdx) => (
-                    <div key={team.id} className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 relative overflow-hidden flex flex-col">
+                    <div
+                      key={team.id}
+                      className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 relative overflow-hidden flex flex-col"
+                    >
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>
                       <div className="flex gap-2 mb-3 pb-3 border-b border-gray-800">
                         <div className="flex flex-col">
-                          <span className="text-[10px] text-gray-500 mb-1">순위</span>
-                          <input type="number" value={team.rank} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].rank = Number(e.target.value); setEditTeamResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
+                          <span className="text-[10px] text-gray-500 mb-1">
+                            순위
+                          </span>
+                          <input
+                            type="number"
+                            value={team.rank}
+                            onChange={(e) => {
+                              const n = [...editTeamResults];
+                              n[tIdx].rank = Number(e.target.value);
+                              setEditTeamResults(n);
+                            }}
+                            className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1"
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-500 mb-1">
+                            세트 승수
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={team.setWins}
+                            onChange={(e) => {
+                              const n = [...editTeamResults];
+                              n[tIdx].setWins =
+                                e.target.value === ""
+                                  ? ""
+                                  : Math.max(0, Number(e.target.value) || 0);
+                              setEditTeamResults(n);
+                            }}
+                            placeholder="예: 7"
+                            className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600 py-1"
+                          />
                         </div>
                         <div className="flex flex-col flex-1">
-                          <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
-                          <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setEditTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
+                          <span className="text-[10px] text-gray-500 mb-1">
+                            팀 전체 획득/감소 점수
+                          </span>
+                          <input
+                            type="number"
+                            value={team.scoreChange}
+                            onChange={(e) => {
+                              const n = [...editTeamResults];
+                              n[tIdx].scoreChange = Number(e.target.value);
+                              setEditTeamResults(n);
+                            }}
+                            placeholder="점수"
+                            className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1"
+                          />
                         </div>
                         <div className="flex flex-col justify-end">
-                          <button type="button" onClick={() => { if (editTeamResults.length > 1) setEditTeamResults(editTeamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (editTeamResults.length > 2)
+                                setEditTeamResults(
+                                  editTeamResults.filter((_, i) => i !== tIdx)
+                                );
+                            }}
+                            className="p-2 text-gray-500 hover:text-red-400 transition"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         </div>
                       </div>
                       {editHasFunding && (
                         <div className="flex gap-2 items-center bg-gray-800/50 p-2 rounded-lg border border-gray-700/50 mb-2">
-                          <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 팀상금:</span>
-                          <input type="number" placeholder="비율(%)" value={team.fundingRatio || ""} onChange={(e) => {
-                            const val = e.target.value;
-                            const n = [...editTeamResults];
-                            n[tIdx].fundingRatio = val;
-                            n[tIdx].fundingAmount = val && editTotalFunding ? Math.floor((Number(editTotalFunding) * Number(val)) / 100) : "";
-                            setEditTeamResults(n);
-                          }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                          <input type="number" placeholder="팀에 분배될 별풍선(수동수정 가능)" value={team.fundingAmount || ""} onChange={(e) => {
-                            const n = [...editTeamResults];
-                            n[tIdx].fundingAmount = e.target.value;
-                            n[tIdx].fundingRatio = "";
-                            setEditTeamResults(n);
-                          }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold">개</span>
+                          <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">
+                            💰 팀상금:
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="비율(%)"
+                            value={team.fundingRatio || ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              const n = [...editTeamResults];
+                              n[tIdx].fundingRatio = val;
+                              n[tIdx].fundingAmount =
+                                val && editTotalFunding
+                                  ? Math.floor(
+                                      (Number(editTotalFunding) * Number(val)) /
+                                        100
+                                    )
+                                  : "";
+                              setEditTeamResults(n);
+                            }}
+                            className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none"
+                          />
+                          <span className="text-gray-500 text-xs font-bold">
+                            % ➔
+                          </span>
+                          <input
+                            type="number"
+                            placeholder="팀에 분배될 별풍선(수동수정 가능)"
+                            value={team.fundingAmount || ""}
+                            onChange={(e) => {
+                              const n = [...editTeamResults];
+                              n[tIdx].fundingAmount = e.target.value;
+                              n[tIdx].fundingRatio = "";
+                              setEditTeamResults(n);
+                            }}
+                            className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none"
+                          />
+                          <span className="text-gray-500 text-xs font-bold">
+                            개
+                          </span>
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-2">
                         {team.players.map((pName, pIdx) => (
                           <div key={pIdx} className="flex gap-1">
-                            <input type="text" value={pName} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].players[pIdx] = e.target.value; setEditTeamResults(n); }} placeholder="팀원 이름" className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600" />
-                            <button type="button" onClick={() => { if (team.players.length > 1) { const n = [...editTeamResults]; n[tIdx].players.splice(pIdx, 1); setEditTeamResults(n); } }} className="text-gray-500 hover:text-red-400 px-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <input
+                              type="text"
+                              value={pName}
+                              onChange={(e) => {
+                                const n = [...editTeamResults];
+                                n[tIdx].players[pIdx] = e.target.value;
+                                setEditTeamResults(n);
+                              }}
+                              placeholder="팀원 이름"
+                              className="flex-1 bg-gray-800 text-sm text-white px-2 py-1 rounded border border-gray-600"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (team.players.length > 1) {
+                                  const n = [...editTeamResults];
+                                  n[tIdx].players.splice(pIdx, 1);
+                                  setEditTeamResults(n);
+                                }
+                              }}
+                              className="text-gray-500 hover:text-red-400 px-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         ))}
                       </div>
-                      <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setEditTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const n = [...editTeamResults];
+                          n[tIdx].players.push("");
+                          setEditTeamResults(n);
+                        }}
+                        className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50"
+                      >
+                        + 팀원 추가
+                      </button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setEditTeamResults([...editTeamResults, { id: Date.now(), rank: editTeamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditTeamResults([
+                        ...editTeamResults,
+                        createEmptyTeamMatchResult(
+                          Date.now(),
+                          editTeamResults.length + 1,
+                          0
+                        ),
+                      ])
+                    }
+                    className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm"
+                  >
+                    새로운 팀 라인 추가
+                  </button>
                 </div>
               )}
 
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setMatchToEdit(null)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium">
+                <button
+                  type="button"
+                  onClick={() => setMatchToEdit(null)}
+                  className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium"
+                >
                   취소
                 </button>
-                <button type="submit" disabled={isEditingSubmit} className="flex-[2] py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
-                  {isEditingSubmit ? <Loader2 className="w-5 h-5 animate-spin" /> : "수정 내용 저장"}
+                <button
+                  type="submit"
+                  disabled={isEditingSubmit}
+                  className="flex-[2] py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg"
+                >
+                  {isEditingSubmit ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    "수정 내용 저장"
+                  )}
                 </button>
               </div>
             </form>
@@ -8825,16 +12486,37 @@ export default function App() {
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
             <div className="flex items-center text-red-400 mb-4">
               <AlertTriangle className="w-8 h-8 mr-2" />
-              <h3 className="text-xl font-bold text-white">정말 삭제하시겠습니까?</h3>
+              <h3 className="text-xl font-bold text-white">
+                정말 삭제하시겠습니까?
+              </h3>
             </div>
             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-              <span className="font-bold text-yellow-400">[{matchToDelete.gameName}]</span> 경기를 삭제합니다.<br />
-              이 경기로 얻거나 잃은 참가자들의 점수가 <br />모두 이전으로 되돌아갑니다. (복구 불가)
+              <span className="font-bold text-yellow-400">
+                [{matchToDelete.gameName}]
+              </span>{" "}
+              경기를 삭제합니다.
+              <br />
+              이 경기로 얻거나 잃은 참가자들의 점수가 <br />
+              모두 이전으로 되돌아갑니다. (복구 불가)
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setMatchToDelete(null)} disabled={isDeleting} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium">취소</button>
-              <button onClick={confirmDeleteMatch} disabled={isDeleting} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center">
-                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : "삭제 및 복구"}
+              <button
+                onClick={() => setMatchToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDeleteMatch}
+                disabled={isDeleting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center"
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "삭제 및 복구"
+                )}
               </button>
             </div>
           </div>
@@ -8846,16 +12528,40 @@ export default function App() {
           <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
             <div className="flex items-center text-red-400 mb-4">
               <AlertTriangle className="w-8 h-8 mr-2" />
-              <h3 className="text-xl font-bold text-white">정말 초기화하시겠습니까?</h3>
+              <h3 className="text-xl font-bold text-white">
+                정말 초기화하시겠습니까?
+              </h3>
             </div>
             <p className="text-gray-300 text-sm mb-6 leading-relaxed">
-              지금까지의 <span className="font-bold text-red-400">모든 경기 기록과 참가자가 삭제</span>됩니다.<br /><br />
-              삭제 후 참가자가 아무도 없는 완전한<br />'백지 상태'로 즉시 전환됩니다. (복구 불가)
+              지금까지의{" "}
+              <span className="font-bold text-red-400">
+                모든 경기 기록과 참가자가 삭제
+              </span>
+              됩니다.
+              <br />
+              <br />
+              삭제 후 참가자가 아무도 없는 완전한
+              <br />
+              '백지 상태'로 즉시 전환됩니다. (복구 불가)
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowResetModal(false)} disabled={isResetting} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium">취소</button>
-              <button onClick={handleResetDatabase} disabled={isResetting} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center">
-                {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : "초기화 및 실전 시작"}
+              <button
+                onClick={() => setShowResetModal(false)}
+                disabled={isResetting}
+                className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleResetDatabase}
+                disabled={isResetting}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center"
+              >
+                {isResetting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "초기화 및 실전 시작"
+                )}
               </button>
             </div>
           </div>
@@ -8863,158 +12569,332 @@ export default function App() {
       )}
 
       {/* ★ 실수로 누락되었던 개인 프로필 팝업창 코드 완벽 복구 ★ */}
-      {selectedPlayer && (() => {
-        const stats = getPlayerStats(selectedPlayer);
-        const playerInfo = players.find(p => p.name === selectedPlayer);
-        if (!playerInfo) return null;
+      {selectedPlayer &&
+        (() => {
+          const stats = getPlayerStats(selectedPlayer);
+          const playerInfo = players.find((p) => p.name === selectedPlayer);
+          if (!playerInfo) return null;
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
-        const hasVotedToday = storageData.date === todayStr && storageData.votes.includes(selectedPlayer);
-        
-        const broadcastLink = playerInfo.broadcastUrl?.trim() 
-          ? playerInfo.broadcastUrl 
-          : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(selectedPlayer)}`;
+          const todayStr = new Date().toISOString().split("T")[0];
+          const storageData = JSON.parse(
+            localStorage.getItem("wak_vleague_hearts_v1") ||
+              '{"date": "", "votes": []}'
+          );
+          const hasVotedToday =
+            storageData.date === todayStr &&
+            storageData.votes.includes(selectedPlayer);
 
-        return (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
-            <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-              <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
-                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
-                <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
-                  <img src={getAvatarSrc(selectedPlayer)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`; }} alt={selectedPlayer} className="w-full h-full object-cover" />
-                </div>
-                <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
-                <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
+          const broadcastLink = playerInfo.broadcastUrl?.trim()
+            ? playerInfo.broadcastUrl
+            : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(
+                selectedPlayer
+              )}`;
 
-                <div className="flex flex-col items-center mt-5 w-full gap-2">
+          return (
+            <div
+              className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
+              onClick={() => setSelectedPlayer(null)}
+            >
+              <div
+                className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
                   <button
-                    onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
-                    disabled={cheeringPlayerId === playerInfo.id}
-                    className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
-                      cheeringPlayerId === playerInfo.id
-                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100" 
-                        : hasVotedToday
+                    onClick={() => setSelectedPlayer(null)}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                  <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
+                    <img
+                      src={getAvatarSrc(selectedPlayer)}
+                      onError={(e) => {
+                        e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`;
+                      }}
+                      alt={selectedPlayer}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 className="text-2xl font-black text-white">
+                    {selectedPlayer}
+                  </h3>
+                  <span className="text-green-400 font-bold mt-1 text-lg">
+                    {playerInfo.points} pt
+                  </span>
+
+                  <div className="flex flex-col items-center mt-5 w-full gap-2">
+                    <button
+                      onClick={() =>
+                        handleCheerPlayer(playerInfo.id, selectedPlayer)
+                      }
+                      disabled={cheeringPlayerId === playerInfo.id}
+                      className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
+                        cheeringPlayerId === playerInfo.id
+                          ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100"
+                          : hasVotedToday
                           ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:bg-pink-500/20"
                           : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]"
-                    }`}
-                  >
-                    {cheeringPlayerId === playerInfo.id ? (
-                      <><Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" /> 처리 중...</>
-                    ) : (
-                      <>
-                        <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
-                        {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
-                      </>
-                    )}
-                  </button>
-                  
-                  <a
-                    href={broadcastLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"
-                  >
-                    <Tv className="w-5 h-5 mr-2" /> 방송국 가기
-                  </a>
+                      }`}
+                    >
+                      {cheeringPlayerId === playerInfo.id ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" />{" "}
+                          처리 중...
+                        </>
+                      ) : (
+                        <>
+                          <Heart
+                            className={`w-3.5 h-3.5 mr-1.5 ${
+                              hasVotedToday
+                                ? "fill-pink-400 text-pink-400"
+                                : "fill-transparent text-white"
+                            }`}
+                          />
+                          {hasVotedToday ? "응원 완료!" : "응원하기"}{" "}
+                          {(playerInfo.hearts || 0).toLocaleString()}
+                        </>
+                      )}
+                    </button>
 
-                  <p className="text-xs text-gray-500 mt-2 bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-center break-keep w-full">
-                    💡 스트리머 1명당 <strong className="text-gray-300">하루에 1번만</strong> 응원할 수 있습니다.<br/>(다시 누르면 취소됩니다)
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
-                <div className="flex flex-col items-center py-4">
-                  <span className="text-xs text-gray-400 font-medium mb-1">총 참가</span>
-                  <span className="text-xl font-bold text-white">{stats.totalMatches}전</span>
-                </div>
-                <div className="flex flex-col items-center py-4">
-                  <span className="text-xs text-gray-400 font-medium mb-1">우승 확률(1위)</span>
-                  <span className="text-xl font-bold text-yellow-400">{stats.winRate}%</span>
-                </div>
-                <div className="flex flex-col items-center py-4 px-2 text-center">
-                  <span className="text-xs text-gray-400 font-medium mb-1">주력 종목</span>
-                  <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">{stats.mostPlayedGame}</span>
-                </div>
-              </div>
-              <div className="p-6">
-                <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center"><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대 5경기)</h4>
-                {stats.recentMatches.length === 0 ? (
-                  <p className="text-center text-gray-500 py-6 text-sm">경기 기록이 없습니다.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {stats.recentMatches.map((m) => (
-                      <div key={m.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
-                        <div className="flex-1 truncate pr-2">
-                          <p className="text-sm font-bold text-white truncate">{m.gameName}</p>
-                          <p className="text-[10px] text-gray-500">{m.date}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`text-xs font-bold ${m.rank === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>{m.rank}위</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${m.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                            {m.scoreChange > 0 ? "+" : ""}{m.scoreChange}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                    <a
+                      href={broadcastLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"
+                    >
+                      <Tv className="w-5 h-5 mr-2" /> 방송국 가기
+                    </a>
+
+                    <p className="text-xs text-gray-500 mt-2 bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-center break-keep w-full">
+                      💡 스트리머 1명당{" "}
+                      <strong className="text-gray-300">하루에 1번만</strong>{" "}
+                      응원할 수 있습니다.
+                      <br />
+                      (다시 누르면 취소됩니다)
+                    </p>
                   </div>
-                )}
+                </div>
+                <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
+                  <div className="flex flex-col items-center py-4">
+                    <span className="text-xs text-gray-400 font-medium mb-1">
+                      총 참가
+                    </span>
+                    <span className="text-xl font-bold text-white">
+                      {stats.totalMatches}전
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center py-4">
+                    <span className="text-xs text-gray-400 font-medium mb-1">
+                      우승 확률(1위)
+                    </span>
+                    <span className="text-xl font-bold text-yellow-400">
+                      {stats.winRate}%
+                    </span>
+                  </div>
+                  <div className="flex flex-col items-center py-4 px-2 text-center">
+                    <span className="text-xs text-gray-400 font-medium mb-1">
+                      주력 종목
+                    </span>
+                    <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">
+                      {stats.mostPlayedGame}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center">
+                    <Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대
+                    5경기)
+                  </h4>
+                  {stats.recentMatches.length === 0 ? (
+                    <p className="text-center text-gray-500 py-6 text-sm">
+                      경기 기록이 없습니다.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {stats.recentMatches.map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50"
+                        >
+                          <div className="flex-1 truncate pr-2">
+                            <p className="text-sm font-bold text-white truncate">
+                              {m.gameName}
+                            </p>
+                            <p className="text-[10px] text-gray-500">
+                              {m.date}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`text-xs font-bold ${
+                                m.rank === 1
+                                  ? "text-yellow-400"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {m.rank}위
+                            </span>
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${
+                                m.scoreChange >= 0
+                                  ? "bg-green-500/20 text-green-400"
+                                  : "bg-red-500/20 text-red-400"
+                              }`}
+                            >
+                              {m.scoreChange > 0 ? "+" : ""}
+                              {m.scoreChange}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
-        <div className="max-w-[1296px] mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div
+          className="max-w-6xl mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <h1 className="text-lg md:text-xl font-bold text-white cursor-pointer flex items-center whitespace-nowrap" onClick={() => navigateTo("home")}>
-              <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" /> 버츄얼 종겜 리그
+            <h1
+              className="text-lg md:text-xl font-bold text-white cursor-pointer flex items-center whitespace-nowrap"
+              onClick={() => navigateTo("home")}
+            >
+              <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" />{" "}
+              버츄얼 종겜 리그
             </h1>
-            <a href="https://www.sooplive.co.kr/station/ecvhao" target="_blank" rel="noopener noreferrer" title="우왁굳 방송국" className="flex items-center justify-center px-2 py-0.5 bg-black text-green-400 border border-green-500/50 rounded text-xs font-black tracking-widest hover:bg-green-400 hover:text-black transition-all duration-300 shadow-[0_0_10px_rgba(74,222,128,0.3)] hover:shadow-[0_0_15px_rgba(74,222,128,0.6)]">
+            <a
+              href="https://www.sooplive.co.kr/station/ecvhao"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="우왁굳 방송국"
+              className="flex items-center justify-center px-2 py-0.5 bg-black text-green-400 border border-green-500/50 rounded text-xs font-black tracking-widest hover:bg-green-400 hover:text-black transition-all duration-300 shadow-[0_0_10px_rgba(74,222,128,0.3)] hover:shadow-[0_0_15px_rgba(74,222,128,0.6)]"
+            >
               WAK
             </a>
             {lastUpdated && (
               <span className="ml-2 md:ml-3 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
-                <RefreshCw className="w-3 h-3 mr-1 opacity-70" /> 최근 갱신: {formatLastUpdated(lastUpdated)}
+                <RefreshCw className="w-3 h-3 mr-1 opacity-70" /> 최근 갱신:{" "}
+                {formatLastUpdated(lastUpdated)}
               </span>
             )}
             <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
-              <Users className="w-3 h-3 mr-1 opacity-70" /> 오늘 방문자: {todayVisits}
+              <Users className="w-3 h-3 mr-1 opacity-70" /> 오늘 방문자:{" "}
+              {todayVisits}
             </span>
           </div>
           <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
-            <button onClick={() => navigateTo("home")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "home" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>홈</button>
-            <button onClick={() => navigateTo("players")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "players" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>선수</button>
-            <button onClick={() => navigateTo("matches")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "matches" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>경기</button>
-            <button onClick={() => navigateTo("stats")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "stats" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>통계</button>
-            <button onClick={() => navigateTo("tier")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "tier" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>티어</button>
-            {shouldShowEventTab && (
-              <button onClick={() => navigateTo("event")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "event" ? "bg-amber-900/50 text-amber-300 border border-amber-500/50" : "text-amber-200 hover:text-white hover:bg-gray-800"}`}>
-                <Sparkles className="w-4 h-4 mr-1" /> 와농대
-              </button>
-            )}
-            <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
+            <button
+              onClick={() => navigateTo("home")}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+                activeTab === "home"
+                  ? "bg-gray-800 text-green-400"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              홈
+            </button>
+            <button
+              onClick={() => navigateTo("players")}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+                activeTab === "players"
+                  ? "bg-gray-800 text-green-400"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              선수
+            </button>
+            <button
+              onClick={() => navigateTo("matches")}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+                activeTab === "matches"
+                  ? "bg-gray-800 text-green-400"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              경기
+            </button>
+            <button
+              onClick={() => navigateTo("stats")}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+                activeTab === "stats"
+                  ? "bg-gray-800 text-green-400"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              통계
+            </button>
+            <button
+              onClick={() => navigateTo("tier")}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+                activeTab === "tier"
+                  ? "bg-gray-800 text-green-400"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              티어
+            </button>
+            <button
+              onClick={() => navigateTo("wow")}
+              className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${
+                activeTab === "wow"
+                  ? "bg-blue-900/50 text-blue-400 border border-blue-500/50"
+                  : "text-blue-300 hover:text-white hover:bg-gray-800"
+              }`}
+            >
               <Shield className="w-4 h-4 mr-1" /> WOW
             </button>
-            <button onClick={() => navigateTo("wowraid")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "wowraid" ? "bg-violet-900/50 text-violet-300 border border-violet-500/50" : "text-violet-300 hover:text-white hover:bg-gray-800"}`}>
+            <button
+              onClick={() => navigateTo("wowraid")}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+                activeTab === "wowraid"
+                  ? "bg-violet-900/50 text-violet-300 border border-violet-500/50"
+                  : "text-violet-300 hover:text-white hover:bg-gray-800"
+              }`}
+            >
               WOW레이드
             </button>
-            <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
-              {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
+            <button
+              onClick={() => navigateTo("admin")}
+              className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${
+                activeTab === "admin"
+                  ? "bg-gray-800 text-green-400 border-green-500"
+                  : "text-gray-400 hover:text-white hover:border-gray-400"
+              }`}
+            >
+              {isAdminAuth ? (
+                <Unlock className="w-3 h-3 mr-1" />
+              ) : (
+                <Lock className="w-3 h-3 mr-1" />
+              )}{" "}
+              관리
             </button>
           </div>
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "event" ? "max-w-7xl px-4 md:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
-
+      <main
+        className={`mx-auto py-8 relative w-full ${
+          activeTab === "raid"
+            ? "max-w-[1800px] px-3 md:px-5 lg:px-6"
+            : activeTab === "wow"
+            ? "max-w-[1320px] px-4 md:px-4 lg:px-5"
+            : activeTab === "wowraid"
+            ? "max-w-6xl px-4"
+            : "max-w-6xl px-4"
+        }`}
+      >
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
         {activeTab === "matches" && renderMatchesView()}
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
-        {activeTab === "event" && renderEventView()}
         {activeTab === "wow" && renderWowView()}
         {activeTab === "wowraid" && renderWowRaidView()}
         {activeTab === "raid" && renderRaidView()}
@@ -9034,11 +12914,12 @@ export default function App() {
 
       {/* 플로팅 메뉴 컨테이너 */}
       <div className="fixed bottom-6 left-6 z-[400] md:hidden flex flex-col items-start">
-        
         {/* 촤라락 펼쳐지는 세로 탭 리스트 */}
         <div
           className={`flex flex-col gap-2 mb-4 origin-bottom-left transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-            isMobileMenuOpen ? "scale-100 opacity-100 translate-y-0" : "scale-0 opacity-0 translate-y-10 pointer-events-none"
+            isMobileMenuOpen
+              ? "scale-100 opacity-100 translate-y-0"
+              : "scale-0 opacity-0 translate-y-10 pointer-events-none"
           }`}
         >
           {[
@@ -9047,7 +12928,6 @@ export default function App() {
             { id: "matches", label: "경기", icon: Swords },
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
-            ...(shouldShowEventTab ? [{ id: "event", label: "와농대", icon: Sparkles }] : []),
             { id: "wow", label: "WOW", icon: Shield },
             { id: "wowraid", label: "WOW레이드", icon: null },
             { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
@@ -9074,15 +12954,18 @@ export default function App() {
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] transition-all duration-300 transform active:scale-95 ${
-            isMobileMenuOpen 
-              ? "bg-gray-800 border border-gray-600 rotate-90 shadow-none text-gray-400" 
+            isMobileMenuOpen
+              ? "bg-gray-800 border border-gray-600 rotate-90 shadow-none text-gray-400"
               : "bg-green-600 hover:bg-green-500 rotate-0"
           }`}
         >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          {isMobileMenuOpen ? (
+            <X className="w-6 h-6" />
+          ) : (
+            <Menu className="w-6 h-6" />
+          )}
         </button>
       </div>
-
     </div>
   );
 }
