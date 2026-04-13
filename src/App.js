@@ -34,7 +34,6 @@ import {
   Edit,
   Coins,
   Star,
-  Target,
   Settings,
   Layers,
   Megaphone,
@@ -45,8 +44,7 @@ import {
   Copy,
   Link2,
   Sparkles,
-  Globe,
-  CalendarDays
+  Globe
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -588,694 +586,6 @@ const createWowRaidGuestParticipantSnapshot = (participant = {}) => {
   };
 };
 
-const CURRENT_EVENT_DOC_ID = "wow-basketball-2026-04-12";
-
-const EVENT_STATUS_OPTIONS = [
-  { id: "scheduled", label: "진행 예정", badgeClass: "bg-amber-500/15 text-amber-200 border-amber-400/30" },
-  { id: "live", label: "진행 중", badgeClass: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30" },
-  { id: "finished", label: "종료", badgeClass: "bg-slate-500/15 text-slate-200 border-slate-300/25" },
-];
-
-const EVENT_ROUND_LABELS = {
-  opening: "8강전",
-  winner: "승자조",
-  loser: "패자조",
-  placement: "순위전",
-  challenge: "도전자전",
-  grandFinal: "최종 결승",
-};
-
-const EVENT_BRACKET_SECTION_DEFS = [
-  {
-    id: "opening",
-    title: "8강전",
-    description: "8강 4경기",
-    matchIds: ["opening_1", "opening_2", "opening_3", "opening_4"],
-  },
-  {
-    id: "winner",
-    title: "승자조",
-    description: "승자조 4강과 결승",
-    matchIds: ["winner_sf_1", "winner_sf_2", "winner_final"],
-  },
-  {
-    id: "loser",
-    title: "패자조",
-    description: "패자조 4강과 결승",
-    matchIds: ["loser_sf_1", "loser_sf_2", "loser_final"],
-  },
-  {
-    id: "placement",
-    title: "순위전",
-    description: "승자조 순위전과 교차전",
-    matchIds: ["winner_placement", "placement_cross"],
-  },
-  {
-    id: "challenge",
-    title: "도전자전",
-    description: "승자조 2위와 교차전 승자",
-    matchIds: ["challenge_final"],
-  },
-  {
-    id: "grandFinal",
-    title: "최종 결승",
-    description: "최종 우승 결정전",
-    matchIds: ["grand_final_1", "grand_final_2"],
-  },
-];
-
-const EVENT_PUBLIC_SECTION_ORDER = ["grandFinal", "challenge", "placement", "winner", "loser", "opening"];
-const EVENT_ADMIN_SECTION_ORDER = ["opening", "winner", "loser", "placement", "challenge", "grandFinal"];
-const EVENT_LEGACY_MATCH_IDS = ["qf1", "qf2", "qf3", "qf4", "sf1", "sf2", "final1"];
-
-const EVENT_MATCH_ACCENT_STYLE_MAP = {
-  neutral: {
-    borderColor: "rgba(148, 163, 184, 0.42)",
-    background: "linear-gradient(180deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))",
-    lineColor: "rgba(148, 163, 184, 0.85)",
-    badgeClass: "border-slate-500/35 bg-slate-500/10 text-slate-100",
-  },
-  opening: {
-    borderColor: "rgba(56, 189, 248, 0.62)",
-    background: "linear-gradient(180deg, rgba(15,23,42,0.96), rgba(30,41,59,0.88))",
-    lineColor: "rgba(125, 211, 252, 0.92)",
-    badgeClass: "border-sky-400/35 bg-sky-500/10 text-sky-100",
-  },
-  winner: {
-    borderColor: "rgba(245, 158, 11, 0.48)",
-    background: "linear-gradient(180deg, rgba(120,53,15,0.96), rgba(15,23,42,0.92))",
-    lineColor: "rgba(251, 191, 36, 0.92)",
-    badgeClass: "border-amber-400/35 bg-amber-500/12 text-amber-100",
-  },
-  loser: {
-    borderColor: "rgba(168, 85, 247, 0.42)",
-    background: "linear-gradient(180deg, rgba(76,29,149,0.96), rgba(15,23,42,0.92))",
-    lineColor: "rgba(192, 132, 252, 0.9)",
-    badgeClass: "border-violet-400/35 bg-violet-500/12 text-violet-100",
-  },
-  placement: {
-    borderColor: "rgba(74, 222, 128, 0.4)",
-    background: "linear-gradient(180deg, rgba(6,78,59,0.96), rgba(15,23,42,0.92))",
-    lineColor: "rgba(74, 222, 128, 0.9)",
-    badgeClass: "border-emerald-400/35 bg-emerald-500/12 text-emerald-100",
-  },
-  cross: {
-    borderColor: "rgba(96, 165, 250, 0.42)",
-    background: "linear-gradient(180deg, rgba(30,64,175,0.96), rgba(15,23,42,0.92))",
-    lineColor: "rgba(96, 165, 250, 0.9)",
-    badgeClass: "border-blue-400/35 bg-blue-500/12 text-blue-100",
-  },
-  challenge: {
-    borderColor: "rgba(251, 146, 60, 0.44)",
-    background: "linear-gradient(180deg, rgba(154,52,18,0.96), rgba(15,23,42,0.92))",
-    lineColor: "rgba(251, 146, 60, 0.92)",
-    badgeClass: "border-orange-400/35 bg-orange-500/12 text-orange-100",
-  },
-  grandFinal: {
-    borderColor: "rgba(248, 113, 113, 0.48)",
-    background: "linear-gradient(180deg, rgba(127,29,29,0.98), rgba(15,23,42,0.92))",
-    lineColor: "rgba(248, 113, 113, 0.95)",
-    badgeClass: "border-rose-400/35 bg-rose-500/12 text-rose-100",
-  },
-};
-
-const EVENT_BOARD_LAYOUT = {
-  paddingX: 24,
-  paddingY: 24,
-  cardWidth: 128,
-  cardMinHeight: 92,
-  cardTitleWidth: 188,
-  cardTitleOffsetY: 38,
-  columnGap: 32,
-  routeGap: 30,
-  maxCol: 5,
-  boardWidth: 1300,
-  boardHeight: 1180,
-};
-const EVENT_BOARD_CANVAS_GUTTER_X = 20;
-const EVENT_BOARD_CONTENT_OFFSET_X = -36;
-
-const EVENT_BOARD_SPECIAL_CARD_LAYOUT = {
-  grand_final_1: { width: 212, height: 118, titleWidth: 286 },
-  grand_final_2: { width: 212, height: 118, titleWidth: 286 },
-};
-
-const EVENT_BOARD_SLOT_MAP = {
-  grand_final_1: { x: 660, y: 92 },
-  grand_final_2: { x: 660, y: 250 },
-  winner_final: { x: 380, y: 300 },
-  challenge_final: { x: 1024, y: 300 },
-  winner_sf_1: { x: 120, y: 474 },
-  winner_sf_2: { x: 640, y: 474 },
-  winner_placement: { x: 880, y: 474 },
-  placement_cross: { x: 1172, y: 474 },
-  opening_1: { x: 0, y: 712 },
-  opening_2: { x: 240, y: 712 },
-  opening_3: { x: 520, y: 712 },
-  opening_4: { x: 760, y: 712 },
-  loser_sf_1: { x: 120, y: 900 },
-  loser_sf_2: { x: 640, y: 900 },
-  loser_final: { x: 380, y: 1088 },
-};
-
-const EVENT_MATCH_TEMPLATES = [
-  {
-    id: "opening_1",
-    round: "opening",
-    matchOrder: 1,
-    label: "8강전 1",
-    phaseLabel: "8강전",
-    accent: "opening",
-    manualTeamAssignment: true,
-    boardSlot: "opening_1",
-    winnerNextMatchId: "winner_sf_1",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: "loser_sf_1",
-    loserNextSlot: "teamA",
-  },
-  {
-    id: "opening_2",
-    round: "opening",
-    matchOrder: 2,
-    label: "8강전 2",
-    phaseLabel: "8강전",
-    accent: "opening",
-    manualTeamAssignment: true,
-    boardSlot: "opening_2",
-    winnerNextMatchId: "winner_sf_1",
-    winnerNextSlot: "teamB",
-    loserNextMatchId: "loser_sf_1",
-    loserNextSlot: "teamB",
-  },
-  {
-    id: "opening_3",
-    round: "opening",
-    matchOrder: 3,
-    label: "8강전 3",
-    phaseLabel: "8강전",
-    accent: "opening",
-    manualTeamAssignment: true,
-    boardSlot: "opening_3",
-    winnerNextMatchId: "winner_sf_2",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: "loser_sf_2",
-    loserNextSlot: "teamA",
-  },
-  {
-    id: "opening_4",
-    round: "opening",
-    matchOrder: 4,
-    label: "8강전 4",
-    phaseLabel: "8강전",
-    accent: "opening",
-    manualTeamAssignment: true,
-    boardSlot: "opening_4",
-    winnerNextMatchId: "winner_sf_2",
-    winnerNextSlot: "teamB",
-    loserNextMatchId: "loser_sf_2",
-    loserNextSlot: "teamB",
-  },
-  {
-    id: "winner_sf_1",
-    round: "winner",
-    matchOrder: 5,
-    label: "4강전 (승자조) 1",
-    phaseLabel: "4강전 (승자조)",
-    accent: "winner",
-    boardSlot: "winner_sf_1",
-    winnerNextMatchId: "winner_final",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: "winner_placement",
-    loserNextSlot: "teamA",
-  },
-  {
-    id: "winner_sf_2",
-    round: "winner",
-    matchOrder: 6,
-    label: "4강전 (승자조) 2",
-    phaseLabel: "4강전 (승자조)",
-    accent: "winner",
-    boardSlot: "winner_sf_2",
-    winnerNextMatchId: "winner_final",
-    winnerNextSlot: "teamB",
-    loserNextMatchId: "winner_placement",
-    loserNextSlot: "teamB",
-  },
-  {
-    id: "loser_sf_1",
-    round: "loser",
-    matchOrder: 7,
-    label: "4강전 (패자조) 1",
-    phaseLabel: "4강전 (패자조)",
-    accent: "loser",
-    boardSlot: "loser_sf_1",
-    winnerNextMatchId: "loser_final",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "loser_sf_2",
-    round: "loser",
-    matchOrder: 8,
-    label: "4강전 (패자조) 2",
-    phaseLabel: "4강전 (패자조)",
-    accent: "loser",
-    boardSlot: "loser_sf_2",
-    winnerNextMatchId: "loser_final",
-    winnerNextSlot: "teamB",
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "winner_final",
-    round: "winner",
-    matchOrder: 9,
-    label: "결승전 (승자조)",
-    phaseLabel: "결승전 (승자조)",
-    accent: "winner",
-    boardSlot: "winner_final",
-    winnerNextMatchId: "grand_final_1",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: "challenge_final",
-    loserNextSlot: "teamB",
-  },
-  {
-    id: "winner_placement",
-    round: "placement",
-    matchOrder: 10,
-    label: "3,4위전 (승자조)",
-    phaseLabel: "3,4위전 (승자조)",
-    accent: "placement",
-    boardSlot: "winner_placement",
-    winnerNextMatchId: "placement_cross",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "loser_final",
-    round: "loser",
-    matchOrder: 11,
-    label: "결승전 (패자조)",
-    phaseLabel: "결승전 (패자조)",
-    accent: "loser",
-    boardSlot: "loser_final",
-    winnerNextMatchId: "placement_cross",
-    winnerNextSlot: "teamB",
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "placement_cross",
-    round: "placement",
-    matchOrder: 12,
-    label: "3위(승자조) VS 패자조 우승팀",
-    phaseLabel: "순위 결정전",
-    accent: "cross",
-    boardSlot: "placement_cross",
-    winnerNextMatchId: "challenge_final",
-    winnerNextSlot: "teamA",
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "challenge_final",
-    round: "challenge",
-    matchOrder: 13,
-    label: "승자조 2위 VS 파란 승리팀",
-    phaseLabel: "도전자전",
-    accent: "challenge",
-    boardSlot: "challenge_final",
-    winnerNextMatchId: "grand_final_1",
-    winnerNextSlot: "teamB",
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "grand_final_1",
-    round: "grandFinal",
-    matchOrder: 14,
-    label: "최종 결승",
-    phaseLabel: "최종 결승",
-    accent: "grandFinal",
-    boardSlot: "grand_final_1",
-    winnerNextMatchId: null,
-    winnerNextSlot: null,
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-  {
-    id: "grand_final_2",
-    round: "grandFinal",
-    matchOrder: 15,
-    label: "최종 결승",
-    phaseLabel: "최종 결승",
-    accent: "grandFinal",
-    boardSlot: "grand_final_2",
-    activationMode: "resetOnly",
-    winnerNextMatchId: null,
-    winnerNextSlot: null,
-    loserNextMatchId: null,
-    loserNextSlot: null,
-  },
-];
-
-const EVENT_MATCH_TEMPLATE_MAP = EVENT_MATCH_TEMPLATES.reduce((acc, template) => {
-  acc[template.id] = template;
-  return acc;
-}, {});
-
-const EVENT_MATCH_ORDER_MAP = EVENT_MATCH_TEMPLATES.reduce((acc, template) => {
-  acc[template.id] = template.matchOrder;
-  return acc;
-}, {});
-
-const createEventTeamId = () => `event_team_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-const createEventGuestId = () => `event_guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-const getDefaultEventGuestAvatar = (participant) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || 'event-guest').trim() || 'event-guest')}`;
-const createDefaultEventTeamName = (jobClass = "") => (jobClass ? `TEAM ${jobClass}` : "");
-const createEmptyEventGuestForm = () => ({ displayName: "", wowNickname: "", imageUrl: "" });
-const createDefaultEventSettings = () => ({
-  eventId: CURRENT_EVENT_DOC_ID,
-  title: "와농대 커스텀 토너먼트",
-  subtitle: "우왁굳 x 왁타버스 길드 스트리머 특별전",
-  startAt: "2026-04-12T20:00",
-  status: "scheduled",
-  isVisible: false,
-  currentRound: "8강전",
-  championTeamId: "",
-  updatedAt: null,
-});
-const createEmptyEventTeam = (sortOrder = 1) => ({
-  id: createEventTeamId(),
-  teamName: "",
-  jobClass: "",
-  themeColor: "",
-  imageUrl: "",
-  note: "",
-  sortOrder,
-  members: [],
-});
-
-const normalizeEventParticipantSnapshot = (participant = {}, fallbackJobClass = "") => {
-  const sourceType = participant?.sourceType === "wowRoster" ? "wowRoster" : "guest";
-  const jobClass = normalizeWowJobClassKey(participant?.jobClass || fallbackJobClass || "");
-  const displayName = `${participant?.displayName || participant?.streamerName || ""}`.trim();
-  const wowNickname = `${participant?.wowNickname || displayName || ""}`.trim();
-  return {
-    id: participant?.id || (sourceType === "wowRoster" ? `event_member_${participant?.sourceMemberId || Date.now().toString(36)}` : createEventGuestId()),
-    sourceType,
-    sourceMemberId: participant?.sourceMemberId || participant?.sourceId || "",
-    displayName: displayName || wowNickname || "이벤트 참가자",
-    wowNickname: wowNickname || displayName || "이벤트 참가자",
-    jobClass,
-    imageUrl: participant?.imageUrl || (sourceType === "guest" ? getDefaultEventGuestAvatar(participant) : ""),
-    isGuestParticipant: sourceType === "guest",
-  };
-};
-
-const createEventParticipantSnapshotFromRoster = (member = {}) => {
-  const normalizedMember = normalizeWowMember(member);
-  return normalizeEventParticipantSnapshot({
-    id: `event_member_${normalizedMember.id || createEventGuestId()}`,
-    sourceType: "wowRoster",
-    sourceMemberId: normalizedMember.id || "",
-    displayName: normalizedMember.streamerName || "",
-    wowNickname: normalizedMember.wowNickname || normalizedMember.streamerName || "",
-    jobClass: normalizedMember.jobClass || "",
-    imageUrl: normalizedMember.imageUrl || "",
-  }, normalizedMember.jobClass);
-};
-
-const createEventGuestParticipantSnapshot = (participant = {}, teamJobClass = "") => (
-  normalizeEventParticipantSnapshot({
-    id: createEventGuestId(),
-    sourceType: "guest",
-    displayName: participant?.displayName || "",
-    wowNickname: participant?.wowNickname || "",
-    jobClass: teamJobClass || participant?.jobClass || "",
-    imageUrl: participant?.imageUrl || getDefaultEventGuestAvatar(participant),
-  }, teamJobClass)
-);
-
-const normalizeEventSettings = (settings = {}) => ({
-  ...createDefaultEventSettings(),
-  ...settings,
-  title: settings?.title || createDefaultEventSettings().title,
-  subtitle: settings?.subtitle || createDefaultEventSettings().subtitle,
-  startAt: settings?.startAt || createDefaultEventSettings().startAt,
-  status: EVENT_STATUS_OPTIONS.some((option) => option.id === settings?.status) ? settings.status : "scheduled",
-  isVisible: !!settings?.isVisible,
-  currentRound: settings?.currentRound || createDefaultEventSettings().currentRound,
-  championTeamId: settings?.championTeamId || "",
-  updatedAt: settings?.updatedAt || null,
-});
-
-const normalizeEventTeamDocument = (team = {}, index = 0) => {
-  const jobClass = normalizeWowJobClassKey(team?.jobClass || "");
-  return {
-    id: team?.id || createEventTeamId(),
-    teamName: `${team?.teamName || ""}`.trim() || createDefaultEventTeamName(jobClass),
-    jobClass,
-    themeColor: team?.themeColor || WOW_CLASS_COLORS[jobClass] || "#94a3b8",
-    imageUrl: team?.imageUrl || "",
-    note: team?.note || "",
-    sortOrder: Number(team?.sortOrder) || index + 1,
-    members: Array.isArray(team?.members)
-      ? team.members.map((member) => normalizeEventParticipantSnapshot(member, jobClass)).slice(0, 5)
-      : [],
-    createdAt: team?.createdAt || null,
-    updatedAt: team?.updatedAt || null,
-  };
-};
-
-const normalizeEventMatchDocument = (match = {}) => {
-  const template = EVENT_MATCH_TEMPLATE_MAP[match?.id] || EVENT_MATCH_TEMPLATES[0];
-  return {
-    id: match?.id || template.id,
-    round: match?.round || template.round,
-    matchOrder: Number(match?.matchOrder) || template.matchOrder,
-    label: match?.label || template.label,
-    phaseLabel: match?.phaseLabel || template.phaseLabel || EVENT_ROUND_LABELS[template.round] || template.label,
-    accent: match?.accent || template.accent || "neutral",
-    boardSlot: match?.boardSlot || template.boardSlot || template.id,
-    manualTeamAssignment: match?.manualTeamAssignment === undefined ? !!template.manualTeamAssignment : !!match.manualTeamAssignment,
-    activationMode: match?.activationMode || template.activationMode || "auto",
-    displayDate: `${match?.displayDate || ""}`.trim(),
-    winnerNextMatchId: match?.winnerNextMatchId ?? template.winnerNextMatchId ?? null,
-    winnerNextSlot: match?.winnerNextSlot ?? template.winnerNextSlot ?? null,
-    loserNextMatchId: match?.loserNextMatchId ?? template.loserNextMatchId ?? null,
-    loserNextSlot: match?.loserNextSlot ?? template.loserNextSlot ?? null,
-    teamAId: match?.teamAId || "",
-    teamBId: match?.teamBId || "",
-    teamAScore: match?.teamAScore ?? "",
-    teamBScore: match?.teamBScore ?? "",
-    winnerTeamId: match?.winnerTeamId || "",
-    status: EVENT_STATUS_OPTIONS.some((option) => option.id === match?.status) ? match.status : "scheduled",
-    createdAt: match?.createdAt || null,
-    updatedAt: match?.updatedAt || null,
-  };
-};
-
-const buildDefaultEventMatches = () => (
-  EVENT_MATCH_TEMPLATES.map((template) => normalizeEventMatchDocument(template))
-);
-
-const getEventMatchTemplate = (matchId = "") => EVENT_MATCH_TEMPLATE_MAP[matchId] || null;
-
-const getEventBracketSectionDefsByOrder = (order = EVENT_PUBLIC_SECTION_ORDER) => (
-  order
-    .map((sectionId) => EVENT_BRACKET_SECTION_DEFS.find((section) => section.id === sectionId))
-    .filter(Boolean)
-);
-
-const getEventMatchAccentStyle = (accent = "neutral") => (
-  EVENT_MATCH_ACCENT_STYLE_MAP[accent] || EVENT_MATCH_ACCENT_STYLE_MAP.neutral
-);
-
-const getEventBoardCardWidth = (matchId = "") => (
-  EVENT_BOARD_SPECIAL_CARD_LAYOUT[matchId]?.width || EVENT_BOARD_LAYOUT.cardWidth
-);
-
-const getEventBoardCardHeight = (matchId = "") => (
-  EVENT_BOARD_SPECIAL_CARD_LAYOUT[matchId]?.height || EVENT_BOARD_LAYOUT.cardMinHeight
-);
-
-const getEventBoardCardTitleWidth = (matchId = "") => (
-  EVENT_BOARD_SPECIAL_CARD_LAYOUT[matchId]?.titleWidth || EVENT_BOARD_LAYOUT.cardTitleWidth
-);
-
-const getEventBoardMatchLeft = (matchId = "") => {
-  const slotMeta = EVENT_BOARD_SLOT_MAP[matchId];
-  const baseLeft = !slotMeta
-    ? EVENT_BOARD_LAYOUT.paddingX
-    : typeof slotMeta.x === "number"
-    ? EVENT_BOARD_LAYOUT.paddingX + slotMeta.x
-    : EVENT_BOARD_LAYOUT.paddingX + ((slotMeta.col - 1) * (EVENT_BOARD_LAYOUT.cardWidth + EVENT_BOARD_LAYOUT.columnGap));
-  return baseLeft + EVENT_BOARD_CANVAS_GUTTER_X + EVENT_BOARD_CONTENT_OFFSET_X;
-};
-
-const getEventBoardMatchTop = (matchId = "") => (
-  EVENT_BOARD_LAYOUT.paddingY + (EVENT_BOARD_SLOT_MAP[matchId]?.y || 0)
-);
-
-const getEventBoardWidth = () => (
-  (EVENT_BOARD_LAYOUT.boardWidth
-    ? (EVENT_BOARD_LAYOUT.paddingX * 2) + EVENT_BOARD_LAYOUT.boardWidth
-    : (EVENT_BOARD_LAYOUT.paddingX * 2) +
-      (EVENT_BOARD_LAYOUT.maxCol * EVENT_BOARD_LAYOUT.cardWidth) +
-      ((EVENT_BOARD_LAYOUT.maxCol - 1) * EVENT_BOARD_LAYOUT.columnGap)) +
-  (EVENT_BOARD_CANVAS_GUTTER_X * 2)
-);
-
-const isEventMatchFinished = (match = {}) => (
-  match?.status === "finished" && !!match?.winnerTeamId
-);
-
-const isEventMatchTrackable = (match = {}) => {
-  if (!match?.id) return false;
-  if (match.manualTeamAssignment) return true;
-  return !!match.teamAId && !!match.teamBId;
-};
-
-const getEventResolvedChampionTeamId = (matches = []) => {
-  const matchMap = (matches || []).reduce((acc, match) => {
-    acc[match.id] = match;
-    return acc;
-  }, {});
-  const grandFinalReset = matchMap.grand_final_2;
-  if (isEventMatchFinished(grandFinalReset)) return grandFinalReset.winnerTeamId;
-  const grandFinal = matchMap.grand_final_1;
-  if (isEventMatchFinished(grandFinal) && grandFinal.winnerTeamId === grandFinal.teamAId) {
-    return grandFinal.winnerTeamId;
-  }
-  return "";
-};
-
-const syncEventMatchesBracket = (matches = []) => {
-  const nextMatches = EVENT_MATCH_TEMPLATES.map((template) => {
-    const rawMatch = (matches || []).find((item) => item?.id === template.id) || {};
-    return normalizeEventMatchDocument({ ...template, ...rawMatch, id: template.id });
-  });
-  const matchMap = nextMatches.reduce((acc, match) => {
-    acc[match.id] = match;
-    return acc;
-  }, {});
-
-  nextMatches.forEach((match) => {
-    if (!match.manualTeamAssignment) {
-      match.teamAId = "";
-      match.teamBId = "";
-    }
-  });
-
-  const applyAdvance = (sourceMatch, outcome, nextTeamId) => {
-    const nextMatchId = outcome === "winner" ? sourceMatch.winnerNextMatchId : sourceMatch.loserNextMatchId;
-    const nextSlot = outcome === "winner" ? sourceMatch.winnerNextSlot : sourceMatch.loserNextSlot;
-    if (!nextMatchId || !nextSlot || !nextTeamId) return;
-    const targetMatch = matchMap[nextMatchId];
-    if (!targetMatch) return;
-    targetMatch[nextSlot === "teamB" ? "teamBId" : "teamAId"] = nextTeamId;
-  };
-
-  nextMatches.forEach((match) => {
-    const participantIds = [match.teamAId, match.teamBId].filter(Boolean);
-    if (match.winnerTeamId && !participantIds.includes(match.winnerTeamId)) {
-      match.winnerTeamId = "";
-      if (match.status === "finished") match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-    }
-
-    if (!isEventMatchFinished(match)) return;
-
-    const loserTeamId = participantIds.find((teamId) => teamId !== match.winnerTeamId) || "";
-    applyAdvance(match, "winner", match.winnerTeamId);
-    applyAdvance(match, "loser", loserTeamId);
-  });
-
-  const grandFinal = matchMap.grand_final_1;
-  const grandFinalReset = matchMap.grand_final_2;
-  if (grandFinalReset) {
-    grandFinalReset.teamAId = "";
-    grandFinalReset.teamBId = "";
-    if (
-      grandFinal?.teamAId &&
-      grandFinal?.teamBId &&
-      isEventMatchFinished(grandFinal) &&
-      grandFinal.winnerTeamId === grandFinal.teamBId
-    ) {
-      grandFinalReset.teamAId = grandFinal.teamAId;
-      grandFinalReset.teamBId = grandFinal.teamBId;
-    }
-  }
-
-  nextMatches.forEach((match) => {
-    const participantIds = [match.teamAId, match.teamBId].filter(Boolean);
-    const hasAllParticipants = participantIds.length === 2;
-    if (!match.manualTeamAssignment && !hasAllParticipants) {
-      match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-      match.winnerTeamId = "";
-      return;
-    }
-
-    if (match.winnerTeamId && !participantIds.includes(match.winnerTeamId)) {
-      match.winnerTeamId = "";
-      if (match.status === "finished") match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-    }
-
-    if (match.status === "finished" && (!match.winnerTeamId || participantIds.length < 2)) {
-      match.status = "scheduled";
-      match.teamAScore = "";
-      match.teamBScore = "";
-      match.winnerTeamId = "";
-    }
-  });
-
-  return nextMatches.sort((a, b) => (EVENT_MATCH_ORDER_MAP[a.id] ?? 999) - (EVENT_MATCH_ORDER_MAP[b.id] ?? 999));
-};
-
-const syncEventMatchesWithTeams = (matches = [], teams = []) => {
-  const validTeamIds = new Set((teams || []).map((team) => team.id));
-  const sanitizedMatches = (matches || []).map((match) => ({
-    ...match,
-    teamAId: validTeamIds.has(match?.teamAId) ? match.teamAId : "",
-    teamBId: validTeamIds.has(match?.teamBId) ? match.teamBId : "",
-    winnerTeamId: validTeamIds.has(match?.winnerTeamId) ? match.winnerTeamId : "",
-  }));
-  return syncEventMatchesBracket(sanitizedMatches);
-};
-
-const getEventStatusMeta = (status = "scheduled") => (
-  EVENT_STATUS_OPTIONS.find((option) => option.id === status) || EVENT_STATUS_OPTIONS[0]
-);
-
-const getEventDisplayStatusMeta = (match = {}) => {
-  if (!isEventMatchTrackable(match) || (!match.teamAId && !match.teamBId)) {
-    return {
-      label: match.manualTeamAssignment ? "배정 대기" : "자동 대기",
-      badgeClass: "bg-slate-500/10 text-slate-200 border-slate-400/25",
-    };
-  }
-  return getEventStatusMeta(match.status);
-};
-
-const getEventCurrentRoundLabel = (matches = []) => {
-  const syncedMatches = syncEventMatchesBracket(matches);
-  const nextPendingMatch = syncedMatches.find((match) => (
-    isEventMatchTrackable(match) && match.status !== "finished"
-  ));
-  if (nextPendingMatch) {
-    return getEventMatchTemplate(nextPendingMatch.id)?.phaseLabel || nextPendingMatch.label;
-  }
-  return getEventResolvedChampionTeamId(syncedMatches) ? "대회 종료" : "진행 대기";
-};
-
 const normalizeWowRaidStatsMap = (value = {}) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.entries(value).reduce((acc, [participantId, statValue]) => {
@@ -1443,10 +753,118 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
   };
 };
 
+const createEmptyTeamMatchResult = (id, rank, scoreChange = 0) => ({
+  id,
+  rank,
+  scoreChange,
+  setWins: "",
+  players: ["", ""],
+  fundingRatio: "",
+  fundingAmount: "",
+});
+
+const createDefaultTeamMatchResults = () => ([
+  createEmptyTeamMatchResult(1, 1, 100),
+  createEmptyTeamMatchResult(2, 2, -50),
+]);
+
+const normalizeTeamSetWins = (value) => (
+  value === "" || value === null || value === undefined
+    ? ""
+    : Math.max(0, Number(value) || 0)
+);
+
+const getNormalizedTeamMatchResults = (match = {}) => {
+  if (Array.isArray(match.teamResults) && match.teamResults.length > 0) {
+    return [...match.teamResults]
+      .map((team, index) => ({
+        id: team.id || `team_${index + 1}`,
+        rank: Number(team.rank) || index + 1,
+        scoreChange: Number(team.scoreChange) || 0,
+        setWins: normalizeTeamSetWins(team.setWins),
+        players: Array.isArray(team.players) ? team.players.map((playerName) => `${playerName || ""}`.trim()).filter(Boolean) : [],
+        fundingRatio: team.fundingRatio ?? "",
+        fundingAmount: team.fundingAmount ?? "",
+      }))
+      .sort((a, b) => a.rank - b.rank);
+  }
+
+  const teamsByRank = {};
+  (match.results || []).forEach((result, index) => {
+    if (!teamsByRank[result.rank]) {
+      teamsByRank[result.rank] = {
+        id: `fallback_team_${result.rank}_${index}`,
+        rank: result.rank,
+        scoreChange: Number(result.scoreChange) || 0,
+        setWins: "",
+        players: [],
+        fundingRatio: result.fundingRatio || "",
+        fundingAmount: result.fundingAmount || "",
+      };
+    }
+    teamsByRank[result.rank].players.push(`${result.playerName || ""}`.trim());
+  });
+
+  return Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
+};
+
+const buildTeamMatchPayload = (teams = [], hasFunding = false) => {
+  const normalizedTeams = (teams || [])
+    .map((team, index) => {
+      const players = Array.isArray(team.players)
+        ? team.players.map((playerName) => `${playerName || ""}`.trim()).filter(Boolean)
+        : [];
+
+      return {
+        id: team.id || `team_${index + 1}`,
+        rank: Number(team.rank) || index + 1,
+        scoreChange: Number(team.scoreChange) || 0,
+        setWins: normalizeTeamSetWins(team.setWins),
+        players,
+        fundingRatio: hasFunding ? (Number(team.fundingRatio) || 0) : 0,
+        fundingAmount: hasFunding ? (Number(team.fundingAmount) || 0) : 0,
+      };
+    })
+    .filter((team) => team.players.length > 0)
+    .sort((a, b) => a.rank - b.rank);
+
+  const results = [];
+  normalizedTeams.forEach((team) => {
+    team.players.forEach((playerName) => {
+      results.push({
+        playerName,
+        rank: team.rank,
+        scoreChange: team.scoreChange,
+        ...(hasFunding ? { fundingRatio: team.fundingRatio, fundingAmount: team.fundingAmount } : {}),
+      });
+    });
+  });
+
+  return { teamResults: normalizedTeams, results };
+};
+
+const getTeamMatchSetScoreLabel = (teams = []) => {
+  if (!Array.isArray(teams) || teams.length !== 2) return "";
+
+  const [firstTeam, secondTeam] = [...teams].sort((a, b) => a.rank - b.rank);
+  if (
+    firstTeam?.setWins === "" || firstTeam?.setWins === null || firstTeam?.setWins === undefined ||
+    secondTeam?.setWins === "" || secondTeam?.setWins === null || secondTeam?.setWins === undefined
+  ) {
+    return "";
+  }
+
+  const firstScore = Number(firstTeam.setWins);
+  const secondScore = Number(secondTeam.setWins);
+  if (!Number.isFinite(firstScore) || !Number.isFinite(secondScore)) return "";
+
+  return `${firstScore}:${secondScore}`;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "players", "matches", "stats", "tier", "event", "wow", "wowraid", "raid", "admin"].includes(hash) ? hash : "home";
+    return ["home", "players", "matches", "stats", "tier", "wow", "wowraid", "raid", "admin"].includes(hash) ? hash : "home";
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -1537,51 +955,6 @@ export default function App() {
     }
   });
   const raidScreenshotRef = useRef(null);
-  const eventBoardViewportRef = useRef(null);
-  const [eventBoardScale, setEventBoardScale] = useState(1);
-
-  const formatEventStartAt = (value) => {
-    if (!value) return "일정 미정";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  };
-
-  const cloneEventTeams = (teams = []) => (
-    (teams || []).map((team) => ({
-      ...team,
-      members: Array.isArray(team.members) ? team.members.map((member) => ({ ...member })) : [],
-    }))
-  );
-
-  const getEventTeamStyle = (jobClass = "") => {
-    const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8";
-    let r = 148;
-    let g = 163;
-    let b = 184;
-    if (hex.length === 7) {
-      r = parseInt(hex.slice(1, 3), 16);
-      g = parseInt(hex.slice(3, 5), 16);
-      b = parseInt(hex.slice(5, 7), 16);
-    }
-    return {
-      borderColor: `rgba(${r}, ${g}, ${b}, 0.45)`,
-      background: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.22), rgba(15, 23, 42, 0.92))`,
-      boxShadow: `0 0 24px rgba(${r}, ${g}, ${b}, 0.12)`,
-    };
-  };
-
-  const getEventMemberAvatar = (participant) => {
-    if (participant?.imageUrl?.trim()) return participant.imageUrl;
-    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || "event-member").trim() || "event-member")}`;
-  };
 
   const fetchBuskingShardSnapshot = async (roundId) => {
     const resolvedRoundId = roundId || "wow-busking-default";
@@ -1643,33 +1016,6 @@ export default function App() {
 
   // ★ 관리자 화면 내부 탭 관리 (league: 버종리 설정, wow: 와우 설정, etc: 기타 설정) ★
   const [adminInnerTab, setAdminInnerTab] = useState("league");
-
-  const [eventSettings, setEventSettings] = useState(() => createDefaultEventSettings());
-  const [eventTeams, setEventTeams] = useState([]);
-  const [eventMatches, setEventMatches] = useState(() => buildDefaultEventMatches());
-  const [eventAdminSettings, setEventAdminSettings] = useState(() => createDefaultEventSettings());
-  const [eventAdminTeams, setEventAdminTeams] = useState([]);
-  const [eventAdminMatches, setEventAdminMatches] = useState(() => buildDefaultEventMatches());
-  const [eventRosterSelections, setEventRosterSelections] = useState({});
-  const [eventGuestDrafts, setEventGuestDrafts] = useState({});
-  const [isEventSettingsSaving, setIsEventSettingsSaving] = useState(false);
-  const [isEventTeamsSaving, setIsEventTeamsSaving] = useState(false);
-  const [isEventMatchesSaving, setIsEventMatchesSaving] = useState(false);
-
-  const sortedEventTeams = useMemo(
-    () => [...eventTeams].sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999) || (a.teamName || "").localeCompare(b.teamName || "", "ko")),
-    [eventTeams]
-  );
-  const publicEventMatches = useMemo(() => syncEventMatchesBracket(eventMatches), [eventMatches]);
-  const eventTeamMap = useMemo(
-    () => sortedEventTeams.reduce((acc, team) => {
-      acc[team.id] = team;
-      return acc;
-    }, {}),
-    [sortedEventTeams]
-  );
-  const eventCurrentRoundLabel = useMemo(() => getEventCurrentRoundLabel(publicEventMatches), [publicEventMatches]);
-  const shouldShowEventTab = eventSettings.isVisible || isAdminAuth || activeTab === "event";
   
   const [rawAdminPresence, setRawAdminPresence] = useState([]);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -1695,6 +1041,8 @@ export default function App() {
 
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
+  const [playerCardSearchInput, setPlayerCardSearchInput] = useState("");
+  const [playerCardSort, setPlayerCardSort] = useState({ key: "name", direction: "asc" });
 
   const [gameName, setGameName] = useState("");
   const [matchDate, setMatchDate] = useState("");
@@ -1722,14 +1070,12 @@ export default function App() {
     { playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" },
     { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" },
   ]);
-  const [teamResults, setTeamResults] = useState([
-    { id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" },
-    { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" },
-  ]);
+  const [teamResults, setTeamResults] = useState(() => createDefaultTeamMatchResults());
 
   const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
   const [matchToEdit, setMatchToEdit] = useState(null);
   const [selectedMatchId, setSelectedMatchId] = useState(null);
+  const [matchSearchInput, setMatchSearchInput] = useState("");
   const [editGameName, setEditGameName] = useState("");
   const [editMatchDate, setEditMatchDate] = useState("");
   const [editMatchMode, setEditMatchMode] = useState("individual");
@@ -1766,10 +1112,71 @@ export default function App() {
     return sortableItems;
   }, [playerStatsMap, sortConfig]);
 
+  const filteredPublishedMatches = useMemo(() => {
+    const normalizedKeyword = matchSearchInput.trim().toLowerCase();
+    if (!normalizedKeyword) return publishedMatches;
+
+    return publishedMatches.filter((match) => {
+      const searchableText = [
+        match.gameName,
+        ...(match.results || []).map((result) => result.playerName),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(normalizedKeyword);
+    });
+  }, [publishedMatches, matchSearchInput]);
+
+  const filteredPlayersForGallery = useMemo(() => {
+    const normalizedKeyword = playerCardSearchInput.trim().toLowerCase();
+    let items = [...players];
+
+    if (normalizedKeyword) {
+      items = items.filter((player) => {
+        const searchableText = [
+          player.name,
+          player.broadcastUrl,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchableText.includes(normalizedKeyword);
+      });
+    }
+
+    items.sort((a, b) => {
+      if (playerCardSort.key === "name") {
+        const nameCompare = (a.name || "").localeCompare(b.name || "", "ko");
+        if (nameCompare !== 0) return playerCardSort.direction === "asc" ? nameCompare : -nameCompare;
+      } else {
+        const numericField = playerCardSort.key === "points" ? "points" : "hearts";
+        const numericGap = (Number(a[numericField]) || 0) - (Number(b[numericField]) || 0);
+        if (numericGap !== 0) return playerCardSort.direction === "asc" ? numericGap : -numericGap;
+      }
+
+      return (a.name || "").localeCompare(b.name || "", "ko");
+    });
+
+    return items;
+  }, [players, playerCardSearchInput, playerCardSort]);
+
   const requestSort = (key) => {
     let direction = 'desc'; 
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc'; 
     setSortConfig({ key, direction });
+  };
+
+  const handlePlayerCardSortChange = (key) => {
+    setPlayerCardSort((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+
+      return { key, direction: key === "name" ? "asc" : "desc" };
+    });
   };
 
   const sortedWowRoster = useMemo(() => {
@@ -2599,7 +2006,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "players", "matches", "stats", "tier", "event", "wow", "wowraid", "raid", "admin"].includes(hash)) setActiveTab(hash);
+      if (["home", "players", "matches", "stats", "tier", "wow", "wowraid", "raid", "admin"].includes(hash)) setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -2699,100 +2106,6 @@ export default function App() {
 
     return () => { unsubPlayers(); unsubDraftPlayers(); unsubMatches(); unsubMeta(); unsubVisit(); unsubPresence(); unsubPopup(); };
   }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-    const unsubEventSettings = onSnapshot(eventDocRef, (docSnap) => {
-      const nextSettings = docSnap.exists()
-        ? normalizeEventSettings({ eventId: docSnap.id, ...docSnap.data() })
-        : createDefaultEventSettings();
-      setEventSettings(nextSettings);
-    });
-
-    return () => unsubEventSettings();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    if (!["event", "admin"].includes(activeTab)) return;
-
-    const eventTeamsRef = collection(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "teams");
-    const eventMatchesRef = collection(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "matches");
-
-    const unsubEventTeams = onSnapshot(eventTeamsRef, (snapshot) => {
-      const nextTeams = snapshot.docs
-        .map((teamDoc, index) => normalizeEventTeamDocument({ id: teamDoc.id, ...teamDoc.data() }, index))
-        .sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999) || (a.teamName || "").localeCompare(b.teamName || "", "ko"));
-      setEventTeams(nextTeams);
-    });
-
-    const unsubEventMatches = onSnapshot(eventMatchesRef, (snapshot) => {
-      const rawMatches = snapshot.docs.map((matchDoc) => normalizeEventMatchDocument({ id: matchDoc.id, ...matchDoc.data() }));
-      setEventMatches(rawMatches.length > 0 ? syncEventMatchesBracket(rawMatches) : buildDefaultEventMatches());
-    });
-
-    return () => {
-      unsubEventTeams();
-      unsubEventMatches();
-    };
-  }, [user, activeTab]);
-
-  useEffect(() => {
-    setEventAdminSettings({ ...eventSettings });
-  }, [eventSettings]);
-
-  useEffect(() => {
-    setEventAdminTeams(cloneEventTeams(sortedEventTeams));
-  }, [sortedEventTeams]);
-
-  useEffect(() => {
-    setEventAdminMatches(syncEventMatchesBracket(eventMatches));
-  }, [eventMatches]);
-
-  useEffect(() => {
-    setEventAdminMatches((prev) => syncEventMatchesWithTeams(prev, eventAdminTeams));
-  }, [eventAdminTeams]);
-
-  useEffect(() => {
-    if (activeTab !== "event") {
-      setEventBoardScale(1);
-      return undefined;
-    }
-
-    const viewport = eventBoardViewportRef.current;
-    if (!viewport) return undefined;
-
-    const updateEventBoardScale = () => {
-      const availableWidth = viewport.clientWidth || 0;
-      const baseBoardWidth = getEventBoardWidth();
-      if (!availableWidth || !baseBoardWidth) {
-        setEventBoardScale(1);
-        return;
-      }
-      const nextScale = Math.min(1, availableWidth / baseBoardWidth);
-      setEventBoardScale((prev) => (Math.abs(prev - nextScale) < 0.01 ? prev : nextScale));
-    };
-
-    updateEventBoardScale();
-
-    let resizeObserver = null;
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(updateEventBoardScale);
-      resizeObserver.observe(viewport);
-    } else {
-      window.addEventListener("resize", updateEventBoardScale);
-    }
-
-    return () => {
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      } else {
-        window.removeEventListener("resize", updateEventBoardScale);
-      }
-    };
-  }, [activeTab]);
 
 
   useEffect(() => {
@@ -3975,356 +3288,6 @@ export default function App() {
     try { await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), { imageUrl: url || "" }); await updateLastModifiedTime(); showToast("와우 길드원 프로필 이미지가 저장되었습니다."); } catch (error) {}
   };
 
-  const handleEventSettingsFieldChange = (field, value) => {
-    setEventAdminSettings((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleFillEventTeamsDraft = () => {
-    setEventAdminTeams((prev) => {
-      if (prev.length >= 8) return prev;
-      const nextTeams = cloneEventTeams(prev);
-      while (nextTeams.length < 8) {
-        nextTeams.push(createEmptyEventTeam(nextTeams.length + 1));
-      }
-      return nextTeams.map((team, index) => ({ ...team, sortOrder: index + 1 }));
-    });
-  };
-
-  const handleRemoveEventTeamDraft = (teamId) => {
-    setEventAdminTeams((prev) => prev.filter((team) => team.id !== teamId).map((team, index) => ({ ...team, sortOrder: index + 1 })));
-    setEventRosterSelections((prev) => {
-      const next = { ...prev };
-      delete next[teamId];
-      return next;
-    });
-    setEventGuestDrafts((prev) => {
-      const next = { ...prev };
-      delete next[teamId];
-      return next;
-    });
-  };
-
-  const handleEventTeamFieldChange = (teamId, field, value) => {
-    setEventAdminTeams((prev) => prev.map((team) => {
-      if (team.id !== teamId) return team;
-      if (field === "jobClass") {
-        const nextJobClass = normalizeWowJobClassKey(value);
-        const currentDefaultName = createDefaultEventTeamName(team.jobClass);
-        const nextDefaultName = createDefaultEventTeamName(nextJobClass);
-        return {
-          ...team,
-          jobClass: nextJobClass,
-          teamName: !team.teamName || team.teamName === currentDefaultName ? nextDefaultName : team.teamName,
-          themeColor: WOW_CLASS_COLORS[nextJobClass] || "#94a3b8",
-          members: [],
-        };
-      }
-
-      if (field === "teamName") {
-        return { ...team, teamName: value };
-      }
-
-      return { ...team, [field]: value };
-    }));
-
-    if (field === "jobClass") {
-      setEventRosterSelections((prev) => ({ ...prev, [teamId]: "" }));
-      setEventGuestDrafts((prev) => ({ ...prev, [teamId]: createEmptyEventGuestForm() }));
-    }
-  };
-
-  const handleAddEventRosterMemberToTeam = (teamId) => {
-    const selectedMemberId = eventRosterSelections[teamId];
-    if (!selectedMemberId) {
-      showToast("추가할 WOW 길드원을 먼저 선택해주세요.", "error");
-      return;
-    }
-
-    const targetTeam = eventAdminTeams.find((team) => team.id === teamId);
-    if (!targetTeam) return;
-    if (!targetTeam.jobClass) {
-      showToast("팀 직업을 먼저 선택해주세요.", "error");
-      return;
-    }
-    if (targetTeam.members.length >= 5) {
-      showToast("한 팀에는 최대 5명까지만 등록할 수 있습니다.", "error");
-      return;
-    }
-
-    const selectedMember = wowRoster.find((member) => member.id === selectedMemberId);
-    if (!selectedMember) {
-      showToast("선택한 WOW 길드원을 찾지 못했습니다.", "error");
-      return;
-    }
-
-    if (normalizeWowJobClassKey(selectedMember.jobClass) !== targetTeam.jobClass) {
-      showToast("팀 직업과 같은 직업의 길드원만 추가할 수 있습니다.", "error");
-      return;
-    }
-
-    const isAlreadyAssigned = eventAdminTeams.some((team) => team.members.some((member) => member.sourceType === "wowRoster" && member.sourceMemberId === selectedMember.id));
-    if (isAlreadyAssigned) {
-      showToast("해당 WOW 길드원은 이미 다른 팀에 등록되어 있습니다.", "error");
-      return;
-    }
-
-    const nextParticipant = createEventParticipantSnapshotFromRoster(selectedMember);
-    setEventAdminTeams((prev) => prev.map((team) => (
-      team.id === teamId ? { ...team, members: [...team.members, nextParticipant].slice(0, 5) } : team
-    )));
-    setEventRosterSelections((prev) => ({ ...prev, [teamId]: "" }));
-  };
-
-  const handleEventGuestDraftChange = (teamId, field, value) => {
-    setEventGuestDrafts((prev) => ({
-      ...prev,
-      [teamId]: {
-        ...(prev[teamId] || createEmptyEventGuestForm()),
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleAddEventGuestToTeam = (teamId) => {
-    const targetTeam = eventAdminTeams.find((team) => team.id === teamId);
-    if (!targetTeam) return;
-    if (!targetTeam.jobClass) {
-      showToast("팀 직업을 먼저 선택해주세요.", "error");
-      return;
-    }
-    if (targetTeam.members.length >= 5) {
-      showToast("한 팀에는 최대 5명까지만 등록할 수 있습니다.", "error");
-      return;
-    }
-
-    const guestDraft = eventGuestDrafts[teamId] || createEmptyEventGuestForm();
-    if (!guestDraft.displayName.trim() && !guestDraft.wowNickname.trim()) {
-      showToast("이벤트 참가자의 표시 이름 또는 와우 닉네임을 입력해주세요.", "error");
-      return;
-    }
-
-    const nextGuest = createEventGuestParticipantSnapshot(guestDraft, targetTeam.jobClass);
-    setEventAdminTeams((prev) => prev.map((team) => (
-      team.id === teamId ? { ...team, members: [...team.members, nextGuest].slice(0, 5) } : team
-    )));
-    setEventGuestDrafts((prev) => ({ ...prev, [teamId]: createEmptyEventGuestForm() }));
-  };
-
-  const handleRemoveEventTeamMember = (teamId, memberId) => {
-    setEventAdminTeams((prev) => prev.map((team) => (
-      team.id === teamId ? { ...team, members: team.members.filter((member) => member.id !== memberId) } : team
-    )));
-  };
-
-  const validateEventTeams = (teams = []) => {
-    if (teams.length !== 8) return "이벤트 팀은 정확히 8개여야 합니다.";
-
-    const jobClasses = teams.map((team) => team.jobClass).filter(Boolean);
-    if (jobClasses.length !== teams.length) return "모든 팀에 직업을 지정해주세요.";
-    if (new Set(jobClasses).size !== jobClasses.length) return "팀 직업은 중복 없이 8개여야 합니다.";
-
-    const assignedWowMemberIds = new Set();
-    for (const team of teams) {
-      if (team.members.length !== 5) return `[${team.teamName || createDefaultEventTeamName(team.jobClass)}] 팀은 정확히 5명의 참가자가 필요합니다.`;
-      for (const member of team.members) {
-        if ((member.jobClass || team.jobClass) !== team.jobClass) {
-          return `[${team.teamName || createDefaultEventTeamName(team.jobClass)}] 팀의 참가 직업이 팀 직업과 맞지 않습니다.`;
-        }
-        if (member.sourceType === "wowRoster" && member.sourceMemberId) {
-          if (assignedWowMemberIds.has(member.sourceMemberId)) {
-            return "동일한 WOW 길드원을 여러 팀에 동시에 넣을 수 없습니다.";
-          }
-          assignedWowMemberIds.add(member.sourceMemberId);
-        }
-      }
-    }
-
-    return null;
-  };
-
-  const handleSaveEventSettings = async () => {
-    if (!user) return;
-    if (!eventAdminSettings.title.trim()) {
-      showToast("이벤트 제목을 입력해주세요.", "error");
-      return;
-    }
-
-    setIsEventSettingsSaving(true);
-    try {
-      const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-      const payload = {
-        ...normalizeEventSettings(eventAdminSettings),
-        eventId: CURRENT_EVENT_DOC_ID,
-        updatedAt: new Date().toISOString(),
-      };
-      await setDoc(eventDocRef, payload, { merge: true });
-      await updateLastModifiedTime();
-      showToast("이벤트 기본 설정이 저장되었습니다.");
-    } catch (error) {
-      console.error(error);
-      showToast("이벤트 기본 설정 저장 중 오류가 발생했습니다.", "error");
-    } finally {
-      setIsEventSettingsSaving(false);
-    }
-  };
-
-  const handleSaveEventTeams = async () => {
-    if (!user) return;
-
-    const normalizedTeams = eventAdminTeams
-      .map((team, index) => normalizeEventTeamDocument({ ...team, sortOrder: index + 1 }, index))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-
-    const validationMessage = validateEventTeams(normalizedTeams);
-    if (validationMessage) {
-      showToast(validationMessage, "error");
-      return;
-    }
-
-    setIsEventTeamsSaving(true);
-    try {
-      const batch = writeBatch(db);
-      const teamIds = new Set(normalizedTeams.map((team) => team.id));
-      const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-
-      eventTeams.forEach((team) => {
-        if (!teamIds.has(team.id)) {
-          batch.delete(doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "teams", team.id));
-        }
-      });
-
-      normalizedTeams.forEach((team, index) => {
-        batch.set(
-          doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "teams", team.id),
-          {
-            ...team,
-            sortOrder: index + 1,
-            updatedAt: new Date().toISOString(),
-            createdAt: team.createdAt || new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      });
-
-      batch.set(eventDocRef, { eventId: CURRENT_EVENT_DOC_ID, updatedAt: new Date().toISOString() }, { merge: true });
-      await batch.commit();
-      await updateLastModifiedTime();
-      showToast("이벤트 참가 팀 구성이 저장되었습니다.");
-    } catch (error) {
-      console.error(error);
-      showToast("이벤트 팀 저장 중 오류가 발생했습니다.", "error");
-    } finally {
-      setIsEventTeamsSaving(false);
-    }
-  };
-
-  const handleResetEventMatchesDraft = () => {
-    setEventAdminMatches(buildDefaultEventMatches());
-  };
-
-  const handleEventMatchFieldChange = (matchId, field, value) => {
-    setEventAdminMatches((prev) => {
-      const nextMatches = prev.map((match) => {
-        if (match.id !== matchId) return match;
-        const nextMatch = { ...match, [field]: value };
-        if (field === "teamAId" || field === "teamBId") {
-          nextMatch.status = "scheduled";
-          nextMatch.teamAScore = "";
-          nextMatch.teamBScore = "";
-          nextMatch.winnerTeamId = "";
-        }
-        if (field === "winnerTeamId") {
-          nextMatch.status = value ? "finished" : match.status === "finished" ? "scheduled" : match.status;
-        }
-        if (field === "status" && value === "scheduled") {
-          nextMatch.winnerTeamId = "";
-          nextMatch.teamAScore = "";
-          nextMatch.teamBScore = "";
-        }
-        if (field === "status" && value === "live") {
-          nextMatch.winnerTeamId = "";
-        }
-        return nextMatch;
-      });
-      return syncEventMatchesWithTeams(nextMatches, eventAdminTeams);
-    });
-  };
-
-  const handleSaveEventMatches = async () => {
-    if (!user) return;
-
-    const syncedMatches = syncEventMatchesWithTeams(eventAdminMatches, eventAdminTeams);
-    const openingMatches = syncedMatches.filter((match) => match.round === "opening");
-    const openingTeamIds = openingMatches.flatMap((match) => [match.teamAId, match.teamBId]).filter(Boolean);
-
-    if (openingMatches.length !== 4) {
-      showToast("8강전 4경기가 모두 준비되어야 합니다.", "error");
-      return;
-    }
-
-    if (openingMatches.some((match) => !match.teamAId || !match.teamBId)) {
-      showToast("8강전 4경기의 양쪽 팀을 모두 지정해주세요.", "error");
-      return;
-    }
-
-    if (openingTeamIds.length !== 8 || new Set(openingTeamIds).size !== 8) {
-      showToast("8강전에는 중복 없이 정확히 8개의 팀이 배정되어야 합니다.", "error");
-      return;
-    }
-
-    for (const match of syncedMatches) {
-      const participantIds = [match.teamAId, match.teamBId].filter(Boolean);
-      if (match.status === "finished" && (!match.winnerTeamId || !participantIds.includes(match.winnerTeamId))) {
-        showToast(`${match.label}의 승리 팀을 올바르게 지정해주세요.`, "error");
-        return;
-      }
-    }
-
-    setIsEventMatchesSaving(true);
-    try {
-      const batch = writeBatch(db);
-      const eventDocRef = doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID);
-      const currentRound = getEventCurrentRoundLabel(syncedMatches);
-      const championTeamId = getEventResolvedChampionTeamId(syncedMatches);
-
-      EVENT_LEGACY_MATCH_IDS.forEach((legacyMatchId) => {
-        batch.delete(doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "matches", legacyMatchId));
-      });
-
-      syncedMatches.forEach((match) => {
-        batch.set(
-          doc(db, "artifacts", appId, "public", "data", "events", CURRENT_EVENT_DOC_ID, "matches", match.id),
-          {
-            ...match,
-            updatedAt: new Date().toISOString(),
-            createdAt: match.createdAt || new Date().toISOString(),
-          },
-          { merge: true }
-        );
-      });
-
-      batch.set(
-        eventDocRef,
-        {
-          eventId: CURRENT_EVENT_DOC_ID,
-          currentRound,
-          championTeamId,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true }
-      );
-
-      await batch.commit();
-      await updateLastModifiedTime();
-      showToast("이벤트 대진표와 경기 결과가 저장되었습니다.");
-    } catch (error) {
-      console.error(error);
-      showToast("이벤트 대진표 저장 중 오류가 발생했습니다.", "error");
-    } finally {
-      setIsEventMatchesSaving(false);
-    }
-  };
-
   // ★ 경기 삭제 시 유령 선수 제거 로직 ★
   const confirmDeleteMatch = async () => {
     if (!matchToDelete || !user) return;
@@ -4471,23 +3434,12 @@ export default function App() {
     setEditIsPublished(match.isPublished !== false);
 
     if (match.matchType === "team") {
-      const teamsByRank = {};
-      (match.results || []).forEach((r) => {
-        if (!teamsByRank[r.rank]) teamsByRank[r.rank] = { 
-           id: Date.now() + Math.random(), 
-           rank: r.rank, 
-           scoreChange: r.scoreChange, 
-           players: [],
-           fundingRatio: r.fundingRatio || "",
-           fundingAmount: r.fundingAmount || ""
-        };
-        teamsByRank[r.rank].players.push(r.playerName);
-      });
-      setEditTeamResults(Object.values(teamsByRank).sort((a,b) => a.rank - b.rank));
+      const normalizedTeams = getNormalizedTeamMatchResults(match);
+      setEditTeamResults(normalizedTeams.length > 0 ? normalizedTeams : createDefaultTeamMatchResults());
       setEditIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
     } else {
       setEditIndividualResults([...(match.results || [])].map(r => ({...r, fundingRatio: r.fundingRatio || "", fundingAmount: r.fundingAmount || ""})));
-      setEditTeamResults([{ id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" }, { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" }]);
+      setEditTeamResults(createDefaultTeamMatchResults());
     }
   };
 
@@ -4496,6 +3448,7 @@ export default function App() {
     if (!editGameName.trim()) return showToast("게임 이름을 입력해주세요.", "error");
 
     let finalResults = [];
+    let nextTeamResults = [];
     if (editMatchMode === "individual") {
       finalResults = editIndividualResults
         .filter((r) => r.playerName.trim() !== "")
@@ -4506,18 +3459,9 @@ export default function App() {
            ...(editHasFunding ? { fundingRatio: Number(r.fundingRatio) || 0, fundingAmount: Number(r.fundingAmount) || 0 } : {})
         }));
     } else {
-      editTeamResults.forEach((team) => {
-        team.players.forEach((pName) => {
-          if (pName.trim() !== "") {
-            finalResults.push({ 
-               playerName: pName.trim(), 
-               rank: team.rank, 
-               scoreChange: team.scoreChange,
-               ...(editHasFunding ? { fundingRatio: Number(team.fundingRatio) || 0, fundingAmount: Number(team.fundingAmount) || 0 } : {})
-            });
-          }
-        });
-      });
+      const teamPayload = buildTeamMatchPayload(editTeamResults, editHasFunding);
+      finalResults = teamPayload.results;
+      nextTeamResults = teamPayload.teamResults;
     }
 
     if (finalResults.length === 0) return showToast("최소 1명 이상의 유효한 참가자를 입력해주세요.", "error");
@@ -4542,6 +3486,7 @@ export default function App() {
         hasFunding: editHasFunding,
         totalFunding: editHasFunding ? Number(editTotalFunding) || 0 : 0,
         results: finalResults,
+        teamResults: editMatchMode === "team" ? nextTeamResults : [],
         isPublished: editIsPublished,
         publishedAt: editIsPublished ? (matchToEdit.originalMatch.publishedAt || new Date().toISOString()) : null,
         updatedAt: new Date().toISOString()
@@ -4583,30 +3528,37 @@ export default function App() {
           </h3>
           {publishedMatches.length > 0 ? (
             <div className="space-y-4">
-              {publishedMatches.slice(0, 3).map((match) => (
-                <button
-                  key={match.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedMatchId(match.id);
-                    navigateTo("matches");
-                  }}
-                  className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
-                >
-                  <div>
-                    <div className="flex items-center">
-                      {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
-                      <p className="font-bold text-white text-lg">{match.gameName}</p>
+              {publishedMatches.slice(0, 3).map((match) => {
+                const firstPlaceName = match.results?.find((r) => r.rank === 1)?.playerName || "";
+                const firstPlaceLabel = match.matchType === "team" && firstPlaceName
+                  ? `${firstPlaceName} 팀`
+                  : firstPlaceName;
+
+                return (
+                  <button
+                    key={match.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMatchId(match.id);
+                      navigateTo("matches");
+                    }}
+                    className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
+                  >
+                    <div>
+                      <div className="flex items-center">
+                        {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
+                        <p className="font-bold text-white text-lg">{match.gameName}</p>
+                      </div>
+                      <p className="text-sm text-gray-400 mt-1">{match.date}</p>
                     </div>
-                    <p className="text-sm text-gray-400 mt-1">{match.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-base text-yellow-400 font-bold">
-                      1위: {match.results?.find((r) => r.rank === 1)?.playerName}
-                    </p>
-                  </div>
-                </button>
-              ))}
+                    <div className="text-right">
+                      <p className="text-base text-yellow-400 font-bold">
+                        1위: {firstPlaceLabel}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <p className="text-gray-400 text-lg">최근 경기가 없습니다.</p>
@@ -4648,6 +3600,11 @@ export default function App() {
     const todayStr = new Date().toISOString().split('T')[0];
     const storageData = JSON.parse(localStorage.getItem('wak_vleague_hearts_v1') || '{"date": "", "votes": []}');
     const votesToday = storageData.date === todayStr ? storageData.votes : [];
+    const getPlayerSortButtonClasses = (isActive) => (
+      isActive
+        ? "bg-purple-500/15 text-purple-200 border-purple-400/40 shadow-[0_0_18px_rgba(168,85,247,0.12)]"
+        : "bg-gray-900/80 text-gray-300 border-gray-700 hover:border-purple-500/40 hover:text-white"
+    );
 
     return (
       <div className="space-y-8">
@@ -4668,60 +3625,120 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-          {[...players].sort((a,b) => a.name.localeCompare(b.name)).map(player => {
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handlePlayerCardSortChange("name")}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${getPlayerSortButtonClasses(playerCardSort.key === "name")}`}
+            >
+              이름순
+              {playerCardSort.key === "name" ? (
+                playerCardSort.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+              ) : (
+                <span className="text-xs text-gray-500">기본</span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePlayerCardSortChange("points")}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${getPlayerSortButtonClasses(playerCardSort.key === "points")}`}
+            >
+              포인트수
+              {playerCardSort.key === "points" ? (
+                playerCardSort.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+              ) : (
+                <Trophy className="w-3.5 h-3.5 text-gray-500" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePlayerCardSortChange("hearts")}
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition ${getPlayerSortButtonClasses(playerCardSort.key === "hearts")}`}
+            >
+              응원수
+              {playerCardSort.key === "hearts" ? (
+                playerCardSort.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
+              ) : (
+                <Heart className="w-3.5 h-3.5 text-gray-500" />
+              )}
+            </button>
+          </div>
+
+          <div className="relative w-full xl:w-96">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={playerCardSearchInput}
+              onChange={(e) => setPlayerCardSearchInput(e.target.value)}
+              placeholder="선수명으로 검색"
+              className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-3.5 xl:gap-4">
+          {filteredPlayersForGallery.map((player) => {
             const hasVotedToday = votesToday.includes(player.name);
-            const broadcastLink = player.broadcastUrl?.trim() 
-              ? player.broadcastUrl 
+            const broadcastLink = player.broadcastUrl?.trim()
+              ? player.broadcastUrl
               : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(player.name)}`;
 
             return (
-              <div key={player.id} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg hover:border-purple-500/50 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col">
-                <div className="p-4 flex-1 flex flex-col items-center cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-700 border-2 border-gray-600 mb-3 overflow-hidden group-hover:scale-110 group-hover:border-purple-400 transition-all duration-300 shadow-md">
+              <div key={player.id} className="bg-gradient-to-b from-gray-800 to-gray-800/95 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:-translate-y-1 hover:border-purple-500/50 hover:shadow-[0_0_18px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col min-h-[248px]">
+                <div className="p-3.5 md:p-4 flex-1 flex flex-col items-center cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
+                  <div className="w-16 h-16 md:w-[4.5rem] md:h-[4.5rem] rounded-full bg-gray-700 border-2 border-gray-600 mb-3 overflow-hidden group-hover:scale-110 group-hover:border-purple-400 transition-all duration-300 shadow-md">
                     <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
                   </div>
-                  <h3 className="font-bold text-white text-base md:text-lg group-hover:text-purple-400 transition-colors">{player.name}</h3>
-                  <span className="text-xs font-bold text-green-400 bg-green-900/20 px-2.5 py-0.5 rounded mt-1.5 border border-green-800/30">{player.points} pt</span>
+                  <h3 className="font-bold text-white text-sm md:text-[15px] text-center break-all leading-tight group-hover:text-purple-400 transition-colors">{player.name}</h3>
+                  <span className="text-xs font-bold text-green-400 bg-green-900/20 px-2.5 py-0.5 rounded-full mt-2 border border-green-800/30">{player.points} pt</span>
                 </div>
-                <div className="px-3 pb-4 space-y-2 mt-auto">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCheerPlayer(player.id, player.name); }}
-                      disabled={cheeringPlayerId === player.id}
-                      className={`w-full flex items-center justify-center py-2 rounded-lg font-bold text-xs transition-all duration-300 transform active:scale-95 ${
-                        cheeringPlayerId === player.id
-                          ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed" 
-                          : hasVotedToday
-                            ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
-                            : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
-                      }`}
-                    >
-                      {cheeringPlayerId === player.id ? (
-                        <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-gray-400" /> 처리 중...</>
-                      ) : (
-                        <>
-                          <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
-                          {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
-                        </>
-                      )}
-                    </button>
-                    <a
-                      href={broadcastLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={e => e.stopPropagation()}
-                      className="w-full flex items-center justify-center py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"
-                    >
-                      📺 방송국 가기
-                    </a>
+                <div className="px-3 pb-3.5 space-y-2 mt-auto">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleCheerPlayer(player.id, player.name); }}
+                    disabled={cheeringPlayerId === player.id}
+                    className={`w-full flex items-center justify-center py-2.5 rounded-xl font-bold text-xs transition-all duration-300 transform active:scale-95 ${
+                      cheeringPlayerId === player.id
+                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed"
+                        : hasVotedToday
+                          ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
+                          : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
+                    }`}
+                  >
+                    {cheeringPlayerId === player.id ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-gray-400" /> 처리 중...</>
+                    ) : (
+                      <>
+                        <Heart className={`w-3.5 h-3.5 mr-1 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
+                        {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
+                      </>
+                    )}
+                  </button>
+                  <a
+                    href={broadcastLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="w-full flex items-center justify-center py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"
+                  >
+                    📺 방송국 가기
+                  </a>
                 </div>
               </div>
-            )
+            );
           })}
+
           {players.length === 0 && (
             <div className="col-span-full py-16 text-center text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p>아직 등록된 선수가 없습니다.</p>
+            </div>
+          )}
+
+          {players.length > 0 && filteredPlayersForGallery.length === 0 && (
+            <div className="col-span-full py-16 text-center text-gray-500">
+              <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>검색 결과가 없습니다.</p>
             </div>
           )}
         </div>
@@ -4731,18 +3748,26 @@ export default function App() {
 
   const renderMatchesView = () => (
     <div className="space-y-8">
-      <h2 className="text-3xl font-bold text-white flex items-center mb-4">
-        <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
-      </h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h2 className="text-3xl font-bold text-white flex items-center">
+          <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
+        </h2>
+        <div className="relative w-full md:w-80">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={matchSearchInput}
+            onChange={(e) => setMatchSearchInput(e.target.value)}
+            placeholder="게임명 또는 참가 선수 검색"
+            className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+          />
+        </div>
+      </div>
       <div className="grid gap-6">
-        {publishedMatches.map((match) => {
+        {filteredPublishedMatches.map((match) => {
           if (match.matchType === "team") {
-            const teamsByRank = {};
-            (match.results || []).forEach((r) => {
-              if (!teamsByRank[r.rank]) teamsByRank[r.rank] = { rank: r.rank, scoreChange: r.scoreChange, players: [] };
-              teamsByRank[r.rank].players.push(r.playerName);
-            });
-            const sortedTeams = Object.values(teamsByRank).sort((a, b) => a.rank - b.rank);
+            const sortedTeams = getNormalizedTeamMatchResults(match);
+            const setScoreLabel = getTeamMatchSetScoreLabel(sortedTeams);
 
             return (
               <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
@@ -4753,6 +3778,11 @@ export default function App() {
                       <span className="bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
                         <Users className="w-4 h-4 mr-1.5" /> 팀전
                       </span>
+                      {setScoreLabel && (
+                        <span className="bg-sky-900/40 text-sky-200 border border-sky-700/50 px-3 py-1 rounded text-sm font-bold shadow-sm">
+                          세트 결과 {setScoreLabel}
+                        </span>
+                      )}
                       {match.hasFunding && (
                         <button 
                           onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
@@ -4770,7 +3800,14 @@ export default function App() {
                   {sortedTeams.map((team, idx) => (
                     <div key={idx} className={`p-5 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
                       <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
-                        <span className={`text-lg font-bold ${team.rank === 1 ? "text-yellow-400" : "text-gray-300"}`}>{team.rank}위 팀</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-lg font-bold ${team.rank === 1 ? "text-yellow-400" : "text-gray-300"}`}>{team.rank}위 팀</span>
+                          {team.setWins !== "" && team.setWins !== null && team.setWins !== undefined && (
+                            <span className="px-2.5 py-1 rounded text-xs font-black border border-sky-500/30 bg-sky-500/10 text-sky-200">
+                              {team.setWins}승
+                            </span>
+                          )}
+                        </div>
                         <span className={`text-sm font-bold px-3 py-1 rounded ${team.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
                           {team.scoreChange > 0 ? "+" : ""}{team.scoreChange} pt
                         </span>
@@ -4798,9 +3835,8 @@ export default function App() {
                      </div>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {sortedTeams.map((team, idx) => {
-                           const firstPlayerResult = match.results.find(r => r.playerName === team.players[0]);
-                           const fAmount = firstPlayerResult?.fundingAmount || 0;
-                           const fRatio = firstPlayerResult?.fundingRatio || 0;
+                           const fAmount = Number(team.fundingAmount) || 0;
+                           const fRatio = Number(team.fundingRatio) || 0;
                            return (
                              <div key={idx} className="flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm">
                                 <div className="flex justify-between items-center mb-3 border-b border-gray-700/80 pb-3">
@@ -4895,6 +3931,9 @@ export default function App() {
           );
         })}
         {publishedMatches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
+        {publishedMatches.length > 0 && filteredPublishedMatches.length === 0 && (
+          <p className="text-gray-400 text-center py-12 text-lg">검색 결과가 없습니다.</p>
+        )}
       </div>
     </div>
   );
@@ -5610,1465 +4649,6 @@ export default function App() {
           </div>
         ) : (
           <div className="bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400">선택한 군에 해당하는 WOW 레이드 기록이 없습니다.</div>
-        )}
-      </div>
-    );
-  };
-
-  const renderEventView = () => {
-    const bracketSections = getEventBracketSectionDefsByOrder(EVENT_PUBLIC_SECTION_ORDER);
-    const publicEventMatchMap = publicEventMatches.reduce((acc, match) => {
-      acc[match.id] = match;
-      return acc;
-    }, {});
-    const championTeamId = getEventResolvedChampionTeamId(publicEventMatches) || eventSettings.championTeamId;
-    const championTeam = eventTeamMap[championTeamId] || null;
-    const boardWidth = getEventBoardWidth();
-    const boardHeight = EVENT_BOARD_LAYOUT.boardHeight + (EVENT_BOARD_LAYOUT.paddingY * 2);
-    const scaledBoardWidth = boardWidth * eventBoardScale;
-    const scaledBoardHeight = boardHeight * eventBoardScale;
-    const shouldRenderPublicBracketMatch = (match) => {
-      if (!match) return false;
-      if (match.id !== "grand_final_2") return true;
-      return !!match.teamAId || !!match.teamBId || !!match.winnerTeamId || match.status !== "scheduled";
-    };
-    const visiblePublicBoardMatches = publicEventMatches.filter(shouldRenderPublicBracketMatch);
-    const hiddenPublicCardMetaTexts = new Set([
-      ...EVENT_STATUS_OPTIONS.map((option) => option.label),
-      "자동 대기",
-      "배정 대기",
-    ]);
-    const sanitizePublicEventCardMeta = (value = "") => {
-      const normalizedValue = `${value || ""}`.trim();
-      return hiddenPublicCardMetaTexts.has(normalizedValue) ? "" : normalizedValue;
-    };
-
-    const getEventBracketSlotStyle = (team) => {
-      const hex = WOW_CLASS_COLORS[team?.jobClass] || "#94a3b8";
-      let r = 148;
-      let g = 163;
-      let b = 184;
-
-      if (hex.length === 7) {
-        r = parseInt(hex.slice(1, 3), 16);
-        g = parseInt(hex.slice(3, 5), 16);
-        b = parseInt(hex.slice(5, 7), 16);
-      }
-
-      return {
-        accentColor: hex,
-        borderColor: `rgba(${r}, ${g}, ${b}, 0.66)`,
-        background: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.42), rgba(${r}, ${g}, ${b}, 0.18) 42%, rgba(15,23,42,0.96) 100%)`,
-        boxShadow: `inset 0 1px 0 rgba(255,255,255,0.06), 0 0 22px rgba(${r}, ${g}, ${b}, 0.2)`,
-        labelColor: `rgba(${r}, ${g}, ${b}, 0.98)`,
-        subLabelColor: `rgba(${r}, ${g}, ${b}, 0.78)`,
-        accentGlow: `0 0 16px rgba(${r}, ${g}, ${b}, 0.32)`,
-        scoreBorderColor: `rgba(${r}, ${g}, ${b}, 0.58)`,
-        scoreBackground: `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.34), rgba(15,23,42,0.96))`,
-      };
-    };
-
-    const getEventMatchTitleTone = (match = {}) => {
-      const toneKey = match?.accent === "cross" ? "cross" : (match?.round || match?.accent || "neutral");
-      const toneMap = {
-        opening: {
-          color: "#7dd3fc",
-          textShadow: "0 0 18px rgba(56,189,248,0.34), 0 0 8px rgba(125,211,252,0.28)",
-        },
-        winner: {
-          color: "#fcd34d",
-          textShadow: "0 0 18px rgba(251,191,36,0.4), 0 0 8px rgba(245,158,11,0.28)",
-        },
-        loser: {
-          color: "#d8b4fe",
-          textShadow: "0 0 18px rgba(168,85,247,0.38), 0 0 8px rgba(216,180,254,0.26)",
-        },
-        placement: {
-          color: "#86efac",
-          textShadow: "0 0 18px rgba(74,222,128,0.34), 0 0 8px rgba(134,239,172,0.24)",
-        },
-        cross: {
-          color: "#93c5fd",
-          textShadow: "0 0 18px rgba(96,165,250,0.34), 0 0 8px rgba(147,197,253,0.24)",
-        },
-        challenge: {
-          color: "#fdba74",
-          textShadow: "0 0 18px rgba(251,146,60,0.38), 0 0 8px rgba(253,186,116,0.24)",
-        },
-        grandFinal: {
-          color: "#fda4af",
-          textShadow: "0 0 18px rgba(248,113,113,0.4), 0 0 8px rgba(253,164,175,0.24)",
-        },
-        neutral: {
-          color: "#e2e8f0",
-          textShadow: "0 0 16px rgba(148,163,184,0.22)",
-        },
-      };
-
-      return toneMap[toneKey] || toneMap.neutral;
-    };
-
-    const renderEventBracketTeamRow = ({ team, score, isWinner, mobile = false }) => {
-      const toneStyle = team ? getEventBracketSlotStyle(team) : null;
-      const isPending = !team;
-      const defaultTeamName = team?.jobClass ? createDefaultEventTeamName(team.jobClass) : "";
-      const primaryLabel = team?.jobClass || team?.teamName || "대진 대기중";
-      const shouldShowTeamName = !!team?.jobClass && !!team?.teamName && team.teamName !== defaultTeamName && team.teamName !== team.jobClass;
-
-      return (
-        <div
-          className={`relative overflow-hidden flex items-center justify-between gap-1.5 border transition ${
-            mobile ? "rounded-2xl px-3.5 py-2.5" : "rounded-[13px] px-2 py-1"
-          } ${
-            isWinner ? "ring-1 ring-amber-200/35" : ""
-          } ${isPending ? "border-dashed" : ""}`}
-          style={{
-            borderColor: isPending ? "rgba(148, 163, 184, 0.4)" : toneStyle.borderColor,
-            background: isPending
-              ? "linear-gradient(135deg, rgba(15,23,42,0.84), rgba(30,41,59,0.72))"
-              : toneStyle.background,
-            boxShadow: isPending ? "inset 0 1px 0 rgba(255,255,255,0.03)" : toneStyle.boxShadow,
-          }}
-        >
-          {!isPending ? (
-            <span
-              className={`absolute left-0 top-0 bottom-0 ${mobile ? "w-1.5" : "w-1"}`}
-              style={{
-                backgroundColor: toneStyle.accentColor,
-                boxShadow: toneStyle.accentGlow,
-              }}
-            />
-          ) : null}
-          <div className="min-w-0 flex flex-1 items-center gap-2">
-            <span
-              className={`shrink-0 rounded-full border border-white/15 ${
-                mobile ? "h-3 w-3" : "h-2.5 w-2.5"
-              }`}
-              style={{
-                backgroundColor: isPending ? "rgba(148, 163, 184, 0.9)" : toneStyle.accentColor,
-                boxShadow: isPending ? "none" : `0 0 12px ${toneStyle.accentColor}66`,
-              }}
-            />
-            <div className="min-w-0 flex-1">
-              <div
-                className={`truncate font-black ${mobile ? "text-[15px] leading-tight" : "text-[12px] leading-none"}`}
-                style={{
-                  color: isPending ? "rgba(255,255,255,0.92)" : toneStyle.labelColor,
-                  textShadow: isPending ? "none" : toneStyle.accentGlow,
-                }}
-              >
-                {primaryLabel}
-              </div>
-              {shouldShowTeamName ? (
-                <div
-                  className={`truncate font-semibold ${mobile ? "text-xs" : "text-[8px] leading-none mt-0.5"}`}
-                  style={{
-                    color: isPending ? "rgba(255,255,255,0.68)" : toneStyle.subLabelColor,
-                  }}
-                >
-                  {team.teamName}
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <div
-            className={`shrink-0 rounded-full border text-right font-black ${
-              mobile ? "min-w-[2.35rem] px-2.5 py-1.5 text-[17px]" : "min-w-[1.65rem] px-1.5 py-0.75 text-[12px] leading-none"
-            }`}
-            style={{
-              borderColor: isPending ? "rgba(148, 163, 184, 0.35)" : toneStyle.scoreBorderColor,
-              background: isPending
-                ? "linear-gradient(135deg, rgba(51,65,85,0.42), rgba(15,23,42,0.92))"
-                : toneStyle.scoreBackground,
-              color: isPending ? "rgba(255,255,255,0.96)" : toneStyle.labelColor,
-              boxShadow: isPending ? "none" : toneStyle.accentGlow,
-            }}
-          >
-            {score === "" ? "-" : score}
-          </div>
-        </div>
-      );
-    };
-
-    const renderEventBracketMatchTitle = (match, { mobile = false } = {}) => {
-      if (!match) return null;
-      const titleTone = getEventMatchTitleTone(match);
-      const isLongTitle = (match.label || "").length >= 15;
-      const isGrandFinalTitle = match.round === "grandFinal";
-
-      return (
-        <div
-          title={match.label}
-          className={`text-center font-black leading-tight tracking-tight break-keep ${
-            mobile
-              ? (isLongTitle ? "text-base" : "text-[1.35rem]")
-              : (isLongTitle ? "text-[15px]" : "text-[19px]")
-          }`}
-          style={{
-            color: titleTone.color,
-            textShadow: titleTone.textShadow,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          <span className={`inline-flex items-center justify-center ${mobile ? "gap-2.5" : "gap-2"}`}>
-            {isGrandFinalTitle ? (
-              <Crown
-                className={`shrink-0 ${mobile ? "h-5 w-5" : "h-[18px] w-[18px]"} text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.72)]`}
-              />
-            ) : null}
-            <span>{match.label}</span>
-          </span>
-        </div>
-      );
-    };
-
-    const renderEventBracketMatchCard = (match, { mobile = false } = {}) => {
-      if (!match) return null;
-
-      const teamA = eventTeamMap[match.teamAId];
-      const teamB = eventTeamMap[match.teamBId];
-      const isGrandFinalCard = match.round === "grandFinal";
-      const accentStyle = getEventMatchAccentStyle(
-        isGrandFinalCard ? "grandFinal" : (match.round === "opening" ? "opening" : "neutral")
-      );
-      const grandFinalCardStyle = isGrandFinalCard
-        ? {
-            borderColor: "rgba(252, 211, 77, 0.46)",
-            background: "radial-gradient(circle at top, rgba(251,191,36,0.34), transparent 34%), linear-gradient(155deg, rgba(127,29,29,0.98) 0%, rgba(153,27,27,0.96) 24%, rgba(154,52,18,0.94) 52%, rgba(120,53,15,0.92) 70%, rgba(15,23,42,0.94) 100%)",
-            boxShadow: "0 0 38px rgba(248,113,113,0.26), 0 0 24px rgba(251,191,36,0.2), 0 18px 36px rgba(2,6,23,0.42)",
-          }
-        : null;
-      const displayDate = sanitizePublicEventCardMeta(match.displayDate);
-      const shouldRenderLargePendingChip = !teamA && !teamB;
-
-      return (
-        <article
-          className={`relative flex flex-col overflow-hidden border backdrop-blur-sm ${
-            isGrandFinalCard
-              ? mobile
-                ? "min-h-[172px] rounded-[28px] px-4 pb-4 pt-4"
-                : "rounded-[22px] px-3 pb-3 pt-3"
-              : "shadow-[0_14px_28px_rgba(2,6,23,0.26)]"
-          } ${
-            mobile ? "w-full" : ""
-          } ${
-            isGrandFinalCard ? "" : (mobile ? "rounded-[22px] p-3" : "rounded-[16px] p-2")
-          }`}
-          style={{
-            width: mobile ? "100%" : getEventBoardCardWidth(match.id),
-            height: mobile ? "auto" : getEventBoardCardHeight(match.id),
-            borderColor: isGrandFinalCard ? grandFinalCardStyle.borderColor : accentStyle.borderColor,
-            background: isGrandFinalCard ? grandFinalCardStyle.background : accentStyle.background,
-            boxShadow: isGrandFinalCard ? grandFinalCardStyle.boxShadow : undefined,
-          }}
-        >
-          {isGrandFinalCard ? (
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.16),_transparent_72%)] opacity-80" />
-          ) : null}
-          {displayDate ? (
-            <div className={`truncate font-bold ${isGrandFinalCard ? "text-amber-100/90" : "text-rose-200"} ${mobile ? "text-xs" : "text-[8px] leading-none"}`}>{displayDate}</div>
-          ) : null}
-
-          {shouldRenderLargePendingChip ? (
-            <div
-              className={`relative flex flex-1 items-center justify-center overflow-hidden rounded-[14px] border border-dashed ${
-                displayDate ? "mt-2" : ""
-              } ${
-                mobile
-                  ? (isGrandFinalCard ? "min-h-[102px] px-4 py-4" : "min-h-[88px] px-4 py-4")
-                  : (isGrandFinalCard ? "min-h-0 px-3 py-3.5" : "min-h-0 px-3 py-3")
-              }`}
-              style={{
-                borderColor: isGrandFinalCard ? "rgba(252,211,77,0.24)" : "rgba(148, 163, 184, 0.32)",
-                background: isGrandFinalCard
-                  ? "linear-gradient(135deg, rgba(120,53,15,0.28), rgba(15,23,42,0.84))"
-                  : "linear-gradient(135deg, rgba(15,23,42,0.82), rgba(30,41,59,0.68))",
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
-              }}
-            >
-              <div
-                aria-hidden="true"
-                className={`font-black tracking-[0.12em] text-transparent ${
-                  mobile ? "text-base" : "text-[13px]"
-                }`}
-                style={{
-                  color: "rgba(255,255,255,0.78)",
-                }}
-              >
-                대진 대기중
-              </div>
-            </div>
-          ) : (
-            <div className={`${displayDate ? (mobile ? "mt-3" : "mt-1.5") : ""} ${mobile ? "space-y-2" : "space-y-1"}`}>
-              {renderEventBracketTeamRow({
-                team: teamA,
-                score: match.teamAScore,
-                isWinner: !!teamA && match.winnerTeamId === teamA.id,
-                mobile,
-              })}
-              <div className={`flex items-center ${mobile ? "gap-2 px-1" : "gap-1 px-0"}`}>
-                <div className="h-px flex-1 bg-white/12" />
-                <span className={`font-black tracking-[0.2em] text-white/45 ${mobile ? "text-[10px]" : "text-[7px]"}`}>VS</span>
-                <div className="h-px flex-1 bg-white/12" />
-              </div>
-              {renderEventBracketTeamRow({
-                team: teamB,
-                score: match.teamBScore,
-                isWinner: !!teamB && match.winnerTeamId === teamB.id,
-                mobile,
-              })}
-            </div>
-          )}
-        </article>
-      );
-    };
-
-    const renderEventChampionCard = (team) => (
-      <div className="relative overflow-hidden rounded-[28px] border border-amber-200/20 bg-[radial-gradient(circle_at_top,_rgba(254,240,138,0.28),_transparent_48%),linear-gradient(180deg,_rgba(120,53,15,0.98),_rgba(92,37,7,0.92)_36%,_rgba(15,23,42,0.96))] p-5 shadow-[0_0_34px_rgba(251,191,36,0.18),0_18px_38px_rgba(120,53,15,0.22)]">
-        <div className="relative flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-amber-100 uppercase">
-          <Crown className="h-3.5 w-3.5 text-amber-300" />
-          Champion
-        </div>
-        {team ? (
-          <div className="mt-4 flex flex-col items-center text-center">
-            <div className="w-full min-w-0">
-              <div className="text-2xl font-black text-white">{team.teamName}</div>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                <span className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black" style={getJobBadgeStyle(team.jobClass)}>
-                  {team.jobClass}
-                </span>
-                <span className="rounded-full border border-amber-100/20 bg-amber-300/10 px-3 py-1 text-[11px] font-black text-amber-100">
-                  우승 확정
-                </span>
-              </div>
-            </div>
-            <div className="mt-5 flex w-full flex-wrap items-start justify-center gap-4 sm:gap-5">
-              {team.members.slice(0, 5).map((member) => (
-                <div key={member.id} className="flex w-[84px] flex-col items-center text-center sm:w-[96px]">
-                  <img
-                    src={getEventMemberAvatar(member)}
-                    onError={(e) => {
-                      e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
-                    }}
-                    alt={member.displayName || member.wowNickname}
-                    className="h-16 w-16 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover shadow-[0_0_18px_rgba(251,191,36,0.16)] sm:h-[4.5rem] sm:w-[4.5rem]"
-                  />
-                  <div className="mt-2 w-full text-[11px] font-black leading-tight text-amber-50/90 break-keep sm:text-xs">
-                    {member.displayName || member.wowNickname || "참가자"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="mt-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-400/10">
-              <Trophy className="h-5 w-5 text-amber-300" />
-            </div>
-            <div>
-              <div className="text-lg font-black text-white">우승팀 대기중</div>
-              <div className="text-xs text-amber-100/70">최종 결승 결과가 반영되면 자동으로 표시됩니다.</div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-
-    const EVENT_BOARD_TEAM_ROW_RATIO_MAP = {
-      teamA: 0.39,
-      teamB: 0.72,
-    };
-
-    const getEventBoardMatchRect = (matchId = "") => {
-      const left = getEventBoardMatchLeft(matchId);
-      const top = getEventBoardMatchTop(matchId);
-      const width = getEventBoardCardWidth(matchId);
-      const height = getEventBoardCardHeight(matchId);
-
-      return {
-        left,
-        top,
-        width,
-        height,
-        right: left + width,
-        bottom: top + height,
-        centerX: left + (width / 2),
-        centerY: top + (height / 2),
-      };
-    };
-
-    const getEventBoardTeamSlotCenterY = (matchId = "", slot = "teamA") => {
-      const rect = getEventBoardMatchRect(matchId);
-      const ratio = EVENT_BOARD_TEAM_ROW_RATIO_MAP[slot] ?? 0.5;
-      return rect.top + (rect.height * ratio);
-    };
-
-    const getEventBoardPortPoint = (matchId = "", port = "right", slot = "teamA") => {
-      const rect = getEventBoardMatchRect(matchId);
-      switch (port) {
-        case "top":
-          return { x: rect.centerX, y: rect.top };
-        case "bottom":
-          return { x: rect.centerX, y: rect.bottom };
-        case "left":
-          return { x: rect.left, y: getEventBoardTeamSlotCenterY(matchId, slot) };
-        case "right":
-          return { x: rect.right, y: getEventBoardTeamSlotCenterY(matchId, slot) };
-        default:
-          return { x: rect.centerX, y: rect.centerY };
-      }
-    };
-
-    const buildEventBoardPath = (points = []) => {
-      const normalizedPoints = points.filter(Boolean).filter((point, index, array) => (
-        index === 0 || point.x !== array[index - 1].x || point.y !== array[index - 1].y
-      ));
-      if (normalizedPoints.length === 0) return "";
-
-      const [firstPoint, ...restPoints] = normalizedPoints;
-      return restPoints.reduce((path, point) => `${path} L ${point.x} ${point.y}`, `M ${firstPoint.x} ${firstPoint.y}`);
-    };
-
-    const buildMergeConnectionPath = (fromId, toId, direction = "up") => {
-      const sourceRect = getEventBoardMatchRect(fromId);
-      const targetRect = getEventBoardMatchRect(toId);
-      const startPoint = direction === "up"
-        ? { x: sourceRect.centerX, y: sourceRect.top }
-        : { x: sourceRect.centerX, y: sourceRect.bottom };
-      const endPoint = direction === "up"
-        ? { x: targetRect.centerX, y: targetRect.bottom }
-        : { x: targetRect.centerX, y: targetRect.top };
-      const sharedLaneY = (startPoint.y + endPoint.y) / 2;
-
-      return buildEventBoardPath([
-        startPoint,
-        { x: startPoint.x, y: sharedLaneY },
-        { x: endPoint.x, y: sharedLaneY },
-        endPoint,
-      ]);
-    };
-
-    const buildSideEntryConnectionPath = (
-      fromId,
-      toId,
-      {
-        fromSide = "right",
-        fromSlot = null,
-        toSide = "left",
-        toSlot = "teamA",
-        viaX = null,
-      } = {}
-    ) => {
-      const resolvedFromSlot = fromSlot || toSlot || "teamA";
-      const startPoint = getEventBoardPortPoint(fromId, fromSide, resolvedFromSlot);
-      const endPoint = getEventBoardPortPoint(toId, toSide, toSlot);
-      const midX = viaX ?? ((startPoint.x + endPoint.x) / 2);
-
-      if (Math.abs(startPoint.y - endPoint.y) < 1) {
-        return buildEventBoardPath([
-          startPoint,
-          endPoint,
-        ]);
-      }
-
-      return buildEventBoardPath([
-        startPoint,
-        { x: midX, y: startPoint.y },
-        { x: midX, y: endPoint.y },
-        endPoint,
-      ]);
-    };
-
-    const buildVerticalToSideConnectionPath = (
-      fromId,
-      toId,
-      {
-        fromPort = "top",
-        toSide = "right",
-        toSlot = "teamA",
-        viaY = null,
-      } = {}
-    ) => {
-      const startPoint = getEventBoardPortPoint(fromId, fromPort);
-      const endPoint = getEventBoardPortPoint(toId, toSide, toSlot);
-      const laneY = viaY ?? endPoint.y;
-
-      return buildEventBoardPath([
-        startPoint,
-        { x: startPoint.x, y: laneY },
-        { x: endPoint.x, y: laneY },
-        endPoint,
-      ]);
-    };
-
-    const buildOuterBottomConnectionPath = (
-      fromId,
-      toId
-    ) => {
-      const startPoint = getEventBoardPortPoint(fromId, "bottom");
-      const endPoint = getEventBoardPortPoint(toId, "bottom");
-      const outerLaneY = Math.min(boardHeight - 12, startPoint.y + 24);
-
-      return buildEventBoardPath([
-        startPoint,
-        { x: startPoint.x, y: outerLaneY },
-        { x: endPoint.x, y: outerLaneY },
-        endPoint,
-      ]);
-    };
-
-    const buildSideMergeFeederPath = (
-      fromId,
-      {
-        fromSide = "right",
-        fromSlot = "teamA",
-        mergeX = null,
-      } = {}
-    ) => {
-      const startPoint = getEventBoardPortPoint(fromId, fromSide, fromSlot);
-      const targetX = mergeX ?? startPoint.x;
-
-      return buildEventBoardPath([
-        startPoint,
-        { x: targetX, y: startPoint.y },
-      ]);
-    };
-
-    const buildMergedSideTrunkPath = (
-      fromId,
-      toId,
-      {
-        fromSide = "right",
-        fromSlot = "teamB",
-        mergeX = null,
-        toSide = "left",
-        toSlot = "teamA",
-      } = {}
-    ) => {
-      const startPoint = getEventBoardPortPoint(fromId, fromSide, fromSlot);
-      const endPoint = getEventBoardPortPoint(toId, toSide, toSlot);
-      const trunkX = mergeX ?? ((startPoint.x + endPoint.x) / 2);
-
-      return buildEventBoardPath([
-        startPoint,
-        { x: trunkX, y: startPoint.y },
-        { x: trunkX, y: endPoint.y },
-        endPoint,
-      ]);
-    };
-
-    const buildStraightVerticalConnectionPath = (fromId, toId) => (
-      buildEventBoardPath([
-        getEventBoardPortPoint(fromId, "bottom"),
-        getEventBoardPortPoint(toId, "top"),
-      ])
-    );
-
-    const boardConnections = EVENT_MATCH_TEMPLATES.flatMap((template) => {
-      const connections = [];
-      if (template.winnerNextMatchId) {
-        connections.push({
-          key: `${template.id}-winner-${template.winnerNextMatchId}`,
-          from: template.id,
-          to: template.winnerNextMatchId,
-          outcome: "winner",
-          toSlot: template.winnerNextSlot || "teamA",
-          color: getEventMatchAccentStyle(template.accent).lineColor,
-        });
-      }
-      if (template.loserNextMatchId) {
-        connections.push({
-          key: `${template.id}-loser-${template.loserNextMatchId}`,
-          from: template.id,
-          to: template.loserNextMatchId,
-          outcome: "loser",
-          toSlot: template.loserNextSlot || "teamA",
-          color: EVENT_MATCH_ACCENT_STYLE_MAP.loser.lineColor,
-        });
-      }
-      return connections;
-    });
-
-    if (shouldRenderPublicBracketMatch(publicEventMatchMap.grand_final_2)) {
-      boardConnections.push({
-        key: "grand_final_1-reset-grand_final_2",
-        from: "grand_final_1",
-        to: "grand_final_2",
-        outcome: "reset",
-        toSlot: "teamA",
-        color: EVENT_MATCH_ACCENT_STYLE_MAP.grandFinal.lineColor,
-      });
-    }
-
-    const getBoardConnectionPath = (connection) => {
-      const connectionId = `${connection.from}:${connection.outcome}:${connection.to}`;
-
-      switch (connectionId) {
-        case "opening_1:winner:winner_sf_1":
-        case "opening_2:winner:winner_sf_1":
-        case "opening_3:winner:winner_sf_2":
-        case "opening_4:winner:winner_sf_2":
-        case "winner_sf_1:winner:winner_final":
-        case "winner_sf_2:winner:winner_final":
-          return buildMergeConnectionPath(connection.from, connection.to, "up");
-
-        case "opening_1:loser:loser_sf_1":
-        case "opening_2:loser:loser_sf_1":
-        case "opening_3:loser:loser_sf_2":
-        case "opening_4:loser:loser_sf_2":
-        case "loser_sf_1:winner:loser_final":
-        case "loser_sf_2:winner:loser_final":
-          return buildMergeConnectionPath(connection.from, connection.to, "down");
-
-        case "winner_final:loser:challenge_final":
-        case "winner_placement:winner:placement_cross":
-          return buildSideEntryConnectionPath(connection.from, connection.to, {
-            fromSide: "right",
-            toSide: "left",
-            toSlot: connection.toSlot,
-          });
-
-        case "winner_sf_1:loser:winner_placement": {
-          const mergeX = getEventBoardMatchRect("winner_sf_2").right;
-          return buildSideMergeFeederPath(connection.from, {
-            fromSide: "right",
-            fromSlot: "teamA",
-            mergeX,
-          });
-        }
-
-        case "winner_sf_2:loser:winner_placement": {
-          const mergeX = getEventBoardMatchRect("winner_sf_2").right;
-          return buildMergedSideTrunkPath(connection.from, connection.to, {
-            fromSide: "right",
-            fromSlot: "teamB",
-            mergeX,
-            toSide: "left",
-            toSlot: "teamA",
-          });
-        }
-
-        case "placement_cross:winner:challenge_final":
-          return buildVerticalToSideConnectionPath(connection.from, connection.to, {
-            fromPort: "top",
-            toSide: "right",
-            toSlot: connection.toSlot,
-          });
-
-        case "winner_final:winner:grand_final_1":
-          return buildVerticalToSideConnectionPath(connection.from, connection.to, {
-            fromPort: "top",
-            toSide: "left",
-            toSlot: connection.toSlot,
-          });
-
-        case "challenge_final:winner:grand_final_1":
-          return buildVerticalToSideConnectionPath(connection.from, connection.to, {
-            fromPort: "top",
-            toSide: "right",
-            toSlot: connection.toSlot,
-          });
-
-        case "loser_final:winner:placement_cross":
-          return buildOuterBottomConnectionPath(connection.from, connection.to);
-
-        case "grand_final_1:reset:grand_final_2":
-          return buildStraightVerticalConnectionPath(connection.from, connection.to);
-
-        default: {
-          const sourceRect = getEventBoardMatchRect(connection.from);
-          const targetRect = getEventBoardMatchRect(connection.to);
-          const isLeftToRight = sourceRect.centerX <= targetRect.centerX;
-          return buildSideEntryConnectionPath(connection.from, connection.to, {
-            fromSide: isLeftToRight ? "right" : "left",
-            toSide: isLeftToRight ? "left" : "right",
-            toSlot: connection.toSlot,
-          });
-        }
-      }
-    };
-
-    if (!eventSettings.isVisible && !isAdminAuth) {
-      return (
-        <div className="max-w-3xl mx-auto rounded-3xl border border-gray-700 bg-gray-900/80 p-10 text-center shadow-xl">
-          <Sparkles className="w-12 h-12 text-amber-300 mx-auto mb-4" />
-          <h2 className="text-3xl font-black text-white mb-3">이벤트 준비 중</h2>
-          <p className="text-gray-400 leading-relaxed break-keep">아직 이벤트 탭이 공개되지 않았습니다. 관리자에서 팀 구성과 대진표를 저장한 뒤 공개할 수 있어요.</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-8">
-        <section className="relative overflow-hidden rounded-[28px] border border-slate-700/80 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.45)]">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-[38%] bg-[radial-gradient(circle_at_top_left,_rgba(250,204,21,0.18),_transparent_62%)]" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.12),_transparent_65%)]" />
-          <div className="absolute -right-10 -top-10 opacity-[0.08] pointer-events-none"><Trophy className="w-44 h-44 text-yellow-100" /></div>
-          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center rounded-full bg-yellow-500 px-3.5 py-1.5 text-[11px] font-black tracking-[0.18em] text-black uppercase shadow-[0_8px_24px_rgba(234,179,8,0.3)]">
-                EVENT
-              </div>
-              <h2 className="mt-4 text-4xl font-black text-white tracking-tight break-keep">{eventSettings.title}</h2>
-              <p className="mt-3 max-w-2xl text-lg text-slate-200 break-keep leading-relaxed">{eventSettings.subtitle}</p>
-              <div className="mt-6 flex flex-wrap gap-3 text-sm font-bold text-gray-200">
-                <span className="inline-flex items-center rounded-full border border-yellow-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Activity className="w-4 h-4 mr-2 text-yellow-300" /> 현재 진행 {eventCurrentRoundLabel}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-sky-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Users className="w-4 h-4 mr-2 text-sky-300" /> 참가팀 {sortedEventTeams.length}팀
-                </span>
-              </div>
-            </div>
-            <div className="relative shrink-0">
-              <div className="rounded-[26px] bg-gradient-to-r from-amber-300/40 via-white/18 to-sky-300/28 p-[1px] shadow-[0_0_32px_rgba(251,191,36,0.16)]">
-                <div className="relative overflow-hidden rounded-[25px] bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(30,41,59,0.9))] px-6 py-5 backdrop-blur-xl">
-                  <div className="pointer-events-none absolute -left-3 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-slate-950/95 ring-1 ring-white/5" />
-                  <div className="pointer-events-none absolute -right-3 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-slate-950/95 ring-1 ring-white/5" />
-                  <div className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-amber-200 uppercase">
-                    <CalendarDays className="h-4 w-4 text-amber-300" />
-                    일정
-                  </div>
-                  <div className="mt-3 text-2xl lg:text-[1.8rem] font-black leading-tight text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.08)]">
-                    {formatEventStartAt(eventSettings.startAt)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[32px] border border-slate-700 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.96),_rgba(2,6,23,0.98))] p-6 shadow-[0_28px_80px_rgba(2,6,23,0.5)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-slate-400 uppercase">Bracket Board</div>
-              <h3 className="mt-2 text-3xl font-black text-white">토너먼트 대진표</h3>
-            </div>
-          </div>
-
-          <div className="mt-6 hidden lg:block">
-            <div className="mb-5">{renderEventChampionCard(championTeam)}</div>
-            <div ref={eventBoardViewportRef} className="w-full overflow-hidden pb-2">
-              <div className="w-full rounded-[28px] border border-slate-800/70 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.05),_transparent_55%)] p-4">
-                <div className="mx-auto" style={{ width: scaledBoardWidth, height: scaledBoardHeight }}>
-                  <div
-                    className="relative origin-top-left"
-                    style={{
-                      width: boardWidth,
-                      height: boardHeight,
-                      transform: `scale(${eventBoardScale})`,
-                      transformOrigin: "top left",
-                    }}
-                  >
-                    <svg
-                      className="pointer-events-none absolute inset-0"
-                      width={boardWidth}
-                      height={boardHeight}
-                      viewBox={`0 0 ${boardWidth} ${boardHeight}`}
-                      fill="none"
-                    >
-                      {boardConnections.map((connection) => (
-                        <path
-                          key={connection.key}
-                          d={getBoardConnectionPath(connection)}
-                          stroke={connection.color}
-                          strokeWidth="1.75"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          opacity="0.86"
-                        />
-                      ))}
-                    </svg>
-                    {visiblePublicBoardMatches.map((match) => (
-                      <div
-                        key={match.id}
-                        className="absolute"
-                        style={{
-                          left: getEventBoardMatchLeft(match.id),
-                          top: getEventBoardMatchTop(match.id),
-                        }}
-                      >
-                        <div className="relative" style={{ width: getEventBoardCardWidth(match.id) }}>
-                          <div
-                            className="pointer-events-none absolute left-1/2 flex -translate-x-1/2 items-end justify-center"
-                            style={{
-                              top: -EVENT_BOARD_LAYOUT.cardTitleOffsetY,
-                              width: getEventBoardCardTitleWidth(match.id),
-                              minHeight: EVENT_BOARD_LAYOUT.cardTitleOffsetY - 8,
-                            }}
-                          >
-                            {renderEventBracketMatchTitle(match)}
-                          </div>
-                          {renderEventBracketMatchCard(match)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-5 lg:hidden">
-            <div>{renderEventChampionCard(championTeam)}</div>
-            {bracketSections.map((section) => {
-              const sectionMatches = section.matchIds.map((matchId) => publicEventMatchMap[matchId]).filter(shouldRenderPublicBracketMatch);
-              return (
-                <div key={section.id} className="rounded-[26px] border border-slate-700 bg-slate-950/55 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
-                      <h4 className="text-lg font-black text-white">{section.title}</h4>
-                      <div className="text-xs text-slate-400">{section.description}</div>
-                    </div>
-                    <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-[11px] font-black text-slate-300">
-                      {sectionMatches.length}경기
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    {sectionMatches.map((match) => (
-                      <div key={match.id} className="space-y-2">
-                        <div className="px-2">{renderEventBracketMatchTitle(match, { mobile: true })}</div>
-                        {renderEventBracketMatchCard(match, { mobile: true })}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-gray-700 bg-gray-900/75 p-6 shadow-lg">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-gray-400 uppercase">Teams</div>
-              <h3 className="text-3xl font-black text-white mt-1">참가 팀 상세</h3>
-            </div>
-            <div className="text-sm text-gray-400">직업별 테마 색상과 팀 메모, 5인 구성까지 한 번에 확인할 수 있습니다.</div>
-          </div>
-          {sortedEventTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/60 px-4 py-10 text-center text-gray-500">아직 등록된 이벤트 참가 팀이 없습니다.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {sortedEventTeams.map((team) => {
-                const teamAccentColor = WOW_CLASS_COLORS[team.jobClass] || "#94a3b8";
-
-                return (
-                  <div key={team.id} className="rounded-[24px] border p-4 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="min-w-0">
-                        <div className="text-xs font-black tracking-[0.16em] text-white/60 uppercase">Team #{team.sortOrder}</div>
-                        <h4 className="text-xl font-black text-white truncate">{team.teamName}</h4>
-                      </div>
-                      <span
-                        className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm"
-                        style={getJobBadgeStyle(team.jobClass)}
-                      >
-                        {team.jobClass || "직업 미정"}
-                      </span>
-                    </div>
-                    {team.note ? <p className="mb-4 text-sm text-white/75 break-keep">{team.note}</p> : null}
-                    <div className="space-y-2">
-                      {team.members.map((member) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-gray-950/45 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-200 hover:border-white/15 hover:bg-gray-900/72 hover:shadow-[0_10px_24px_rgba(15,23,42,0.22)]"
-                        >
-                          <img
-                            src={getEventMemberAvatar(member)}
-                            onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }}
-                            alt={member.displayName}
-                            className="w-10 h-10 rounded-full border-2 bg-gray-900 object-cover transition-transform duration-200"
-                            style={{
-                              borderColor: teamAccentColor,
-                              boxShadow: `0 0 0 1px rgba(255,255,255,0.04), 0 0 16px ${teamAccentColor}22`,
-                            }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-black text-white">{member.displayName}</div>
-                            <div className="truncate text-[11px] text-white/70">{member.wowNickname}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
-    );
-  };
-
-  const renderEventViewLegacy = () => {
-    const matchesByRound = {
-      quarterfinal: publicEventMatches.filter((match) => match.round === "quarterfinal"),
-      semifinal: publicEventMatches.filter((match) => match.round === "semifinal"),
-      final: publicEventMatches.filter((match) => match.round === "final"),
-    };
-    const championTeam = eventTeamMap[eventSettings.championTeamId] || eventTeamMap[publicEventMatches.find((match) => match.id === "final1")?.winnerTeamId];
-    const quarterfinalMatches = matchesByRound.quarterfinal;
-    const semifinalMatches = matchesByRound.semifinal;
-    const finalMatch = matchesByRound.final[0] || normalizeEventMatchDocument({ id: "final1" });
-    const getEventBracketSlotStyle = (team) => {
-      if (!team) {
-        return {
-          borderColor: "rgba(100, 116, 139, 0.32)",
-          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.84))",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-        };
-      }
-
-      return getEventTeamStyle(team.jobClass);
-    };
-
-    const renderEventBracketTeamRow = ({ team, score, isWinner, variant = "desktopQuarterfinal" }) => {
-      const toneStyle = getEventBracketSlotStyle(team);
-      const isPending = !team;
-      const defaultTeamName = team?.jobClass ? createDefaultEventTeamName(team.jobClass) : "";
-      const displayName = team?.teamName && team.teamName !== defaultTeamName && team.teamName !== team.jobClass
-        ? team.teamName
-        : team?.jobClass || team?.teamName || "대진 대기중";
-      const scoreLabel = score === "" ? "-" : score;
-      const jobBadgeStyle = team?.jobClass ? getJobBadgeStyle(team.jobClass) : null;
-      const rowConfig = {
-        desktopQuarterfinal: {
-          wrapperClass: "rounded-[14px] px-2.5 py-2",
-          nameClass: "text-[13px]",
-          badgeClass: "px-1.5 py-0.5 text-[8px]",
-          scoreClass: "text-base min-w-[1.4rem]",
-        },
-        desktopSemifinal: {
-          wrapperClass: "rounded-[15px] px-2.5 py-2.5",
-          nameClass: "text-[13px]",
-          badgeClass: "px-1.5 py-0.5 text-[8px]",
-          scoreClass: "text-[17px] min-w-[1.5rem]",
-        },
-        desktopFinal: {
-          wrapperClass: "rounded-[16px] px-3 py-2.5",
-          nameClass: "text-[14px]",
-          badgeClass: "px-2 py-0.5 text-[8px]",
-          scoreClass: "text-lg min-w-[1.6rem]",
-        },
-        mobile: {
-          wrapperClass: "rounded-[16px] px-3 py-3",
-          nameClass: "text-sm",
-          badgeClass: "px-2 py-0.5 text-[9px]",
-          scoreClass: "text-lg min-w-[1.8rem]",
-        },
-      }[variant] || {
-        wrapperClass: "rounded-[14px] px-2.5 py-2",
-        nameClass: "text-[13px]",
-        badgeClass: "px-1.5 py-0.5 text-[8px]",
-        scoreClass: "text-base min-w-[1.4rem]",
-      };
-
-      return (
-        <div
-          className={`flex items-center justify-between gap-2 border ${rowConfig.wrapperClass} transition ${
-            isWinner ? "ring-1 ring-amber-200/35" : ""
-          } ${isPending ? "border-dashed" : ""}`}
-          style={{
-            borderColor: isPending ? "rgba(148, 163, 184, 0.48)" : toneStyle.borderColor,
-            background: isPending
-              ? "linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.68))"
-              : toneStyle.background,
-            boxShadow: isPending
-              ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 0 18px rgba(148,163,184,0.08)"
-              : isWinner
-              ? `${toneStyle.boxShadow || "0 0 0 transparent"}, 0 0 0 1px rgba(255,255,255,0.08)`
-              : toneStyle.boxShadow,
-            opacity: isPending ? 0.92 : 1,
-          }}
-        >
-          <div className="relative min-w-0 flex-1">
-            <div
-              aria-hidden="true"
-              className={`truncate font-black text-transparent ${rowConfig.nameClass}`}
-            >
-              {team?.teamName || "대진 대기중"}
-            </div>
-            <div className={`absolute inset-0 truncate font-black ${rowConfig.nameClass} ${isPending ? "text-slate-200" : "text-white"}`}>
-              {team?.teamName || "대진 대기중"}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center">
-            <span className={`text-right font-black text-white ${rowConfig.scoreClass}`}>
-              {score === "" ? "-" : score}
-            </span>
-          </div>
-          <div className="hidden min-w-0 flex flex-1 items-center gap-2.5 pr-2" aria-hidden="true">
-            {team?.jobClass ? (
-              <span
-                className={`inline-flex shrink-0 items-center rounded-full border font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${rowConfig.badgeClass}`}
-                style={jobBadgeStyle}
-              >
-                {team.jobClass}
-              </span>
-            ) : null}
-            <div
-              className={`truncate font-black ${rowConfig.nameClass}`}
-              style={{
-                color: isPending ? "rgba(226,232,240,0.96)" : toneStyle.labelColor,
-                textShadow: isPending ? "none" : toneStyle.accentGlow,
-              }}
-            >
-              {displayName}
-            </div>
-            <div className="hidden min-w-0 flex-1" aria-hidden="true">
-              <div className={`hidden truncate font-black ${rowConfig.nameClass} ${isPending ? "text-slate-200" : "text-white"}`}>
-              {team?.teamName || "승리팀 대기중"}
-            </div>
-          </div>
-          </div>
-          <div
-            className={`hidden shrink-0 text-right font-black tabular-nums leading-none tracking-tight ${rowConfig.scoreClass}`}
-            style={{
-              color: isPending ? "rgba(255,255,255,0.96)" : toneStyle.labelColor,
-              textShadow: isPending ? "none" : toneStyle.accentGlow,
-            }}
-          >
-            {scoreLabel}
-          </div>
-        </div>
-      );
-    };
-
-    const renderEventBracketMatchCard = (match, variant = "desktopQuarterfinal") => {
-      if (!match) return null;
-
-      const teamA = eventTeamMap[match.teamAId];
-      const teamB = eventTeamMap[match.teamBId];
-      const isGrandFinalCard = match.round === "grandFinal" || variant === "desktopFinal";
-      const titleTone = getEventMatchTitleTone(match);
-      const displayDate = `${match.displayDate || ""}`.trim();
-      const variantConfig = {
-        desktopQuarterfinal: { wrapperClass: "w-[154px]", cardClass: "min-h-[118px]" },
-        desktopSemifinal: { wrapperClass: "w-[172px]", cardClass: "min-h-[124px]" },
-        desktopFinal: { wrapperClass: "w-[232px]", cardClass: "min-h-[158px]" },
-        mobile: { wrapperClass: "w-full", cardClass: "min-h-0" },
-      }[variant] || { wrapperClass: "w-full", cardClass: "min-h-0" };
-      const grandFinalCardStyle = isGrandFinalCard
-        ? {
-            borderColor: "rgba(252, 211, 77, 0.44)",
-            background: "radial-gradient(circle at top, rgba(251,191,36,0.32), transparent 34%), linear-gradient(155deg, rgba(127,29,29,0.98) 0%, rgba(153,27,27,0.96) 24%, rgba(154,52,18,0.94) 52%, rgba(120,53,15,0.92) 72%, rgba(15,23,42,0.94) 100%)",
-            boxShadow: "0 0 34px rgba(248,113,113,0.22), 0 0 22px rgba(251,191,36,0.16), 0 16px 32px rgba(2,6,23,0.38)",
-          }
-        : null;
-      const isPendingMatch = variant !== "desktopQuarterfinal" && (!teamA || !teamB);
-
-      return (
-        <article
-          className={`${variantConfig.wrapperClass} ${variantConfig.cardClass} rounded-[20px] border backdrop-blur-sm ${
-            isGrandFinalCard
-              ? (variant === "mobile" ? "px-4 pb-4 pt-4" : "px-3 pb-3 pt-4")
-              : "p-2.5 shadow-[0_12px_28px_rgba(2,6,23,0.34)]"
-          } ${
-            isPendingMatch && !isGrandFinalCard
-              ? "border-dashed border-slate-500/80 bg-[linear-gradient(180deg,rgba(15,23,42,0.92),rgba(30,41,59,0.84))] animate-pulse"
-              : "border-slate-600/85 bg-[#071120]/94"
-          }`}
-          style={isGrandFinalCard ? grandFinalCardStyle : undefined}
-        >
-          <div className="min-w-0 flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div
-                className={`inline-flex items-center font-black leading-tight break-keep ${
-                  variant === "mobile"
-                    ? (isGrandFinalCard ? "text-[1.05rem]" : "text-sm")
-                    : variant === "desktopFinal"
-                    ? "text-[14px]"
-                    : "text-[11px]"
-                } ${variant === "mobile" ? "gap-2" : "gap-1.5"}`}
-                style={{
-                  color: titleTone.color,
-                  textShadow: titleTone.textShadow,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {isGrandFinalCard ? (
-                  <Crown
-                    className={`${variant === "mobile" ? "h-[18px] w-[18px]" : "h-4 w-4"} shrink-0 text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.72)]`}
-                  />
-                ) : null}
-                <span>{match.label}</span>
-              </div>
-              {displayDate ? <div className="mt-0.5 text-[11px] font-bold text-rose-200">{displayDate}</div> : null}
-            </div>
-          </div>
-
-          <div className="mt-2.5 space-y-2">
-            {renderEventBracketTeamRow({
-              team: teamA,
-              score: match.teamAScore,
-              isWinner: !!teamA && match.winnerTeamId === teamA.id,
-              variant,
-            })}
-            <div className="flex items-center gap-2 px-1">
-              <div className="h-px flex-1 bg-white/12" />
-              <span className="text-[9px] font-black tracking-[0.24em] text-white/45">VS</span>
-              <div className="h-px flex-1 bg-white/12" />
-            </div>
-            {renderEventBracketTeamRow({
-              team: teamB,
-              score: match.teamBScore,
-              isWinner: !!teamB && match.winnerTeamId === teamB.id,
-              variant,
-            })}
-          </div>
-        </article>
-      );
-    };
-
-    const renderEventChampionCard = (team) => (
-      <div className="relative min-h-[98px] overflow-hidden rounded-[28px] border border-amber-200/25 bg-[radial-gradient(circle_at_top,_rgba(254,240,138,0.34),_transparent_50%),linear-gradient(180deg,_rgba(120,53,15,0.98),_rgba(92,37,7,0.94)_32%,_rgba(15,23,42,0.96))] px-4 py-3 shadow-[0_0_34px_rgba(251,191,36,0.2),0_18px_38px_rgba(120,53,15,0.26)] ring-1 ring-amber-100/10 lg:scale-[1.03] lg:origin-top">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.1),_transparent_42%)]" />
-        <div className="relative flex items-center gap-2 text-[10px] font-black tracking-[0.18em] text-amber-100 uppercase">
-          <Crown className="h-3.5 w-3.5 text-amber-300" />
-          Champion
-        </div>
-        {team ? (
-          <div className="relative mt-3 flex flex-col items-center text-center">
-            <div className="w-full min-w-0">
-              <div className="text-xl font-black text-white">{team.teamName}</div>
-              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
-                <span
-                  className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-black"
-                  style={getJobBadgeStyle(team.jobClass)}
-                >
-                  {team.jobClass}
-                </span>
-                <span className="rounded-full border border-amber-100/20 bg-amber-300/10 px-2.5 py-0.5 text-[10px] font-black text-amber-100">
-                  우승 확정
-                </span>
-              </div>
-            </div>
-            <div className="mt-4 flex w-full flex-wrap items-start justify-center gap-3 sm:gap-4">
-              {team.members.slice(0, 5).map((member) => (
-                <div key={member.id} className="flex w-[76px] flex-col items-center text-center sm:w-[88px]">
-                  <img
-                    src={getEventMemberAvatar(member)}
-                    onError={(e) => {
-                      e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`;
-                    }}
-                    alt={member.displayName || member.wowNickname}
-                    className="h-14 w-14 rounded-full border-2 border-amber-100/20 bg-gray-950 object-cover shadow-[0_0_16px_rgba(250,204,21,0.16)] sm:h-16 sm:w-16"
-                  />
-                  <div className="mt-2 w-full text-[10px] font-black leading-tight text-amber-50/90 break-keep sm:text-[11px]">
-                    {member.displayName || member.wowNickname || "참가자"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="relative mt-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-400/10 shadow-[0_0_18px_rgba(251,191,36,0.12)]">
-              <Trophy className="h-4.5 w-4.5 text-amber-300" />
-            </div>
-            <div>
-              <div className="text-base font-black text-white">우승팀 대기중</div>
-              <div className="text-[11px] leading-4 text-amber-100/70">결승 결과가 확정되면 이 영역이 자동으로 채워집니다.</div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-
-    if (!eventSettings.isVisible && !isAdminAuth) {
-      return (
-        <div className="max-w-3xl mx-auto rounded-3xl border border-gray-700 bg-gray-900/80 p-10 text-center shadow-xl">
-          <Sparkles className="w-12 h-12 text-amber-300 mx-auto mb-4" />
-          <h2 className="text-3xl font-black text-white mb-3">이벤트 준비 중</h2>
-          <p className="text-gray-400 leading-relaxed break-keep">아직 이벤트 탭이 공개되지 않았습니다. 관리자에서 팀 구성과 대진표를 저장한 뒤 공개할 수 있어요.</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-8">
-        <section className="relative overflow-hidden rounded-[28px] border border-slate-700/80 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.45)]">
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-[38%] bg-[radial-gradient(circle_at_top_left,_rgba(250,204,21,0.18),_transparent_62%)]" />
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.12),_transparent_65%)]" />
-          <div className="absolute -right-10 -top-10 opacity-[0.08] pointer-events-none"><Trophy className="w-44 h-44 text-yellow-100" /></div>
-          <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center rounded-full bg-yellow-500 px-3.5 py-1.5 text-[11px] font-black tracking-[0.18em] text-black uppercase shadow-[0_8px_24px_rgba(234,179,8,0.3)]">
-                EVENT
-              </div>
-              <h2 className="mt-4 text-4xl font-black text-white tracking-tight break-keep">{eventSettings.title}</h2>
-              <p className="mt-3 max-w-2xl text-lg text-slate-200 break-keep leading-relaxed">{eventSettings.subtitle}</p>
-              <div className="mt-6 flex flex-wrap gap-3 text-sm font-bold text-gray-200">
-                <span className="inline-flex items-center rounded-full border border-yellow-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Activity className="w-4 h-4 mr-2 text-yellow-300" /> 현재 라운드 {eventCurrentRoundLabel}
-                </span>
-                <span className="inline-flex items-center rounded-full border border-sky-300/15 bg-gray-800/80 px-3.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm">
-                  <Users className="w-4 h-4 mr-2 text-sky-300" /> 참가팀 {sortedEventTeams.length}팀
-                </span>
-              </div>
-            </div>
-            <div className="relative shrink-0">
-              <div className="rounded-[26px] bg-gradient-to-r from-amber-300/40 via-white/18 to-sky-300/28 p-[1px] shadow-[0_0_32px_rgba(251,191,36,0.16)]">
-                <div className="relative overflow-hidden rounded-[25px] bg-[linear-gradient(135deg,rgba(15,23,42,0.94),rgba(30,41,59,0.9))] px-6 py-5 backdrop-blur-xl">
-                  <div className="pointer-events-none absolute -left-3 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-slate-950/95 ring-1 ring-white/5" />
-                  <div className="pointer-events-none absolute -right-3 top-1/2 h-7 w-7 -translate-y-1/2 rounded-full bg-slate-950/95 ring-1 ring-white/5" />
-                  <div className="flex items-center gap-2 text-xs font-black tracking-[0.18em] text-amber-200 uppercase">
-                    <CalendarDays className="h-4 w-4 text-amber-300" />
-                    일정
-                  </div>
-                  <div className="mt-3 text-2xl lg:text-[1.8rem] font-black leading-tight text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.08)]">
-                    {formatEventStartAt(eventSettings.startAt)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-[32px] border border-slate-700 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.96),_rgba(2,6,23,0.98))] p-6 shadow-[0_28px_80px_rgba(2,6,23,0.5)]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-slate-400 uppercase">Bracket Board</div>
-              <h3 className="mt-2 text-3xl font-black text-white">토너먼트 대진표</h3>
-            </div>
-          </div>
-
-          <div className="mt-6 hidden lg:block">
-            <div className="relative mx-auto h-[888px] w-full max-w-[1120px] overflow-hidden rounded-[28px] border border-slate-800/70 bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.05),_transparent_55%)] px-6">
-              <div className="absolute inset-0 translate-y-[10px]">
-                <div className="absolute left-1/2 top-[28px] w-[292px] -translate-x-1/2">
-                  {renderEventChampionCard(championTeam)}
-                </div>
-
-                <div className="pointer-events-none absolute left-1/2 top-[130px] h-[22px] w-[2px] -translate-x-1/2 bg-gradient-to-b from-amber-300/80 to-slate-400/80" />
-
-                <div className="absolute left-1/2 top-[152px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(finalMatch, "desktopFinal")}
-                </div>
-
-                <div className="absolute left-[26%] top-[384px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(semifinalMatches[0], "desktopSemifinal")}
-                </div>
-                <div className="absolute left-[74%] top-[384px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(semifinalMatches[1], "desktopSemifinal")}
-                </div>
-
-                <div className="absolute left-[14%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[0], "desktopQuarterfinal")}
-                </div>
-                <div className="absolute left-[38%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[1], "desktopQuarterfinal")}
-                </div>
-                <div className="absolute left-[62%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[2], "desktopQuarterfinal")}
-                </div>
-                <div className="absolute left-[86%] top-[658px] -translate-x-1/2">
-                  {renderEventBracketMatchCard(quarterfinalMatches[3], "desktopQuarterfinal")}
-                </div>
-
-                <div className="pointer-events-none absolute left-1/2 top-[314px] h-[42px] w-[2px] -translate-x-1/2 bg-slate-400/85" />
-                <div className="pointer-events-none absolute left-[26%] top-[356px] h-[2px] w-[48%] bg-slate-400/85" />
-                <div className="pointer-events-none absolute left-[26%] top-[356px] h-[28px] w-[2px] bg-slate-400/85" />
-                <div className="pointer-events-none absolute left-[74%] top-[356px] h-[28px] w-[2px] bg-slate-400/85" />
-
-                <div className="pointer-events-none absolute left-[26%] top-[542px] h-[78px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[14%] top-[620px] h-[2px] w-[24%] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[14%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[38%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-
-                <div className="pointer-events-none absolute left-[74%] top-[542px] h-[78px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[62%] top-[620px] h-[2px] w-[24%] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[62%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-                <div className="pointer-events-none absolute left-[86%] top-[620px] h-[38px] w-[2px] bg-slate-400/80" />
-
-                <div className="pointer-events-none absolute left-1/2 top-[2px] -translate-x-1/2 text-[11px] font-black tracking-[0.18em] text-amber-300 uppercase">우승</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-5 lg:hidden">
-            <div>{renderEventChampionCard(championTeam)}</div>
-            {[
-              { roundKey: "final", title: "결승", matches: [finalMatch] },
-              { roundKey: "semifinal", title: "4강", matches: semifinalMatches },
-              { roundKey: "quarterfinal", title: "8강", matches: quarterfinalMatches },
-            ].map((section) => (
-              <div key={section.roundKey} className="rounded-[26px] border border-slate-700 bg-slate-950/55 p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <h4 className="text-lg font-black text-white">{section.title}</h4>
-                  <span className="rounded-full border border-slate-700 bg-slate-900/80 px-2.5 py-1 text-[11px] font-black text-slate-300">
-                    {section.matches.length}경기
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {section.matches.map((match) => (
-                    <div key={match.id}>{renderEventBracketMatchCard(match, "mobile")}</div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-gray-700 bg-gray-900/75 p-6 shadow-lg">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-gray-400 uppercase">Teams</div>
-              <h3 className="text-3xl font-black text-white mt-1">참가 팀 상세</h3>
-            </div>
-            <div className="text-sm text-gray-400">직업별 테마 색상과 팀 메모, 5인 구성까지 한 번에 확인할 수 있습니다.</div>
-          </div>
-          {sortedEventTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/60 px-4 py-10 text-center text-gray-500">아직 등록된 이벤트 참가 팀이 없습니다.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {sortedEventTeams.map((team) => {
-                const teamAccentColor = WOW_CLASS_COLORS[team.jobClass] || "#94a3b8";
-
-                return (
-                  <div key={team.id} className="rounded-[24px] border p-4 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                    <div className="flex items-start justify-between gap-3 mb-4">
-                      <div className="min-w-0">
-                        <div className="text-xs font-black tracking-[0.16em] text-white/60 uppercase">Team #{team.sortOrder}</div>
-                        <h4 className="text-xl font-black text-white truncate">{team.teamName}</h4>
-                      </div>
-                      <span
-                        className="inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm"
-                        style={getJobBadgeStyle(team.jobClass)}
-                      >
-                        {team.jobClass || "직업 미정"}
-                      </span>
-                    </div>
-                    {team.note ? <p className="mb-4 text-sm text-white/75 break-keep">{team.note}</p> : null}
-                    <div className="space-y-2">
-                      {team.members.map((member) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-gray-950/45 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-200 hover:border-white/15 hover:bg-gray-900/72 hover:shadow-[0_10px_24px_rgba(15,23,42,0.22)]"
-                        >
-                          <img
-                            src={getEventMemberAvatar(member)}
-                            onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }}
-                            alt={member.displayName}
-                            className="w-10 h-10 rounded-full border-2 bg-gray-900 object-cover transition-transform duration-200"
-                            style={{
-                              borderColor: teamAccentColor,
-                              boxShadow: `0 0 0 1px rgba(255,255,255,0.04), 0 0 16px ${teamAccentColor}22`,
-                            }}
-                          />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-black text-white">{member.displayName}</div>
-                            <div className="truncate text-[11px] text-white/70">{member.wowNickname}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {false && (
-          <>
-        {championTeam ? (
-          <section className="rounded-3xl border border-yellow-400/25 bg-gradient-to-r from-yellow-500/10 via-amber-400/10 to-orange-500/10 p-6 shadow-lg">
-            <div className="text-xs font-black tracking-[0.18em] text-yellow-300 uppercase mb-2">Champion</div>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <div className="text-3xl font-black text-white break-keep">{championTeam.teamName}</div>
-                <span className="mt-3 inline-flex items-center rounded-full border px-3 py-1 text-sm font-black" style={getJobBadgeStyle(championTeam.jobClass)}>{championTeam.jobClass}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {championTeam.members.slice(0, 5).map((member) => (
-                  <img key={member.id} src={getEventMemberAvatar(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }} alt={member.displayName} className="w-12 h-12 rounded-full border border-yellow-200/20 bg-gray-900 object-cover" />
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="grid gap-5 xl:grid-cols-3">
-          {(["quarterfinal", "semifinal", "final"]).map((roundKey) => (
-            <div key={roundKey} className="rounded-3xl border border-gray-700 bg-gray-900/75 p-5 shadow-lg">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-2xl font-black text-white">{EVENT_ROUND_LABELS[roundKey]}</h3>
-                <span className="rounded-full border border-gray-700 bg-gray-950/70 px-3 py-1 text-xs font-bold text-gray-300">{matchesByRound[roundKey].length}경기</span>
-              </div>
-              <div className="space-y-4">
-                {matchesByRound[roundKey].map((match) => {
-                  const teamA = eventTeamMap[match.teamAId];
-                  const teamB = eventTeamMap[match.teamBId];
-                  const matchStatus = getEventStatusMeta(match.status);
-                  return (
-                    <div key={match.id} className="rounded-2xl border border-gray-700 bg-gray-950/70 p-4">
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div className="text-sm font-black text-white">{match.label}</div>
-                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${matchStatus.badgeClass}`}>{matchStatus.label}</span>
-                      </div>
-                      {[{ key: "teamA", team: teamA, score: match.teamAScore }, { key: "teamB", team: teamB, score: match.teamBScore }].map((entry) => (
-                        <div key={entry.key} className={`mt-2 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${match.winnerTeamId && entry.team && match.winnerTeamId === entry.team.id ? "ring-1" : ""}`} style={getEventTeamStyle(entry.team?.jobClass || "")}>
-                          <div className="min-w-0">
-                            <div className="text-xs font-black tracking-[0.16em] text-white/50 uppercase">{entry.key === "teamA" ? "TEAM A" : "TEAM B"}</div>
-                            <div className="truncate text-lg font-black text-white">{entry.team?.teamName || "TBD"}</div>
-                            <div className="truncate text-xs text-white/75">{entry.team?.jobClass || "팀 미배정"}</div>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            {entry.team ? <span className="rounded-full border px-2 py-1 text-[11px] font-black" style={getJobBadgeStyle(entry.team.jobClass)}>{entry.team.jobClass}</span> : null}
-                            <span className="min-w-[2.2rem] text-right text-2xl font-black text-white">{entry.score === "" ? "-" : entry.score}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="mt-3 text-sm font-bold text-emerald-200">{match.winnerTeamId && eventTeamMap[match.winnerTeamId] ? `승리: ${eventTeamMap[match.winnerTeamId].teamName}` : "아직 승리 팀이 확정되지 않았습니다."}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </section>
-
-        <section className="rounded-3xl border border-gray-700 bg-gray-900/75 p-6 shadow-lg">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between mb-5">
-            <div>
-              <div className="text-xs font-black tracking-[0.18em] text-gray-400 uppercase">Teams</div>
-              <h3 className="text-3xl font-black text-white mt-1">참가 8팀 소개</h3>
-            </div>
-            <div className="text-sm text-gray-400">직업별 고유 색상을 기반으로 팀 카드가 자동 구성됩니다.</div>
-          </div>
-          {sortedEventTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-950/60 px-4 py-10 text-center text-gray-500">아직 등록된 이벤트 참가 팀이 없습니다.</div>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {sortedEventTeams.map((team) => (
-                <div key={team.id} className="rounded-[24px] border p-4 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div className="min-w-0">
-                      <div className="text-xs font-black tracking-[0.16em] text-white/60 uppercase">Team #{team.sortOrder}</div>
-                      <h4 className="text-xl font-black text-white truncate">{team.teamName}</h4>
-                    </div>
-                    <span className="rounded-full border px-2.5 py-1 text-[11px] font-black" style={getJobBadgeStyle(team.jobClass)}>{team.jobClass || "직업 미설정"}</span>
-                  </div>
-                  {team.note ? <p className="mb-4 text-sm text-white/75 break-keep">{team.note}</p> : null}
-                  <div className="space-y-2">
-                    {team.members.map((member) => (
-                      <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                        <img src={getEventMemberAvatar(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }} alt={member.displayName} className="w-10 h-10 rounded-full border border-white/15 bg-gray-900 object-cover" />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-black text-white">{member.displayName}</div>
-                          <div className="truncate text-[11px] text-white/70">{member.wowNickname}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-          </>
         )}
       </div>
     );
@@ -8453,310 +6033,6 @@ export default function App() {
     );
   };
 
-  const renderEventAdminSection = () => {
-    const sortedAdminTeams = [...eventAdminTeams].sort((a, b) => (Number(a.sortOrder) || 999) - (Number(b.sortOrder) || 999));
-    const syncedAdminMatches = syncEventMatchesWithTeams(eventAdminMatches, eventAdminTeams);
-    const adminEventMatchMap = syncedAdminMatches.reduce((acc, match) => {
-      acc[match.id] = match;
-      return acc;
-    }, {});
-    const bracketSections = getEventBracketSectionDefsByOrder(EVENT_ADMIN_SECTION_ORDER);
-    const resolvedChampionTeamId = getEventResolvedChampionTeamId(syncedAdminMatches);
-    const resolvedChampionTeam = sortedAdminTeams.find((team) => team.id === resolvedChampionTeamId) || null;
-    const getAdminTeamName = (teamId) => (
-      sortedAdminTeams.find((team) => team.id === teamId)?.teamName || ""
-    );
-
-    const renderResolvedTeamSlot = (label, teamId) => (
-      <div className="rounded-xl border border-gray-700 bg-gray-900/80 px-4 py-3 text-white">
-        <div className="text-[11px] font-black tracking-[0.16em] text-gray-500 uppercase">{label}</div>
-        <div className="mt-1 text-sm font-black text-white">{getAdminTeamName(teamId) || "자동 배정 대기"}</div>
-      </div>
-    );
-
-    const renderAdminMatchCard = (match) => {
-      const participantOptions = [match.teamAId, match.teamBId].filter(Boolean);
-      const canEditResult = participantOptions.length === 2;
-      const statusMeta = getEventDisplayStatusMeta(match);
-      const accentStyle = getEventMatchAccentStyle(match.accent);
-
-      return (
-        <div
-          key={match.id}
-          className="rounded-2xl border p-4 shadow-[0_14px_24px_rgba(2,6,23,0.22)]"
-          style={{
-            borderColor: accentStyle.borderColor,
-            background: "linear-gradient(180deg, rgba(2,6,23,0.72), rgba(15,23,42,0.9))",
-          }}
-        >
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-black text-white break-keep">{match.label}</div>
-            </div>
-            <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${statusMeta.badgeClass}`}>
-              {statusMeta.label}
-            </span>
-          </div>
-
-          {match.manualTeamAssignment ? (
-            <div className="grid gap-3">
-              <select
-                value={match.teamAId}
-                onChange={(e) => handleEventMatchFieldChange(match.id, "teamAId", e.target.value)}
-                className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"
-              >
-                <option value="">TEAM A 선택</option>
-                {sortedAdminTeams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.teamName || createDefaultEventTeamName(team.jobClass)}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={match.teamBId}
-                onChange={(e) => handleEventMatchFieldChange(match.id, "teamBId", e.target.value)}
-                className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"
-              >
-                <option value="">TEAM B 선택</option>
-                {sortedAdminTeams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.teamName || createDefaultEventTeamName(team.jobClass)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              {renderResolvedTeamSlot("TEAM A", match.teamAId)}
-              {renderResolvedTeamSlot("TEAM B", match.teamBId)}
-            </div>
-          )}
-
-          <div className="mt-3">
-            <input
-              type="text"
-              value={match.displayDate || ""}
-              onChange={(e) => handleEventMatchFieldChange(match.id, "displayDate", e.target.value)}
-              placeholder="예: 4/12(일) 20:00"
-              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400"
-            />
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <input
-              type="number"
-              min="0"
-              value={match.teamAScore}
-              disabled={!canEditResult}
-              onChange={(e) => handleEventMatchFieldChange(match.id, "teamAScore", e.target.value)}
-              placeholder="TEAM A 점수"
-              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400 disabled:opacity-50"
-            />
-            <input
-              type="number"
-              min="0"
-              value={match.teamBScore}
-              disabled={!canEditResult}
-              onChange={(e) => handleEventMatchFieldChange(match.id, "teamBScore", e.target.value)}
-              placeholder="TEAM B 점수"
-              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400 disabled:opacity-50"
-            />
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <select
-              value={match.status}
-              disabled={!canEditResult}
-              onChange={(e) => handleEventMatchFieldChange(match.id, "status", e.target.value)}
-              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400 disabled:opacity-50"
-            >
-              {EVENT_STATUS_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={match.winnerTeamId}
-              disabled={!canEditResult}
-              onChange={(e) => handleEventMatchFieldChange(match.id, "winnerTeamId", e.target.value)}
-              className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-white outline-none focus:border-rose-400 disabled:opacity-50"
-            >
-              <option value="">승리 팀 선택</option>
-              {participantOptions.map((teamId) => (
-                <option key={teamId} value={teamId}>
-                  {getAdminTeamName(teamId) || "팀 이름 미정"}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      );
-    };
-
-    return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center"><Sparkles className="w-6 h-6 mr-2 text-amber-300" /> 이벤트 기본 설정</h2>
-              <p className="text-sm text-gray-400 mt-2 break-keep">이벤트 제목, 일정, 공개 여부를 설정합니다. 공개를 켜면 상단 메뉴에 이벤트 탭이 노출됩니다.</p>
-            </div>
-            <button type="button" onClick={handleSaveEventSettings} disabled={isEventSettingsSaving} className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-black rounded-lg transition flex items-center justify-center shadow-lg">
-              {isEventSettingsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />} 기본 설정 저장
-            </button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">이벤트 제목</label>
-              <input type="text" value={eventAdminSettings.title} onChange={(e) => handleEventSettingsFieldChange("title", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">시작 일시</label>
-              <input type="datetime-local" value={eventAdminSettings.startAt} onChange={(e) => handleEventSettingsFieldChange("startAt", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-bold text-gray-300">부제</label>
-              <input type="text" value={eventAdminSettings.subtitle} onChange={(e) => handleEventSettingsFieldChange("subtitle", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-300">이벤트 상태</label>
-              <select value={eventAdminSettings.status} onChange={(e) => handleEventSettingsFieldChange("status", e.target.value)} className="w-full bg-gray-900 border border-gray-600 text-white rounded-lg px-4 py-3 focus:border-amber-400 outline-none">
-                {EVENT_STATUS_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-              </select>
-            </div>
-            <div className="rounded-xl border border-gray-700 bg-gray-900/70 px-4 py-3 flex items-center justify-between">
-              <div>
-                <div className="text-sm font-bold text-white">이벤트 탭 공개</div>
-                <div className="text-xs text-gray-400 mt-1">끄면 관리자 외에는 이벤트 탭이 보이지 않습니다.</div>
-              </div>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={eventAdminSettings.isVisible} onChange={(e) => handleEventSettingsFieldChange("isVisible", e.target.checked)} className="w-5 h-5 accent-amber-400 rounded bg-gray-800 border-gray-600" />
-                <span className="text-sm font-black text-amber-300">{eventAdminSettings.isVisible ? "공개" : "비공개"}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center"><Users className="w-6 h-6 mr-2 text-cyan-300" /> 참가 팀 생성 및 멤버 편성</h2>
-              <p className="text-sm text-gray-400 mt-2 break-keep">직업별 팀을 만들고, WOW 명단 참가자 또는 이벤트 전용 참가자를 추가합니다. 팀당 인원은 정확히 5명입니다.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleFillEventTeamsDraft} disabled={sortedAdminTeams.length >= 8} className="px-4 py-2.5 bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-lg border border-gray-600 transition disabled:opacity-50">빈 팀 {Math.max(8 - sortedAdminTeams.length, 0)}개 채우기</button>
-              <button type="button" onClick={handleSaveEventTeams} disabled={isEventTeamsSaving} className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-lg transition flex items-center shadow-lg">
-                {isEventTeamsSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Users className="w-4 h-4 mr-2" />} 팀 저장
-              </button>
-            </div>
-          </div>
-          {sortedAdminTeams.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-900/60 px-4 py-12 text-center text-gray-500">아직 생성된 이벤트 팀이 없습니다. 먼저 빈 팀 8개를 만들고 직업을 배정해주세요.</div>
-          ) : (
-            <div className="space-y-5">
-              {sortedAdminTeams.map((team, teamIndex) => {
-                const guestDraft = eventGuestDrafts[team.id] || createEmptyEventGuestForm();
-                const eligibleWowMembers = wowRoster.filter((member) => !team.jobClass || normalizeWowJobClassKey(member.jobClass) === team.jobClass).filter((member) => !eventAdminTeams.some((eventTeam) => eventTeam.members.some((participant) => participant.sourceType === "wowRoster" && participant.sourceMemberId === member.id))).sort((a, b) => (a.streamerName || "").localeCompare(b.streamerName || "", "ko"));
-                return (
-                  <div key={team.id} className="rounded-3xl border p-5 shadow-lg" style={getEventTeamStyle(team.jobClass)}>
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between mb-5">
-                      <div>
-                        <div className="text-xs font-black tracking-[0.16em] text-white/55 uppercase">Team #{teamIndex + 1}</div>
-                        <h3 className="text-2xl font-black text-white mt-1">{team.teamName || "TEAM 이름 미정"}</h3>
-                        <div className="mt-2 text-sm text-white/75">현재 등록 인원 {team.members.length} / 5명</div>
-                      </div>
-                      <button type="button" onClick={() => handleRemoveEventTeamDraft(team.id)} className="self-start px-3 py-2 rounded-lg bg-red-900/30 hover:bg-red-600 text-red-300 hover:text-white transition border border-red-800/40 text-sm font-bold"><Trash2 className="w-4 h-4 inline mr-1.5" /> 팀 삭제</button>
-                    </div>
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <select value={team.jobClass} onChange={(e) => handleEventTeamFieldChange(team.id, "jobClass", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35"><option value="">직업 선택</option>{WOW_JOB_OPTIONS.map((jobClass) => <option key={jobClass} value={jobClass}>{jobClass}</option>)}</select>
-                      <input type="text" value={team.teamName} onChange={(e) => handleEventTeamFieldChange(team.id, "teamName", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35" placeholder={createDefaultEventTeamName(team.jobClass)} />
-                      <input type="text" value={team.imageUrl || ""} onChange={(e) => handleEventTeamFieldChange(team.id, "imageUrl", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35" placeholder="대표 이미지 주소" />
-                      <input type="text" value={team.note || ""} onChange={(e) => handleEventTeamFieldChange(team.id, "note", e.target.value)} className="w-full rounded-xl border border-white/15 bg-black/20 px-4 py-3 text-white outline-none focus:border-white/35" placeholder="팀 소개 한 줄" />
-                    </div>
-                    <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.95fr)]">
-                      <div className="space-y-2">
-                        {team.members.length > 0 ? team.members.map((member) => (
-                          <div key={member.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
-                            <img src={getEventMemberAvatar(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(member.displayName || member.wowNickname || "event-member")}`; }} alt={member.displayName} className="w-10 h-10 rounded-full border border-white/15 bg-gray-900 object-cover" />
-                            <div className="min-w-0 flex-1"><div className="truncate text-sm font-black text-white">{member.displayName}</div><div className="truncate text-[11px] text-white/70">{member.wowNickname}</div></div>
-                            <span className="rounded-full border px-2 py-1 text-[10px] font-black" style={getJobBadgeStyle(team.jobClass || member.jobClass)}>{team.jobClass || member.jobClass || "직업 미정"}</span>
-                            <span className={`rounded-full border px-2 py-1 text-[10px] font-black ${member.sourceType === "guest" ? "border-emerald-300/20 bg-emerald-500/12 text-emerald-200" : "border-cyan-300/20 bg-cyan-500/12 text-cyan-200"}`}>{member.sourceType === "guest" ? "이벤트 참가자" : "WOW 명단"}</span>
-                            <button type="button" onClick={() => handleRemoveEventTeamMember(team.id, member.id)} className="p-2 rounded-lg text-white/65 hover:text-white hover:bg-white/10 transition"><X className="w-4 h-4" /></button>
-                          </div>
-                        )) : <div className="rounded-2xl border border-dashed border-white/15 bg-black/15 px-4 py-8 text-center text-sm text-white/50">아직 팀 인원이 등록되지 않았습니다.</div>}
-                      </div>
-                      <div className="space-y-4">
-                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <div className="text-sm font-black text-white mb-3">WOW 명단에서 추가</div>
-                          <select value={eventRosterSelections[team.id] || ""} onChange={(e) => setEventRosterSelections((prev) => ({ ...prev, [team.id]: e.target.value }))} disabled={!team.jobClass || team.members.length >= 5} className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35 disabled:opacity-50">
-                            <option value="">{team.jobClass ? `${team.jobClass} WOW 길드원 선택` : "먼저 팀 직업을 선택해주세요"}</option>
-                            {eligibleWowMembers.map((member) => <option key={member.id} value={member.id}>{member.streamerName} · {member.wowNickname || member.streamerName}</option>)}
-                          </select>
-                          <button type="button" onClick={() => handleAddEventRosterMemberToTeam(team.id)} disabled={!(eventRosterSelections[team.id] || "") || team.members.length >= 5} className="mt-3 w-full rounded-xl bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-700 disabled:text-gray-400 text-gray-950 px-4 py-3 font-black transition">WOW 명단 참가자 추가</button>
-                        </div>
-                        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                          <div className="text-sm font-black text-white mb-3">이벤트 전용 참가자 추가</div>
-                          <div className="space-y-3">
-                            <input type="text" value={guestDraft.displayName || ""} onChange={(e) => handleEventGuestDraftChange(team.id, "displayName", e.target.value)} placeholder="표시 이름" className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35" />
-                            <input type="text" value={guestDraft.wowNickname || ""} onChange={(e) => handleEventGuestDraftChange(team.id, "wowNickname", e.target.value)} placeholder="와우 닉네임" className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35" />
-                            <input type="text" value={guestDraft.imageUrl || ""} onChange={(e) => handleEventGuestDraftChange(team.id, "imageUrl", e.target.value)} placeholder="이미지 주소 (선택)" className="w-full rounded-xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none focus:border-white/35" />
-                            <button type="button" onClick={() => handleAddEventGuestToTeam(team.id)} disabled={team.members.length >= 5} className="w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-gray-700 disabled:text-gray-400 text-gray-950 px-4 py-3 font-black transition">이벤트 참가자 추가</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white flex items-center"><Swords className="w-6 h-6 mr-2 text-rose-300" /> 커스텀 브라켓 대진 및 결과</h2>
-              <p className="text-sm text-gray-400 mt-2 break-keep">8강전만 직접 팀을 배정하고, 이후 승자조, 패자조, 순위전, 최종 결승 슬롯은 결과에 따라 자동으로 채워집니다.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleResetEventMatchesDraft} className="px-4 py-2.5 bg-gray-900 hover:bg-gray-700 text-white font-bold rounded-lg border border-gray-600 transition">대진표 초기화</button>
-              <button type="button" onClick={handleSaveEventMatches} disabled={isEventMatchesSaving} className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-lg transition flex items-center shadow-lg">{isEventMatchesSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Swords className="w-4 h-4 mr-2" />} 대진 및 결과 저장</button>
-            </div>
-          </div>
-          <div className="mb-5 flex flex-wrap gap-2">
-            <span className="inline-flex items-center rounded-full border border-gray-700 bg-gray-900/80 px-3 py-2 text-xs font-black text-gray-200">
-              <Activity className="w-3.5 h-3.5 mr-2 text-amber-300" /> 현재 진행 {getEventCurrentRoundLabel(syncedAdminMatches)}
-            </span>
-            <span className="inline-flex items-center rounded-full border border-gray-700 bg-gray-900/80 px-3 py-2 text-xs font-black text-gray-200">
-              <Users className="w-3.5 h-3.5 mr-2 text-sky-300" /> 8강전 배정 {syncedAdminMatches.filter((match) => match.round === "opening" && match.teamAId && match.teamBId).length} / 4경기
-            </span>
-            <span className="inline-flex items-center rounded-full border border-gray-700 bg-gray-900/80 px-3 py-2 text-xs font-black text-gray-200">
-              <Crown className="w-3.5 h-3.5 mr-2 text-yellow-300" /> {resolvedChampionTeam ? `우승팀 ${resolvedChampionTeam.teamName}` : "우승팀 미정"}
-            </span>
-          </div>
-          <div className="grid gap-5 xl:grid-cols-2 2xl:grid-cols-3">
-            {bracketSections.map((section) => {
-              const sectionMatches = section.matchIds.map((matchId) => adminEventMatchMap[matchId]).filter(Boolean);
-              return (
-                <section key={section.id} className="rounded-2xl border border-gray-700 bg-gray-900/70 p-4">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="text-xl font-black text-white">{section.title}</h3>
-                      <div className="text-xs text-gray-400 mt-1">{section.description}</div>
-                    </div>
-                    <span className="text-xs text-gray-400">{sectionMatches.length}경기</span>
-                  </div>
-                  <div className="space-y-4">
-                    {sectionMatches.map((match) => renderAdminMatchCard(match))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderAdminView = () => {
     if (!isAdminAuth)
       return (
@@ -8900,6 +6176,7 @@ export default function App() {
       if (!gameName.trim()) return showToast("게임 이름을 입력해주세요.", "error");
 
       let finalResults = [];
+      let nextTeamResults = [];
       if (matchMode === "individual") {
         finalResults = individualResults
           .filter((r) => r.playerName.trim() !== "")
@@ -8910,18 +6187,9 @@ export default function App() {
              ...(hasFunding ? { fundingRatio: Number(r.fundingRatio) || 0, fundingAmount: Number(r.fundingAmount) || 0 } : {})
           }));
       } else {
-        teamResults.forEach((team) => {
-          team.players.forEach((pName) => {
-            if (pName.trim() !== "") {
-              finalResults.push({ 
-                 playerName: pName.trim(), 
-                 rank: team.rank, 
-                 scoreChange: team.scoreChange,
-                 ...(hasFunding ? { fundingRatio: Number(team.fundingRatio) || 0, fundingAmount: Number(team.fundingAmount) || 0 } : {})
-              });
-            }
-          });
-        });
+        const teamPayload = buildTeamMatchPayload(teamResults, hasFunding);
+        finalResults = teamPayload.results;
+        nextTeamResults = teamPayload.teamResults;
       }
 
       if (finalResults.length === 0) return showToast("최소 1명 이상의 유효한 참가자를 입력해주세요.", "error");
@@ -8942,6 +6210,7 @@ export default function App() {
           hasFunding, 
           totalFunding: hasFunding ? Number(totalFunding) || 0 : 0,
           results: finalResults,
+          teamResults: matchMode === "team" ? nextTeamResults : [],
           isPublished: publishNow,
           publishedAt: publishNow ? new Date().toISOString() : null,
         });
@@ -8954,7 +6223,7 @@ export default function App() {
         setHasFunding(false);
         setTotalFunding("");
         setIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
-        setTeamResults([{ id: 1, rank: 1, scoreChange: 100, players: ["", ""], fundingRatio: "", fundingAmount: "" }, { id: 2, rank: 2, scoreChange: -50, players: ["", ""], fundingRatio: "", fundingAmount: "" }]);
+        setTeamResults(createDefaultTeamMatchResults());
         await updateLastModifiedTime(); 
         showToast(publishNow ? "경기 기록이 공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
         if (publishNow) navigateTo("tier");
@@ -9002,14 +6271,8 @@ export default function App() {
           >
             <Shield className="w-4 h-4 mr-2" /> 와우 설정
           </button>
-          <button
-            onClick={() => setAdminInnerTab("event")}
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "event" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-          >
-            <Sparkles className="w-4 h-4 mr-2" /> 이벤트 설정
-          </button>
-          <button
-            onClick={() => setAdminInnerTab("etc")}
+          <button 
+            onClick={() => setAdminInnerTab("etc")} 
             className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "etc" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
           >
             <Layers className="w-4 h-4 mr-2" /> 기타 설정 (공지 등)
@@ -9120,6 +6383,10 @@ export default function App() {
                             <span className="text-[10px] text-gray-500 mb-1">순위</span>
                             <input type="number" value={team.rank} onChange={(e) => { const n = [...teamResults]; n[tIdx].rank = Number(e.target.value); setTeamResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
                           </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 mb-1">세트 승수</span>
+                            <input type="number" min="0" value={team.setWins} onChange={(e) => { const n = [...teamResults]; n[tIdx].setWins = e.target.value === "" ? "" : Math.max(0, Number(e.target.value) || 0); setTeamResults(n); }} placeholder="예: 7" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
+                          </div>
                           <div className="flex flex-col flex-1">
                             <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
                             <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...teamResults]; n[tIdx].scoreChange = Number(e.target.value); setTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
@@ -9159,7 +6426,7 @@ export default function App() {
                         <button type="button" onClick={() => { const n = [...teamResults]; n[tIdx].players.push(""); setTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                       </div>
                     ))}
-                    <button type="button" onClick={() => setTeamResults([...teamResults, { id: Date.now(), rank: teamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                    <button type="button" onClick={() => setTeamResults([...teamResults, createEmptyTeamMatchResult(Date.now(), teamResults.length + 1, 0)])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
                   </div>
                 )}
 
@@ -10067,8 +7334,6 @@ export default function App() {
           </div>
         )}
 
-        {adminInnerTab === "event" && renderEventAdminSection()}
-
         {/* =========================================================
             [기타 설정] 탭 컨텐츠 (팝업 관리)
             ========================================================= */}
@@ -10327,12 +7592,16 @@ export default function App() {
                           <span className="text-[10px] text-gray-500 mb-1">순위</span>
                           <input type="number" value={team.rank} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].rank = Number(e.target.value); setEditTeamResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
                         </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-gray-500 mb-1">세트 승수</span>
+                          <input type="number" min="0" value={team.setWins} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].setWins = e.target.value === "" ? "" : Math.max(0, Number(e.target.value) || 0); setEditTeamResults(n); }} placeholder="예: 7" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600 py-1" />
+                        </div>
                         <div className="flex flex-col flex-1">
                           <span className="text-[10px] text-gray-500 mb-1">팀 전체 획득/감소 점수</span>
                           <input type="number" value={team.scoreChange} onChange={(e) => { const n = [...editTeamResults]; n[tIdx].scoreChange = Number(e.target.value); setEditTeamResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white px-3 rounded border border-gray-600 py-1" />
                         </div>
                         <div className="flex flex-col justify-end">
-                          <button type="button" onClick={() => { if (editTeamResults.length > 1) setEditTeamResults(editTeamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
+                          <button type="button" onClick={() => { if (editTeamResults.length > 2) setEditTeamResults(editTeamResults.filter((_, i) => i !== tIdx)); }} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 className="w-5 h-5" /></button>
                         </div>
                       </div>
                       {editHasFunding && (
@@ -10366,7 +7635,7 @@ export default function App() {
                       <button type="button" onClick={() => { const n = [...editTeamResults]; n[tIdx].players.push(""); setEditTeamResults(n); }} className="text-xs text-indigo-400 bg-indigo-900/30 px-3 py-1.5 rounded hover:bg-indigo-600 hover:text-white transition w-full mt-2 border border-indigo-800/50">+ 팀원 추가</button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => setEditTeamResults([...editTeamResults, { id: Date.now(), rank: editTeamResults.length + 1, scoreChange: 0, players: ["", ""], fundingRatio: "", fundingAmount: "" }])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
+                  <button type="button" onClick={() => setEditTeamResults([...editTeamResults, createEmptyTeamMatchResult(Date.now(), editTeamResults.length + 1, 0)])} className="w-full py-2.5 text-indigo-300 border-2 border-dashed border-indigo-700/50 rounded-lg hover:bg-indigo-900/30 transition font-medium text-sm">새로운 팀 라인 추가</button>
                 </div>
               )}
 
@@ -10529,7 +7798,7 @@ export default function App() {
       })()}
 
       <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
-        <div className="max-w-[1296px] mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="max-w-6xl mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <h1 className="text-lg md:text-xl font-bold text-white cursor-pointer flex items-center whitespace-nowrap" onClick={() => navigateTo("home")}>
               <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" /> 버츄얼 종겜 리그
@@ -10552,11 +7821,6 @@ export default function App() {
             <button onClick={() => navigateTo("matches")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "matches" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>경기</button>
             <button onClick={() => navigateTo("stats")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "stats" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>통계</button>
             <button onClick={() => navigateTo("tier")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "tier" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>티어</button>
-            {shouldShowEventTab && (
-              <button onClick={() => navigateTo("event")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "event" ? "bg-amber-900/50 text-amber-300 border border-amber-500/50" : "text-amber-200 hover:text-white hover:bg-gray-800"}`}>
-                <Sparkles className="w-4 h-4 mr-1" /> 와농대
-              </button>
-            )}
             <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
               <Shield className="w-4 h-4 mr-1" /> WOW
             </button>
@@ -10570,14 +7834,13 @@ export default function App() {
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "event" ? "max-w-[1440px] px-4 md:px-5 lg:px-6" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
+      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
 
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
         {activeTab === "matches" && renderMatchesView()}
         {activeTab === "stats" && renderStatsView()}
         {activeTab === "tier" && renderTierListView()}
-        {activeTab === "event" && renderEventView()}
         {activeTab === "wow" && renderWowView()}
         {activeTab === "wowraid" && renderWowRaidView()}
         {activeTab === "raid" && renderRaidView()}
@@ -10610,7 +7873,6 @@ export default function App() {
             { id: "matches", label: "경기", icon: Swords },
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
-            ...(shouldShowEventTab ? [{ id: "event", label: "와농대", icon: Sparkles }] : []),
             { id: "wow", label: "WOW", icon: Shield },
             { id: "wowraid", label: "WOW레이드", icon: null },
             { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
