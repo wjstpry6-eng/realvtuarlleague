@@ -2447,7 +2447,7 @@ export default function App() {
     for (const [game, count] of Object.entries(gameCounts)) {
       if (count > maxCount) { maxCount = count; mostPlayedGame = game; }
     }
-    const recentMatches = playerMatches.slice(0, 5).map((m) => {
+    const recentMatches = playerMatches.map((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return { id: m.id, gameName: m.gameName, date: m.date, rank: r.rank, scoreChange: r.scoreChange };
     });
@@ -3528,7 +3528,7 @@ export default function App() {
           </h3>
           {publishedMatches.length > 0 ? (
             <div className="space-y-4">
-              {publishedMatches.slice(0, 3).map((match) => {
+              {publishedMatches.slice(0, 4).map((match) => {
                 const firstPlaceName = match.results?.find((r) => r.rank === 1)?.playerName || "";
                 const firstPlaceLabel = match.matchType === "team" && firstPlaceName
                   ? `${firstPlaceName} 팀`
@@ -3840,7 +3840,7 @@ export default function App() {
                            return (
                              <div key={idx} className="flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm">
                                 <div className="flex justify-between items-center mb-3 border-b border-gray-700/80 pb-3">
-                                   <span className={`text-base font-bold ${team.rank===1?'text-yellow-400':'text-gray-300'}`}>{team.rank}위 팀 전리품</span>
+                                   <span className={`text-base font-bold ${team.rank===1?'text-yellow-400':'text-gray-300'}`}>{team.rank}위 팀 상금</span>
                                    <div className="text-right">
                                       <span className="text-yellow-400 font-black text-xl">{Number(fAmount).toLocaleString()}개</span>
                                       {fRatio > 0 && <span className="text-xs text-gray-400 font-bold ml-1.5">({fRatio}%)</span>}
@@ -7709,8 +7709,8 @@ export default function App() {
           : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(selectedPlayer)}`;
 
         return (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
-            <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 py-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
+            <div className="bg-gray-800 rounded-2xl w-full max-w-md max-h-[calc(100vh-2rem)] border border-gray-700 shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
                 <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
                 <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
@@ -7769,12 +7769,12 @@ export default function App() {
                   <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">{stats.mostPlayedGame}</span>
                 </div>
               </div>
-              <div className="p-6">
-                <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center"><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 (최대 5경기)</h4>
+              <div className="p-6 flex-1 min-h-0 flex flex-col">
+                <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center"><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 ({stats.recentMatches.length}경기)</h4>
                 {stats.recentMatches.length === 0 ? (
                   <p className="text-center text-gray-500 py-6 text-sm">경기 기록이 없습니다.</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
                     {stats.recentMatches.map((m) => (
                       <div key={m.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
                         <div className="flex-1 truncate pr-2">
