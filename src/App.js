@@ -968,10 +968,199 @@ const getTeamMatchSetScoreLabel = (teams = []) => {
   return `${firstScore}:${secondScore}`;
 };
 
+const APP_TAB_IDS = ["home", "players", "matches", "stats", "tier", "wow", "wowraid", "dungeontier", "raid", "admin"];
+const WOW_SECTION_TAB_IDS = ["wow", "wowraid", "dungeontier"];
+const WOW_NAV_ITEMS = [
+  {
+    id: "wow",
+    label: "WOW 메인",
+    description: "길드 명단과 안내",
+    icon: Shield,
+  },
+  {
+    id: "wowraid",
+    label: "WOW 레이드",
+    description: "레이드 기록과 상세 보기",
+    icon: Layers,
+  },
+  {
+    id: "dungeontier",
+    label: "던전 티어게임",
+    description: "준비 중인 WOW 콘텐츠",
+    icon: Trophy,
+  },
+];
+
+const WOW_DUNGEON_TIER_COLLECTION = "wow_dungeon_tier_items";
+const WOW_DUNGEON_TIER_LAYOUT_STORAGE_KEY = "wak_wow_dungeon_tier_layout_v1";
+const WOW_DUNGEON_TIER_LEVELS = [
+  { id: "S", label: "S 티어" },
+  { id: "A", label: "A 티어" },
+  { id: "B", label: "B 티어" },
+  { id: "C", label: "C 티어" },
+  { id: "D", label: "D 티어" },
+  { id: "F", label: "F 티어" },
+];
+const WOW_DUNGEON_EXPANSION_OPTIONS = [
+  { id: "original", label: "오리지널", shortLabel: "오리" },
+  { id: "tbc", label: "불타는 성전", shortLabel: "불성" },
+];
+
+const normalizeWowDungeonExpansionType = (value = "") => (
+  value === "tbc" ? "tbc" : "original"
+);
+
+const getWowDungeonExpansionMeta = (expansionType = "original") => (
+  WOW_DUNGEON_EXPANSION_OPTIONS.find((option) => option.id === normalizeWowDungeonExpansionType(expansionType))
+  || WOW_DUNGEON_EXPANSION_OPTIONS[0]
+);
+
+const getWowDungeonExpansionSortOrder = (expansionType = "original") => (
+  normalizeWowDungeonExpansionType(expansionType) === "original" ? 0 : 1
+);
+
+const getWowDungeonExpansionTheme = (expansionType = "original", isLightTheme = false) => {
+  const normalizedType = normalizeWowDungeonExpansionType(expansionType);
+
+  if (normalizedType === "tbc") {
+    return isLightTheme
+      ? {
+          cardClass: "border-rose-200 bg-[linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(255,241,242,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.08)]",
+          badgeClass: "border-rose-200 bg-rose-600 text-white",
+          frameClass: "border-rose-200 bg-rose-50",
+          titleClass: "text-slate-900",
+          metaClass: "text-rose-700",
+          subtleClass: "text-slate-500",
+          buttonClass: "border-rose-200 bg-white text-rose-700 hover:bg-rose-50",
+        }
+      : {
+          cardClass: "border-red-500/25 bg-gradient-to-br from-red-950/40 via-gray-900 to-gray-950 shadow-[0_0_24px_rgba(239,68,68,0.12)]",
+          badgeClass: "border-red-400/35 bg-red-500/15 text-red-200",
+          frameClass: "border-red-500/25 bg-red-950/30",
+          titleClass: "text-white",
+          metaClass: "text-red-200",
+          subtleClass: "text-gray-400",
+          buttonClass: "border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/18",
+        };
+  }
+
+  return isLightTheme
+    ? {
+        cardClass: "border-emerald-200 bg-[linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(236,253,245,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.08)]",
+        badgeClass: "border-emerald-200 bg-emerald-600 text-white",
+        frameClass: "border-emerald-200 bg-emerald-50",
+        titleClass: "text-slate-900",
+        metaClass: "text-emerald-700",
+        subtleClass: "text-slate-500",
+        buttonClass: "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50",
+      }
+    : {
+        cardClass: "border-emerald-500/25 bg-gradient-to-br from-emerald-950/35 via-gray-900 to-gray-950 shadow-[0_0_24px_rgba(16,185,129,0.12)]",
+        badgeClass: "border-emerald-400/35 bg-emerald-500/15 text-emerald-200",
+        frameClass: "border-emerald-500/25 bg-emerald-950/25",
+        titleClass: "text-white",
+        metaClass: "text-emerald-200",
+        subtleClass: "text-gray-400",
+        buttonClass: "border-emerald-400/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/18",
+      };
+};
+
+const createEmptyWowDungeonTierForm = () => ({
+  id: null,
+  name: "",
+  imageUrl: "",
+  expansionType: "original",
+  videoUrl: "",
+});
+
+const createEmptyWowDungeonTierPlacements = () => (
+  WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+    acc[tier.id] = [];
+    return acc;
+  }, {})
+);
+
+const normalizeWowDungeonTierItem = (item = {}) => ({
+  id: item.id || null,
+  name: `${item.name || ""}`.trim(),
+  imageUrl: `${item.imageUrl || ""}`.trim(),
+  expansionType: normalizeWowDungeonExpansionType(item.expansionType),
+  videoUrl: `${item.videoUrl || ""}`.trim(),
+  createdAt: item.createdAt || null,
+  updatedAt: item.updatedAt || null,
+});
+
+const normalizeWowDungeonTierPlacements = (value = {}, validItemIds = []) => {
+  const validIdSet = Array.isArray(validItemIds) && validItemIds.length > 0
+    ? new Set(validItemIds)
+    : null;
+  const seenIds = new Set();
+
+  return WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+    const rawIds = Array.isArray(value?.[tier.id]) ? value[tier.id] : [];
+    acc[tier.id] = rawIds.filter((itemId) => {
+      if (typeof itemId !== "string" || !itemId) return false;
+      if (seenIds.has(itemId)) return false;
+      if (validIdSet && !validIdSet.has(itemId)) return false;
+      seenIds.add(itemId);
+      return true;
+    });
+    return acc;
+  }, createEmptyWowDungeonTierPlacements());
+};
+
+const areWowDungeonTierPlacementsEqual = (left = {}, right = {}) => (
+  WOW_DUNGEON_TIER_LEVELS.every((tier) => {
+    const leftIds = Array.isArray(left?.[tier.id]) ? left[tier.id] : [];
+    const rightIds = Array.isArray(right?.[tier.id]) ? right[tier.id] : [];
+    if (leftIds.length !== rightIds.length) return false;
+    return leftIds.every((itemId, index) => itemId === rightIds[index]);
+  })
+);
+
+const readWowDungeonTierPlacementsFromStorage = () => {
+  if (typeof window === "undefined") return createEmptyWowDungeonTierPlacements();
+
+  try {
+    const rawValue = JSON.parse(localStorage.getItem(WOW_DUNGEON_TIER_LAYOUT_STORAGE_KEY) || "{}");
+    return normalizeWowDungeonTierPlacements(rawValue);
+  } catch (error) {
+    return createEmptyWowDungeonTierPlacements();
+  }
+};
+
+const findWowDungeonTierPlacementByItemId = (placements = {}, itemId = "") => {
+  if (!itemId) return null;
+
+  const matchedTier = WOW_DUNGEON_TIER_LEVELS.find((tier) => {
+    const tierIds = Array.isArray(placements?.[tier.id]) ? placements[tier.id] : [];
+    return tierIds.includes(itemId);
+  });
+
+  return matchedTier?.id || null;
+};
+
+const moveWowDungeonTierItemBetweenTiers = (placements = {}, itemId = "", nextTierId = null) => {
+  const nextPlacements = WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+    acc[tier.id] = Array.isArray(placements?.[tier.id]) ? [...placements[tier.id]] : [];
+    return acc;
+  }, createEmptyWowDungeonTierPlacements());
+
+  WOW_DUNGEON_TIER_LEVELS.forEach((tier) => {
+    nextPlacements[tier.id] = nextPlacements[tier.id].filter((currentItemId) => currentItemId !== itemId);
+  });
+
+  if (nextTierId && nextPlacements[nextTierId]) {
+    nextPlacements[nextTierId].push(itemId);
+  }
+
+  return nextPlacements;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "players", "matches", "stats", "tier", "wow", "wowraid", "raid", "admin"].includes(hash) ? hash : "home";
+    return APP_TAB_IDS.includes(hash) ? hash : "home";
   });
   const [theme, setTheme] = useState(() => {
     try {
@@ -1027,6 +1216,14 @@ export default function App() {
   const [wowRaidFixedSearchInput, setWowRaidFixedSearchInput] = useState("");
   const [wowRaidGuestSearchInput, setWowRaidGuestSearchInput] = useState("");
   const [wowRaidStatSearchInput, setWowRaidStatSearchInput] = useState("");
+  const [wowDungeonTierItems, setWowDungeonTierItems] = useState([]);
+  const [wowDungeonTierForm, setWowDungeonTierForm] = useState(() => createEmptyWowDungeonTierForm());
+  const [isWowDungeonTierSaving, setIsWowDungeonTierSaving] = useState(false);
+  const [wowDungeonTierPlacements, setWowDungeonTierPlacements] = useState(() => readWowDungeonTierPlacementsFromStorage());
+  const [wowDungeonTierDragItemId, setWowDungeonTierDragItemId] = useState(null);
+  const [wowDungeonTierDropTarget, setWowDungeonTierDropTarget] = useState(null);
+  const [wowDungeonTierSelectedItemId, setWowDungeonTierSelectedItemId] = useState(null);
+  const [wowDungeonTierDetailItemId, setWowDungeonTierDetailItemId] = useState(null);
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
   const [raidAssignments, setRaidAssignments] = useState(() => createEmptyRaidLayout(getRaidConfig(DEFAULT_RAID_TYPE).groupCount, GUILD_MASTER_ID));
@@ -1152,6 +1349,8 @@ export default function App() {
 
   // ★ 모바일 퀵 메뉴 플로팅 버튼 상태 ★
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isWowNavMenuOpen, setIsWowNavMenuOpen] = useState(false);
+  const [isMobileWowMenuOpen, setIsMobileWowMenuOpen] = useState(false);
 
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
@@ -1278,6 +1477,48 @@ export default function App() {
     return items;
   }, [players, playerCardSearchInput, playerCardSort]);
 
+  const wowDungeonTierItemMap = useMemo(() => (
+    wowDungeonTierItems.reduce((acc, item) => {
+      if (item?.id) acc[item.id] = item;
+      return acc;
+    }, {})
+  ), [wowDungeonTierItems]);
+
+  const wowDungeonTierCardsByTier = useMemo(() => (
+    WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+      acc[tier.id] = (wowDungeonTierPlacements?.[tier.id] || [])
+        .map((itemId) => wowDungeonTierItemMap[itemId])
+        .filter(Boolean);
+      return acc;
+    }, {})
+  ), [wowDungeonTierPlacements, wowDungeonTierItemMap]);
+
+  const wowDungeonTierPlacedIds = useMemo(() => (
+    new Set(
+      WOW_DUNGEON_TIER_LEVELS.flatMap((tier) => wowDungeonTierPlacements?.[tier.id] || [])
+    )
+  ), [wowDungeonTierPlacements]);
+
+  const wowDungeonTierStashItems = useMemo(() => (
+    wowDungeonTierItems.filter((item) => item?.id && !wowDungeonTierPlacedIds.has(item.id))
+  ), [wowDungeonTierItems, wowDungeonTierPlacedIds]);
+
+  const wowDungeonTierSelectedItem = useMemo(() => (
+    wowDungeonTierSelectedItemId ? wowDungeonTierItemMap[wowDungeonTierSelectedItemId] || null : null
+  ), [wowDungeonTierSelectedItemId, wowDungeonTierItemMap]);
+
+  const wowDungeonTierSelectedTierId = useMemo(() => (
+    findWowDungeonTierPlacementByItemId(wowDungeonTierPlacements, wowDungeonTierSelectedItemId)
+  ), [wowDungeonTierPlacements, wowDungeonTierSelectedItemId]);
+
+  const wowDungeonTierDetailItem = useMemo(() => (
+    wowDungeonTierDetailItemId ? wowDungeonTierItemMap[wowDungeonTierDetailItemId] || null : null
+  ), [wowDungeonTierDetailItemId, wowDungeonTierItemMap]);
+
+  const wowDungeonTierDetailTierId = useMemo(() => (
+    findWowDungeonTierPlacementByItemId(wowDungeonTierPlacements, wowDungeonTierDetailItemId)
+  ), [wowDungeonTierPlacements, wowDungeonTierDetailItemId]);
+
   const requestSort = (key) => {
     let direction = 'desc'; 
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc'; 
@@ -1373,8 +1614,10 @@ export default function App() {
       : "bg-green-600 hover:bg-green-500 rotate-0 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]",
   }), [isLightTheme]);
 
-  const getDesktopNavButtonClasses = (tabId, tone = "default") => {
-    const isActive = activeTab === tabId;
+  const isWowSectionActive = WOW_SECTION_TAB_IDS.includes(activeTab);
+
+  const getDesktopNavButtonClasses = (tabId, tone = "default", options = {}) => {
+    const isActive = typeof options.isActive === "boolean" ? options.isActive : activeTab === tabId;
 
     if (isLightTheme) {
       if (tone === "wow") {
@@ -1428,6 +1671,42 @@ export default function App() {
 
     return `px-2.5 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
       isActive ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"
+    }`;
+  };
+
+  const getWowNavMenuItemClasses = (tabId) => {
+    const isActive = activeTab === tabId;
+
+    if (isLightTheme) {
+      return `w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+        isActive
+          ? "border-blue-200 bg-blue-50 text-blue-700 shadow-sm"
+          : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50"
+      }`;
+    }
+
+    return `w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+      isActive
+        ? "border-blue-500/40 bg-blue-900/40 text-blue-100"
+        : "border-transparent text-gray-200 hover:border-gray-700 hover:bg-gray-800"
+    }`;
+  };
+
+  const getMobileWowMenuItemClasses = (tabId) => {
+    const isActive = activeTab === tabId;
+
+    if (isLightTheme) {
+      return `flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+        isActive
+          ? "bg-blue-50 border-blue-200 text-blue-700 font-black shadow-[0_12px_24px_rgba(37,99,235,0.12)]"
+          : "bg-white/95 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 shadow-[0_12px_24px_rgba(15,23,42,0.10)]"
+      }`;
+    }
+
+    return `flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+      isActive
+        ? "bg-blue-900/50 border-blue-500/50 text-blue-200 font-black shadow-[0_0_12px_rgba(59,130,246,0.16)]"
+        : "bg-gray-800/90 border-gray-700/50 text-gray-200 font-bold hover:bg-gray-700"
     }`;
   };
 
@@ -2554,7 +2833,7 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "players", "matches", "stats", "tier", "wow", "wowraid", "raid", "admin"].includes(hash)) setActiveTab(hash);
+      if (APP_TAB_IDS.includes(hash)) setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -2578,6 +2857,39 @@ export default function App() {
   const navigateTo = (tabName) => {
     window.location.hash = tabName;
   };
+
+  const handleWowSectionNavigation = (tabId, { closeMobileMenu = false } = {}) => {
+    navigateTo(tabId);
+    setIsWowNavMenuOpen(false);
+
+    if (closeMobileMenu) {
+      setIsMobileWowMenuOpen(false);
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsWowNavMenuOpen(false);
+    setIsMobileWowMenuOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) return;
+    setIsMobileWowMenuOpen(false);
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isWowNavMenuOpen && !isMobileWowMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (event.target.closest('[data-wow-nav-layer="true"]')) return;
+      setIsWowNavMenuOpen(false);
+      setIsMobileWowMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isWowNavMenuOpen, isMobileWowMenuOpen]);
 
   useEffect(() => {
     if (activeTab !== "matches" || !selectedMatchId) return;
@@ -2717,6 +3029,74 @@ export default function App() {
 
     return () => unsubWowRaids();
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!["dungeontier", "admin"].includes(activeTab)) return;
+
+    const dungeonTierRef = collection(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION);
+    const unsubDungeonTierItems = onSnapshot(dungeonTierRef, (snapshot) => {
+      const nextItems = snapshot.docs
+        .map((itemDoc) => normalizeWowDungeonTierItem({ id: itemDoc.id, ...itemDoc.data() }))
+        .sort((a, b) => {
+          const expansionGap = getWowDungeonExpansionSortOrder(a.expansionType) - getWowDungeonExpansionSortOrder(b.expansionType);
+          if (expansionGap !== 0) return expansionGap;
+
+          const nameGap = (a.name || "").localeCompare(b.name || "", "ko");
+          if (nameGap !== 0) return nameGap;
+
+          return (a.createdAt || "").localeCompare(b.createdAt || "");
+        });
+
+      setWowDungeonTierItems(nextItems);
+    });
+
+    return () => unsubDungeonTierItems();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    const validItemIds = wowDungeonTierItems.map((item) => item.id).filter(Boolean);
+    setWowDungeonTierPlacements((prev) => {
+      const normalized = normalizeWowDungeonTierPlacements(prev, validItemIds);
+      return areWowDungeonTierPlacementsEqual(prev, normalized) ? prev : normalized;
+    });
+  }, [wowDungeonTierItems]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      localStorage.setItem(
+        WOW_DUNGEON_TIER_LAYOUT_STORAGE_KEY,
+        JSON.stringify(normalizeWowDungeonTierPlacements(wowDungeonTierPlacements))
+      );
+    } catch (error) {}
+  }, [wowDungeonTierPlacements]);
+
+  useEffect(() => {
+    if (wowDungeonTierSelectedItemId && !wowDungeonTierItemMap[wowDungeonTierSelectedItemId]) {
+      setWowDungeonTierSelectedItemId(null);
+    }
+  }, [wowDungeonTierSelectedItemId, wowDungeonTierItemMap]);
+
+  useEffect(() => {
+    if (wowDungeonTierDetailItemId && !wowDungeonTierItemMap[wowDungeonTierDetailItemId]) {
+      setWowDungeonTierDetailItemId(null);
+    }
+  }, [wowDungeonTierDetailItemId, wowDungeonTierItemMap]);
+
+  useEffect(() => {
+    if (!wowDungeonTierDetailItemId) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setWowDungeonTierDetailItemId(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [wowDungeonTierDetailItemId]);
 
   useEffect(() => {
     if (!user) return;
@@ -5070,6 +5450,191 @@ export default function App() {
     }
   };
 
+  const resetWowDungeonTierForm = () => {
+    setWowDungeonTierForm(createEmptyWowDungeonTierForm());
+  };
+
+  const handleWowDungeonTierFormFieldChange = (field, value) => {
+    setWowDungeonTierForm((prev) => ({
+      ...prev,
+      [field]: field === "expansionType" ? normalizeWowDungeonExpansionType(value) : value,
+    }));
+  };
+
+  const handleEditWowDungeonTierItem = (item) => {
+    if (!item) return;
+    const normalizedItem = normalizeWowDungeonTierItem(item);
+    setWowDungeonTierForm({
+      id: normalizedItem.id,
+      name: normalizedItem.name,
+      imageUrl: normalizedItem.imageUrl,
+      expansionType: normalizedItem.expansionType,
+      videoUrl: normalizedItem.videoUrl,
+    });
+    setAdminInnerTab("wow");
+  };
+
+  const handleDeleteWowDungeonTierItem = async (itemId) => {
+    if (!itemId) return;
+    if (!window.confirm("이 던전 카드를 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteDoc(doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, itemId));
+      await updateLastModifiedTime();
+      if (wowDungeonTierForm.id === itemId) resetWowDungeonTierForm();
+      if (wowDungeonTierDetailItemId === itemId) setWowDungeonTierDetailItemId(null);
+      showToast("던전 카드를 삭제했습니다.");
+    } catch (error) {
+      console.error(error);
+      showToast("던전 카드를 삭제하지 못했습니다.", "error");
+    }
+  };
+
+  const handleSaveWowDungeonTierItem = async () => {
+    const normalizedName = `${wowDungeonTierForm.name || ""}`.trim();
+    const normalizedImageUrl = `${wowDungeonTierForm.imageUrl || ""}`.trim();
+    const normalizedVideoUrl = `${wowDungeonTierForm.videoUrl || ""}`.trim();
+    const normalizedExpansionType = normalizeWowDungeonExpansionType(wowDungeonTierForm.expansionType);
+    const hasDuplicateName = wowDungeonTierItems.some((item) => (
+      item.id !== wowDungeonTierForm.id
+      && (item.name || "").trim().toLowerCase() === normalizedName.toLowerCase()
+    ));
+
+    if (!normalizedName) {
+      showToast("던전 이름을 입력해주세요.", "error");
+      return;
+    }
+
+    if (hasDuplicateName) {
+      showToast("같은 이름의 던전 카드가 이미 등록되어 있습니다.", "error");
+      return;
+    }
+
+    if (!normalizedImageUrl) {
+      showToast("대표 이미지 URL을 입력해주세요.", "error");
+      return;
+    }
+
+    if (!/^https?:\/\//i.test(normalizedImageUrl)) {
+      showToast("대표 이미지 URL은 http 또는 https로 시작해야 합니다.", "error");
+      return;
+    }
+
+    if (normalizedVideoUrl && !/^https?:\/\//i.test(normalizedVideoUrl)) {
+      showToast("대표 영상 URL은 비워두거나 http 또는 https로 시작해야 합니다.", "error");
+      return;
+    }
+
+    const payload = {
+      name: normalizedName,
+      imageUrl: normalizedImageUrl,
+      expansionType: normalizedExpansionType,
+      videoUrl: normalizedVideoUrl,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      setIsWowDungeonTierSaving(true);
+
+      if (wowDungeonTierForm.id) {
+        await updateDoc(
+          doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, wowDungeonTierForm.id),
+          payload
+        );
+        showToast("던전 카드를 수정했습니다.");
+      } else {
+        await addDoc(collection(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION), {
+          ...payload,
+          createdAt: new Date().toISOString(),
+        });
+        showToast("던전 카드를 등록했습니다.");
+      }
+
+      await updateLastModifiedTime();
+      resetWowDungeonTierForm();
+    } catch (error) {
+      console.error(error);
+      showToast("던전 카드를 저장하지 못했습니다.", "error");
+    } finally {
+      setIsWowDungeonTierSaving(false);
+    }
+  };
+
+  const clearWowDungeonTierDragState = () => {
+    setWowDungeonTierDragItemId(null);
+    setWowDungeonTierDropTarget(null);
+  };
+
+  const moveWowDungeonTierItem = (itemId, nextTierId = null) => {
+    if (!itemId) return;
+
+    setWowDungeonTierPlacements((prev) => {
+      const next = moveWowDungeonTierItemBetweenTiers(prev, itemId, nextTierId);
+      return areWowDungeonTierPlacementsEqual(prev, next) ? prev : next;
+    });
+  };
+
+  const handleSelectWowDungeonTierItem = (itemId) => {
+    if (!itemId) return;
+    setWowDungeonTierSelectedItemId((prev) => prev === itemId ? null : itemId);
+  };
+
+  const handleOpenWowDungeonTierDetail = (itemId) => {
+    if (!itemId) return;
+    setWowDungeonTierSelectedItemId(itemId);
+    setWowDungeonTierDetailItemId(itemId);
+  };
+
+  const handleCloseWowDungeonTierDetail = () => {
+    setWowDungeonTierDetailItemId(null);
+  };
+
+  const handleMoveSelectedWowDungeonTierItem = (nextTierId = null) => {
+    if (!wowDungeonTierSelectedItemId) return;
+    moveWowDungeonTierItem(wowDungeonTierSelectedItemId, nextTierId);
+  };
+
+  const handleResetWowDungeonTierPlacements = () => {
+    setWowDungeonTierPlacements(createEmptyWowDungeonTierPlacements());
+    setWowDungeonTierSelectedItemId(null);
+    clearWowDungeonTierDragState();
+    showToast("던전 티어표를 초기화했습니다.");
+  };
+
+  const handleWowDungeonTierDragStart = (event, itemId) => {
+    if (!itemId) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", itemId);
+    setWowDungeonTierDragItemId(itemId);
+    setWowDungeonTierSelectedItemId(itemId);
+  };
+
+  const handleWowDungeonTierDragEnd = () => {
+    clearWowDungeonTierDragState();
+  };
+
+  const handleWowDungeonTierDropZoneDragOver = (event, zoneId) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (wowDungeonTierDropTarget !== zoneId) {
+      setWowDungeonTierDropTarget(zoneId);
+    }
+  };
+
+  const handleWowDungeonTierDropZoneDrop = (event, nextTierId = null) => {
+    event.preventDefault();
+    const itemId = event.dataTransfer.getData("text/plain") || wowDungeonTierDragItemId;
+    if (itemId) {
+      moveWowDungeonTierItem(itemId, nextTierId);
+      setWowDungeonTierSelectedItemId(itemId);
+    }
+    clearWowDungeonTierDragState();
+  };
+
   const getWowRaidRankings = (raid, categoryId) => {
     if (!raid) return [];
     const statsMap = raid.stats?.[categoryId] || {};
@@ -5308,6 +5873,632 @@ export default function App() {
         ) : (
           <div className={wowTheme.emptyPanel}>선택한 군에 해당하는 WOW 레이드 기록이 없습니다.</div>
         )}
+      </div>
+    );
+  };
+
+  const renderDungeonTierGameView = () => {
+    const originalCount = wowDungeonTierItems.filter((item) => item.expansionType === "original").length;
+    const tbcCount = wowDungeonTierItems.filter((item) => item.expansionType === "tbc").length;
+    const tierBoardMeta = {
+      S: {
+        lightBoxClass: "border-red-200 bg-red-50",
+        darkBoxClass: "border-gray-900 bg-red-500",
+        lightIdTextClass: "text-red-700",
+        darkIdTextClass: "text-white",
+      },
+      A: {
+        lightBoxClass: "border-orange-100 bg-orange-50/70",
+        darkBoxClass: "border-gray-900 bg-orange-400",
+        lightIdTextClass: "text-orange-600",
+        darkIdTextClass: "text-white",
+      },
+      B: {
+        lightBoxClass: "border-amber-200 bg-amber-50",
+        darkBoxClass: "border-gray-900 bg-yellow-500",
+        lightIdTextClass: "text-amber-700",
+        darkIdTextClass: "text-white",
+      },
+      C: {
+        lightBoxClass: "border-emerald-200 bg-emerald-50",
+        darkBoxClass: "border-gray-900 bg-green-500",
+        lightIdTextClass: "text-emerald-700",
+        darkIdTextClass: "text-white",
+      },
+      D: {
+        lightBoxClass: "border-blue-200 bg-blue-50",
+        darkBoxClass: "border-gray-900 bg-blue-500",
+        lightIdTextClass: "text-blue-700",
+        darkIdTextClass: "text-white",
+      },
+      F: {
+        lightBoxClass: "border-slate-200 bg-slate-100",
+        darkBoxClass: "border-gray-900 bg-slate-600",
+        lightIdTextClass: "text-slate-700",
+        darkIdTextClass: "text-white",
+      },
+    };
+    const selectedLocationLabel = wowDungeonTierSelectedTierId ? `${wowDungeonTierSelectedTierId} 티어` : "보관함";
+    const renderDungeonCard = (item, { currentTierId = null, compact = false } = {}) => {
+      const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
+      const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+      const isSelected = wowDungeonTierSelectedItemId === item.id;
+      const isDragging = wowDungeonTierDragItemId === item.id;
+
+      if (compact) {
+        return (
+          <div
+            key={`${currentTierId || "stash"}-${item.id}`}
+            role="button"
+            tabIndex={0}
+            draggable
+            title={`${item.name} · ${expansionMeta.label} · 좌클릭 상세보기 · 우클릭 보관함 이동`}
+            onClick={() => handleOpenWowDungeonTierDetail(item.id)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              if (!currentTierId) return;
+              setWowDungeonTierSelectedItemId(item.id);
+              moveWowDungeonTierItem(item.id, null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleOpenWowDungeonTierDetail(item.id);
+              }
+            }}
+            onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
+            onDragEnd={handleWowDungeonTierDragEnd}
+            className="group relative flex flex-col items-center cursor-grab active:cursor-grabbing"
+          >
+            <div
+              className={`relative w-16 h-16 rounded-lg border-2 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform ${
+                isSelected
+                  ? (isLightTheme
+                    ? "bg-slate-100 border-indigo-400 ring-2 ring-indigo-500 ring-offset-2 ring-offset-white"
+                    : "bg-gray-700 border-indigo-300 ring-2 ring-indigo-300/70 ring-offset-2 ring-offset-gray-800")
+                  : (isLightTheme
+                    ? "bg-slate-100 border-slate-200 group-hover:border-emerald-300"
+                    : "bg-gray-700 border-gray-600 group-hover:border-green-400")
+              } ${isDragging ? "scale-95 opacity-60" : "group-hover:scale-110"}`}
+            >
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className={`w-full h-full flex items-center justify-center text-xs font-black ${expansionTheme.metaClass}`}>
+                  DUN
+                </div>
+              )}
+              <span className={`absolute left-1 top-1 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+                {expansionMeta.shortLabel}
+              </span>
+            </div>
+            <span className={`mt-2 text-xs leading-[1.15rem] font-medium px-2 py-0.5 rounded text-center break-keep max-w-[92px] transition-colors ${isLightTheme ? "text-slate-900 bg-slate-100 group-hover:text-emerald-700" : "text-white bg-gray-900/80 group-hover:text-green-400"}`}>
+              {item.name}
+            </span>
+            <span className={`text-[11px] font-bold mt-0.5 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>
+              {item.videoUrl ? "영상 링크" : expansionMeta.label}
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          key={`${currentTierId || "stash"}-${item.id}`}
+          role="button"
+          tabIndex={0}
+          draggable
+          onClick={() => handleSelectWowDungeonTierItem(item.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleSelectWowDungeonTierItem(item.id);
+            }
+          }}
+          onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
+          onDragEnd={handleWowDungeonTierDragEnd}
+          className={`group rounded-3xl border overflow-hidden transition-all duration-300 cursor-grab active:cursor-grabbing ${
+            isSelected
+              ? (isLightTheme
+                ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-white shadow-[0_18px_36px_rgba(79,70,229,0.18)]"
+                : "ring-2 ring-indigo-300/70 ring-offset-2 ring-offset-gray-950 shadow-[0_0_28px_rgba(129,140,248,0.18)]")
+              : ""
+          } ${
+            isDragging ? "scale-[0.98] opacity-60" : "hover:-translate-y-1"
+          } ${expansionTheme.cardClass}`}
+        >
+          <div className={`relative aspect-[4/3] border-b overflow-hidden ${expansionTheme.frameClass}`}>
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center text-lg font-black ${expansionTheme.metaClass}`}>
+                DUNGEON
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/60 via-black/20 to-transparent">
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+                {expansionMeta.shortLabel}
+              </span>
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold backdrop-blur-sm ${isLightTheme ? "border-white/80 bg-white/90 text-slate-700" : "border-white/15 bg-black/40 text-gray-100"}`}>
+                {currentTierId ? `${currentTierId} 티어` : "보관함"}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-xs font-semibold ${expansionTheme.subtleClass}`}>{expansionMeta.label}</span>
+              <span className={`text-[11px] font-bold ${expansionTheme.metaClass}`}>{item.videoUrl ? "영상 링크 있음" : "이미지 카드"}</span>
+            </div>
+            <h4 className={`mt-3 text-base font-black break-keep ${expansionTheme.titleClass}`}>{item.name}</h4>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className={`text-xs ${expansionTheme.subtleClass}`}>{currentTierId ? "배치된 카드" : "보관함 대기 카드"}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleSelectWowDungeonTierItem(item.id);
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${isSelected ? (isLightTheme ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-indigo-400/40 bg-indigo-500/15 text-indigo-100") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")}`}
+                >
+                  <CheckSquare className="w-3 h-3" />
+                  {isSelected ? "선택됨" : "선택"}
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleOpenWowDungeonTierDetail(item.id);
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
+                >
+                  <Search className="w-3 h-3" />
+                  상세
+                </button>
+                {currentTierId ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveWowDungeonTierItem(item.id, null);
+                    }}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    보관함
+                  </button>
+                ) : null}
+                {item.videoUrl ? (
+                  <a
+                    href={item.videoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${expansionTheme.buttonClass}`}
+                  >
+                    <Tv className="w-3 h-3" />
+                    영상
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const renderDungeonStashCard = (item) => {
+      const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
+      const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+      const isSelected = wowDungeonTierSelectedItemId === item.id;
+      const isDragging = wowDungeonTierDragItemId === item.id;
+
+      return (
+        <div
+          key={`stash-mini-${item.id}`}
+          role="button"
+          tabIndex={0}
+          draggable
+          title={`${item.name} · ${expansionMeta.label}`}
+          onClick={() => handleSelectWowDungeonTierItem(item.id)}
+          onDoubleClick={() => handleOpenWowDungeonTierDetail(item.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleSelectWowDungeonTierItem(item.id);
+            }
+          }}
+          onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
+          onDragEnd={handleWowDungeonTierDragEnd}
+          className={`group rounded-2xl border p-2.5 cursor-grab active:cursor-grabbing transition-all ${
+            isSelected
+              ? (isLightTheme
+                ? "border-indigo-300 bg-indigo-50/70 ring-2 ring-indigo-400/70"
+                : "border-indigo-300/60 bg-indigo-500/10 ring-2 ring-indigo-300/60")
+              : (isLightTheme
+                ? "border-slate-200 bg-white hover:border-slate-300"
+                : "border-gray-700 bg-gray-900/80 hover:border-gray-500")
+          } ${isDragging ? "scale-95 opacity-60" : "hover:-translate-y-0.5"}`}
+        >
+          <div className={`relative aspect-square overflow-hidden rounded-xl border ${isLightTheme ? "border-slate-200 bg-slate-100" : "border-gray-700 bg-gray-800"}`}>
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center text-[11px] font-black ${expansionTheme.metaClass}`}>
+                DUN
+              </div>
+            )}
+            <span className={`absolute left-1.5 top-1.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+              {expansionMeta.shortLabel}
+            </span>
+          </div>
+          <div className={`mt-2 text-[11px] leading-4 font-bold text-center break-keep ${publicTheme.heading}`}>
+            {item.name}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-8">
+        <div className={publicTheme.heroTier}>
+          <div className="absolute -right-6 -top-6 opacity-10 pointer-events-none">
+            <Trophy className="w-28 h-28 text-amber-300" />
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-start gap-3">
+              <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${isLightTheme ? "border-amber-200 bg-white shadow-[0_12px_24px_rgba(217,119,6,0.08)]" : "border-amber-400/30 bg-amber-500/12 shadow-[0_0_18px_rgba(251,191,36,0.12)]"}`}>
+                <Trophy className={`h-5 w-5 ${isLightTheme ? "text-amber-600" : "text-amber-300"}`} />
+              </div>
+              <div className="min-w-0">
+                <h2 className={`text-3xl md:text-4xl font-black tracking-tight ${publicTheme.heading}`}>던전 티어게임</h2>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(260px,2fr)] gap-5 items-start">
+          <div className={`${publicTheme.surfaceCard} p-6`}>
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h3 className={`text-xl font-black ${publicTheme.heading}`}>던전 티어표</h3>
+                <p className={`mt-2 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
+                  티어표에 배치된 카드는 좌클릭으로 상세보기와 등록된 동영상을 열 수 있고, 우클릭으로 바로 던전 보관함으로 되돌릴 수 있습니다.
+                </p>
+              </div>
+              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
+                <Star className={`w-3.5 h-3.5 ${isLightTheme ? "text-amber-500" : "text-amber-300"}`} />
+                브라우저 자동 저장
+              </div>
+            </div>
+
+            <div className={`mt-5 rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/60"}`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <p className={`text-sm font-black ${publicTheme.heading}`}>
+                    {wowDungeonTierSelectedItem ? `선택된 카드: ${wowDungeonTierSelectedItem.name}` : "선택된 카드 없음"}
+                  </p>
+                  <p className={`mt-2 text-xs font-semibold ${publicTheme.faintText}`}>
+                    현재 위치: {selectedLocationLabel}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {wowDungeonTierSelectedItem ? (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenWowDungeonTierDetail(wowDungeonTierSelectedItem.id)}
+                      className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50" : "border-indigo-400/30 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/18"}`}
+                    >
+                      선택 카드 상세
+                    </button>
+                  ) : null}
+                  {wowDungeonTierSelectedItem ? (
+                    <button
+                      type="button"
+                      onClick={() => setWowDungeonTierSelectedItemId(null)}
+                      className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
+                    >
+                      선택 해제
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleResetWowDungeonTierPlacements}
+                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-rose-200 bg-white text-rose-700 hover:bg-rose-50" : "border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18"}`}
+                  >
+                    내 티어표 초기화
+                  </button>
+                </div>
+              </div>
+
+              {wowDungeonTierSelectedItem ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
+                    const isActiveTier = wowDungeonTierSelectedTierId === tier.id;
+                    return (
+                      <button
+                        key={`quick-move-${tier.id}`}
+                        type="button"
+                        onClick={() => handleMoveSelectedWowDungeonTierItem(tier.id)}
+                        className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${
+                          isActiveTier
+                            ? (isLightTheme ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300/40 bg-slate-200 text-slate-950")
+                            : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")
+                        }`}
+                      >
+                        {tier.id} 티어로 이동
+                      </button>
+                    );
+                  })}
+                  {wowDungeonTierSelectedTierId ? (
+                    <button
+                      type="button"
+                      onClick={() => handleMoveSelectedWowDungeonTierItem(null)}
+                      className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${isLightTheme ? "border-sky-200 bg-white text-sky-700 hover:bg-sky-50" : "border-sky-400/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/18"}`}
+                    >
+                      보관함으로 이동
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className={`mt-6 rounded-xl border overflow-hidden flex flex-col gap-1 p-1 ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
+              {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
+                const tierMeta = tierBoardMeta[tier.id];
+                const tierCards = wowDungeonTierCardsByTier[tier.id] || [];
+                const isDropActive = wowDungeonTierDropTarget === `tier:${tier.id}`;
+                const sidebarClass = isLightTheme ? tierMeta.lightBoxClass : tierMeta.darkBoxClass;
+                const idTextClass = isLightTheme ? tierMeta.lightIdTextClass : tierMeta.darkIdTextClass;
+
+                return (
+                  <div key={tier.id} className={`flex flex-col md:flex-row rounded-lg overflow-hidden min-h-[100px] relative border ${isLightTheme ? "bg-white border-slate-200" : "bg-gray-800 border-gray-700"}`}>
+                    <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r shadow-inner relative z-10 overflow-hidden ${sidebarClass}`}>
+                      <span className={`text-2xl font-extrabold relative z-10 ${idTextClass}`}>{tier.id}</span>
+                    </div>
+
+                    <div
+                      onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, `tier:${tier.id}`)}
+                      onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, tier.id)}
+                      className={`flex-1 p-4 flex flex-wrap gap-4 items-center transition ${isLightTheme ? "bg-white" : "bg-gray-800/80"} ${isDropActive ? (isLightTheme ? "ring-2 ring-indigo-400 ring-inset bg-indigo-50/70" : "ring-2 ring-indigo-300/60 ring-inset bg-indigo-500/10") : ""}`}
+                    >
+                      {tierCards.length > 0 ? tierCards.map((item) => renderDungeonCard(item, { currentTierId: tier.id, compact: true })) : (
+                        <span className={`text-sm italic p-2 ${publicTheme.emptyState}`}>해당 티어에 배치된 던전 카드 없음</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={`${publicTheme.surfaceCard} p-5 xl:sticky xl:top-24`}>
+            <div className="flex flex-col gap-3">
+              <div>
+                <h3 className={`text-lg font-black ${publicTheme.heading}`}>던전 보관함</h3>
+                <p className={`mt-2 text-xs leading-5 break-keep ${publicTheme.mutedText}`}>
+                  더블클릭으로 해당 던전의 클립 영상 재생
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"}`}>
+                  오리지널 {originalCount}
+                </span>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-rose-200 bg-rose-50 text-rose-700" : "border-red-400/30 bg-red-500/10 text-red-200"}`}>
+                  불성 {tbcCount}
+                </span>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
+                  {wowDungeonTierStashItems.length}장
+                </span>
+              </div>
+            </div>
+
+            <div
+              onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, "stash")}
+              onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, null)}
+              className={`mt-5 rounded-2xl border-2 border-dashed p-3 transition ${wowDungeonTierDropTarget === "stash" ? (isLightTheme ? "border-indigo-400 bg-indigo-50/80 shadow-[0_18px_36px_rgba(79,70,229,0.12)]" : "border-indigo-300/60 bg-indigo-500/12 shadow-[0_0_26px_rgba(99,102,241,0.18)]") : (isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40")}`}
+            >
+              {wowDungeonTierStashItems.length > 0 ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-2 gap-2.5">
+                  {wowDungeonTierStashItems.map((item) => renderDungeonStashCard(item))}
+                </div>
+              ) : (
+                <div className={`rounded-2xl border px-4 py-8 text-center text-sm ${isLightTheme ? "border-white/80 bg-white/80 text-slate-600" : "border-white/10 bg-black/20 text-gray-300"}`}>
+                  현재 보관함이 비어 있습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {wowDungeonTierItems.length === 0 ? (
+          <div className={`${publicTheme.surfaceCard} p-10 text-center`}>
+            <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border ${isLightTheme ? "border-slate-200 bg-white" : "border-gray-700 bg-gray-900/60"}`}>
+              <Layers className={`h-7 w-7 ${isLightTheme ? "text-slate-700" : "text-gray-200"}`} />
+            </div>
+            <h3 className={`text-xl font-black ${publicTheme.heading}`}>아직 등록된 던전이 없습니다.</h3>
+            <p className={`mt-3 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
+              관리자 WOW 설정에서 던전 이름, 이미지, 종류를 등록하면 이 화면에 바로 반영됩니다.
+            </p>
+          </div>
+        ) : null}
+
+        {wowDungeonTierDetailItem && (() => {
+          const detailExpansionMeta = getWowDungeonExpansionMeta(wowDungeonTierDetailItem.expansionType);
+          const detailExpansionTheme = getWowDungeonExpansionTheme(wowDungeonTierDetailItem.expansionType, isLightTheme);
+          const detailLocationLabel = wowDungeonTierDetailTierId ? `${wowDungeonTierDetailTierId} 티어` : "보관함";
+          const moveButtonBaseClass = "px-3 py-2 rounded-xl border text-sm font-bold transition";
+
+          return (
+            <div
+              className={`fixed inset-0 z-[170] flex items-center justify-center px-4 py-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/50" : "bg-black/80"}`}
+              onClick={handleCloseWowDungeonTierDetail}
+            >
+              <div
+                className={`w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-hidden rounded-[28px] border ${isLightTheme ? "bg-white border-slate-200 shadow-[0_32px_90px_rgba(15,23,42,0.22)]" : "bg-gray-900 border-gray-700 shadow-2xl"}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
+                  <div className={`relative min-h-[320px] lg:min-h-[620px] ${detailExpansionTheme.frameClass}`}>
+                    {wowDungeonTierDetailItem.imageUrl ? (
+                      <img
+                        src={wowDungeonTierDetailItem.imageUrl}
+                        alt={wowDungeonTierDetailItem.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className={`w-full h-full flex items-center justify-center text-3xl font-black ${detailExpansionTheme.metaClass}`}>
+                        DUNGEON
+                      </div>
+                    )}
+
+                    <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black backdrop-blur-sm ${detailExpansionTheme.badgeClass}`}>
+                          {detailExpansionMeta.label}
+                        </span>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black backdrop-blur-sm ${isLightTheme ? "border-white/80 bg-white/90 text-slate-700" : "border-white/15 bg-black/40 text-gray-100"}`}>
+                          현재 위치: {detailLocationLabel}
+                        </span>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black backdrop-blur-sm ${isLightTheme ? "border-white/80 bg-white/90 text-slate-700" : "border-white/15 bg-black/40 text-gray-100"}`}>
+                          {wowDungeonTierDetailItem.videoUrl ? "영상 링크 포함" : "이미지 카드"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`flex flex-col min-h-0 ${isLightTheme ? "bg-white" : "bg-gray-950/95"}`}>
+                    <div className={`px-6 py-5 border-b ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-950"}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className={`text-xs font-black uppercase tracking-[0.24em] ${detailExpansionTheme.metaClass}`}>Dungeon Detail</p>
+                          <h3 className={`mt-2 text-2xl font-black break-keep ${publicTheme.heading}`}>{wowDungeonTierDetailItem.name}</h3>
+                          <p className={`mt-2 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
+                            던전 카드의 대표 이미지와 영상 링크를 확인하고, 현재 티어 위치를 빠르게 바꿀 수 있습니다.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCloseWowDungeonTierDetail}
+                          className={`shrink-0 rounded-full border p-2 transition ${isLightTheme ? "border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800"}`}
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
+                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>종류</p>
+                          <p className={`mt-2 text-lg font-black ${detailExpansionTheme.metaClass}`}>{detailExpansionMeta.label}</p>
+                        </div>
+                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
+                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>현재 위치</p>
+                          <p className={`mt-2 text-lg font-black ${publicTheme.heading}`}>{detailLocationLabel}</p>
+                        </div>
+                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
+                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>영상 링크</p>
+                          <p className={`mt-2 text-sm font-bold break-all ${wowDungeonTierDetailItem.videoUrl ? detailExpansionTheme.metaClass : publicTheme.mutedText}`}>
+                            {wowDungeonTierDetailItem.videoUrl || "등록되지 않음"}
+                          </p>
+                        </div>
+                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
+                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>저장 방식</p>
+                          <p className={`mt-2 text-sm font-bold ${publicTheme.heading}`}>이 브라우저에만 개인 저장</p>
+                          <p className={`mt-1 text-xs ${publicTheme.mutedText}`}>다른 기기나 브라우저와는 자동 동기화되지 않습니다.</p>
+                        </div>
+                      </div>
+
+                      <div className={`rounded-2xl border p-5 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
+                        <div className="flex flex-col gap-3">
+                          <div>
+                            <h4 className={`text-sm font-black ${publicTheme.heading}`}>빠른 티어 이동</h4>
+                            <p className={`mt-1 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
+                              모달 안에서도 바로 원하는 티어 줄로 보낼 수 있습니다.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                moveWowDungeonTierItem(wowDungeonTierDetailItem.id, null);
+                                setWowDungeonTierSelectedItemId(wowDungeonTierDetailItem.id);
+                              }}
+                              className={`${moveButtonBaseClass} ${!wowDungeonTierDetailTierId ? (isLightTheme ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300/40 bg-slate-200 text-slate-950") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
+                            >
+                              보관함
+                            </button>
+                            {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
+                              const isActiveTier = wowDungeonTierDetailTierId === tier.id;
+                              return (
+                                <button
+                                  key={`detail-move-${tier.id}`}
+                                  type="button"
+                                  onClick={() => {
+                                    moveWowDungeonTierItem(wowDungeonTierDetailItem.id, tier.id);
+                                    setWowDungeonTierSelectedItemId(wowDungeonTierDetailItem.id);
+                                  }}
+                                  className={`${moveButtonBaseClass} ${isActiveTier ? (isLightTheme ? "border-indigo-500 bg-indigo-600 text-white" : "border-indigo-300/50 bg-indigo-200 text-indigo-950") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
+                                >
+                                  {tier.id}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectWowDungeonTierItem(wowDungeonTierDetailItem.id)}
+                          className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition ${wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? (isLightTheme ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-indigo-400/40 bg-indigo-500/15 text-indigo-100") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
+                        >
+                          {wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? "현재 선택된 카드" : "이 카드 선택"}
+                        </button>
+
+                        {wowDungeonTierDetailItem.videoUrl ? (
+                          <a
+                            href={wowDungeonTierDetailItem.videoUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition inline-flex items-center ${detailExpansionTheme.buttonClass}`}
+                          >
+                            <Tv className="w-4 h-4 mr-2" />
+                            대표 영상 보기
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className={`px-4 py-2.5 rounded-xl border text-sm font-bold cursor-not-allowed ${isLightTheme ? "border-slate-200 bg-slate-100 text-slate-400" : "border-gray-800 bg-gray-900/80 text-gray-500"}`}
+                          >
+                            대표 영상 없음
+                          </button>
+                        )}
+
+                        {wowDungeonTierDetailItem.videoUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => copyTextToClipboard(wowDungeonTierDetailItem.videoUrl, "대표 영상 링크를 복사했습니다.")}
+                            className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800"}`}
+                          >
+                            <Copy className="w-4 h-4 inline mr-2" />
+                            영상 링크 복사
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     );
   };
@@ -7917,6 +9108,205 @@ export default function App() {
             </div>
 
 
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+                <div>
+                  <h2 className={`text-xl font-bold mb-2 flex items-center ${adminTheme.heading}`}>
+                    <Trophy className={`w-5 h-5 mr-2 ${isLightTheme ? "text-amber-600" : "text-amber-300"}`} /> 던전 티어게임 관리
+                  </h2>
+                  <p className={`text-sm leading-6 break-keep ${adminTheme.mutedText}`}>
+                    던전 티어게임 탭에서 사용할 카드를 등록합니다. 1차 작업에서는 던전 데이터 등록과 목록 관리를 먼저 완성하고, 다음 단계에서 드래그 배치형 티어 보드에 연결합니다.
+                  </p>
+                </div>
+                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-100 text-slate-700" : "border-gray-600 bg-gray-900 text-gray-200"}`}>
+                  총 {wowDungeonTierItems.length}개 등록
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-6">
+                <div className={`rounded-2xl border p-4 space-y-4 ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900 border-gray-700"}`}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>던전 이름</label>
+                      <input
+                        type="text"
+                        value={wowDungeonTierForm.name}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("name", e.target.value)}
+                        placeholder="예: 화산 심장부"
+                        className={adminTheme.input}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>종류</label>
+                      <select
+                        value={wowDungeonTierForm.expansionType}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("expansionType", e.target.value)}
+                        className={adminTheme.input}
+                      >
+                        {WOW_DUNGEON_EXPANSION_OPTIONS.map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>대표 영상 URL</label>
+                      <input
+                        type="text"
+                        value={wowDungeonTierForm.videoUrl}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("videoUrl", e.target.value)}
+                        placeholder="선택 입력"
+                        className={adminTheme.input}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>대표 이미지 URL</label>
+                      <input
+                        type="text"
+                        value={wowDungeonTierForm.imageUrl}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("imageUrl", e.target.value)}
+                        placeholder="https://..."
+                        className={adminTheme.input}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`rounded-2xl border overflow-hidden ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).cardClass}`}>
+                    <div className={`aspect-[16/9] border-b overflow-hidden ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).frameClass}`}>
+                      {wowDungeonTierForm.imageUrl ? (
+                        <img
+                          src={wowDungeonTierForm.imageUrl}
+                          alt={wowDungeonTierForm.name || "던전 미리보기"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center text-xl font-black ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).metaClass}`}>
+                          DUNGEON PREVIEW
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).badgeClass}`}>
+                          {getWowDungeonExpansionMeta(wowDungeonTierForm.expansionType).label}
+                        </span>
+                        <span className={`text-xs font-semibold ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).subtleClass}`}>
+                          {wowDungeonTierForm.videoUrl ? "영상 링크 포함" : "영상 링크 없음"}
+                        </span>
+                      </div>
+                      <div className={`mt-3 text-lg font-black break-keep ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).titleClass}`}>
+                        {wowDungeonTierForm.name || "던전 이름 미리보기"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={resetWowDungeonTierForm}
+                      className={adminTheme.neutralButton}
+                    >
+                      입력 초기화
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveWowDungeonTierItem}
+                      disabled={isWowDungeonTierSaving}
+                      className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
+                        isWowDungeonTierSaving
+                          ? (isLightTheme
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
+                            : "bg-gray-700 text-gray-400 cursor-not-allowed")
+                          : (isLightTheme
+                            ? "bg-amber-600 hover:bg-amber-500 text-white shadow-[0_14px_30px_rgba(217,119,6,0.18)]"
+                            : "bg-amber-500 hover:bg-amber-400 text-black")
+                      }`}
+                    >
+                      {isWowDungeonTierSaving ? "저장 중..." : (wowDungeonTierForm.id ? "던전 카드 수정" : "던전 카드 등록")}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h3 className={`text-base font-black ${adminTheme.heading}`}>등록된 던전 카드</h3>
+                    <span className={`text-xs ${adminTheme.mutedText}`}>오리지널/불성 순 정렬</span>
+                  </div>
+
+                  {wowDungeonTierItems.length > 0 ? wowDungeonTierItems.map((item) => {
+                    const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
+                    const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+
+                    return (
+                      <div key={item.id} className={`rounded-2xl border p-3 flex flex-col md:flex-row md:items-center gap-4 ${expansionTheme.cardClass}`}>
+                        <div className={`w-full md:w-36 h-24 rounded-xl overflow-hidden border flex-shrink-0 ${expansionTheme.frameClass}`}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className={`w-full h-full flex items-center justify-center text-sm font-black ${expansionTheme.metaClass}`}>
+                              NO IMAGE
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <p className={`font-black text-lg break-keep ${expansionTheme.titleClass}`}>{item.name}</p>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${expansionTheme.badgeClass}`}>
+                              {expansionMeta.shortLabel}
+                            </span>
+                            {item.videoUrl ? (
+                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${expansionTheme.buttonClass}`}>
+                                <Tv className="w-3 h-3 mr-1" />
+                                영상 있음
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className={`text-sm ${expansionTheme.subtleClass}`}>
+                            {expansionMeta.label} 던전 카드
+                          </p>
+                          {item.videoUrl ? (
+                            <a
+                              href={item.videoUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className={`mt-2 inline-flex items-center gap-1 text-xs font-semibold ${expansionTheme.metaClass}`}
+                            >
+                              <Link2 className="w-3 h-3" />
+                              대표 영상 열기
+                            </a>
+                          ) : null}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => handleEditWowDungeonTierItem(item)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm" : "bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700"}`}
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWowDungeonTierItem(item.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:text-rose-800 shadow-sm" : "bg-gray-800 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white"}`}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className={`rounded-2xl border border-dashed p-8 text-center ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-500" : "border-gray-700 bg-gray-900/50 text-gray-400"}`}>
+                      아직 등록된 던전 카드가 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* ★ WOW 길드원 프로필 이미지 관리 ★ */}
             <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
@@ -8631,7 +10021,7 @@ export default function App() {
       })()}
 
       <nav className={`py-4 px-1.5 md:px-2 flex justify-between sticky top-0 z-50 transition-colors duration-300 ${shellTheme.nav}`}>
-        <div className="max-w-[1296px] mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div className="max-w-[1296px] mx-auto w-full flex justify-between items-center overflow-x-auto md:overflow-visible [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <h1 className={`text-lg md:text-xl font-bold cursor-pointer flex items-center whitespace-nowrap transition-colors ${shellTheme.navTitle}`} onClick={() => navigateTo("home")}>
               <Gamepad2 className={`w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 transition-colors ${shellTheme.navTitleIcon}`} /> 버츄얼 종겜 리그
@@ -8654,12 +10044,56 @@ export default function App() {
             <button onClick={() => navigateTo("matches")} className={getDesktopNavButtonClasses("matches")}>경기</button>
             <button onClick={() => navigateTo("stats")} className={getDesktopNavButtonClasses("stats")}>통계</button>
             <button onClick={() => navigateTo("tier")} className={getDesktopNavButtonClasses("tier")}>티어</button>
-            <button onClick={() => navigateTo("wow")} className={getDesktopNavButtonClasses("wow", "wow")}>
-              <Shield className="w-4 h-4 mr-1" /> WOW
-            </button>
-            <button onClick={() => navigateTo("wowraid")} className={getDesktopNavButtonClasses("wowraid", "wowraid")}>
-              WOW레이드
-            </button>
+            <div className="relative flex items-center gap-1" data-wow-nav-layer="true">
+              <button
+                type="button"
+                onClick={() => handleWowSectionNavigation("wow")}
+                className={getDesktopNavButtonClasses("wow", "wow", { isActive: isWowSectionActive })}
+              >
+                <Shield className="w-4 h-4 mr-1" /> WOW
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsWowNavMenuOpen((prev) => !prev)}
+                className={getDesktopNavButtonClasses("wow", "wow", { isActive: isWowSectionActive || isWowNavMenuOpen })}
+                aria-haspopup="menu"
+                aria-expanded={isWowNavMenuOpen}
+                aria-label="WOW 하위 메뉴 열기"
+              >
+                {isWowNavMenuOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {isWowNavMenuOpen && (
+                <div className={`absolute left-0 top-[calc(100%+10px)] z-[80] w-72 rounded-2xl border p-2 shadow-2xl ${isLightTheme ? "border-slate-200 bg-white" : "border-gray-700 bg-gray-950/95 backdrop-blur"}`}>
+                  <div className={`px-2 pb-2 pt-1 text-[11px] font-black tracking-[0.12em] ${isLightTheme ? "text-slate-400" : "text-gray-500"}`}>
+                    WOW 메뉴
+                  </div>
+                  <div className="space-y-1">
+                    {WOW_NAV_ITEMS.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleWowSectionNavigation(item.id)}
+                          className={getWowNavMenuItemClasses(item.id)}
+                        >
+                          <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${activeTab === item.id ? (isLightTheme ? "border-blue-200 bg-white text-blue-700" : "border-blue-400/35 bg-blue-500/10 text-blue-200") : (isLightTheme ? "border-slate-200 bg-white text-slate-500" : "border-gray-700 bg-gray-900 text-gray-300")}`}>
+                            <Icon className="w-4 h-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-black">{item.label}</span>
+                            <span className={`mt-0.5 block text-[11px] ${isLightTheme ? (activeTab === item.id ? "text-blue-500" : "text-slate-500") : (activeTab === item.id ? "text-blue-200/80" : "text-gray-400")}`}>
+                              {item.description}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
             <button onClick={() => navigateTo("admin")} className={getDesktopNavButtonClasses("admin", "admin")}>
               {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
             </button>
@@ -8678,7 +10112,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full transition-colors duration-300 ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
+      <main className={`mx-auto py-8 relative w-full transition-colors duration-300 ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "dungeontier" ? "max-w-[1800px] px-3 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
 
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
@@ -8687,6 +10121,7 @@ export default function App() {
         {activeTab === "tier" && renderTierListView()}
         {activeTab === "wow" && renderWowView()}
         {activeTab === "wowraid" && renderWowRaidView()}
+        {activeTab === "dungeontier" && renderDungeonTierGameView()}
         {activeTab === "raid" && renderRaidView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
@@ -8717,9 +10152,6 @@ export default function App() {
             { id: "matches", label: "경기", icon: Swords },
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
-            { id: "wow", label: "WOW", icon: Shield },
-            { id: "wowraid", label: "WOW레이드", icon: null },
-            { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
           ].map((item) => (
             <button
               key={item.id}
@@ -8733,6 +10165,57 @@ export default function App() {
               <span className="text-sm">{item.label}</span>
             </button>
           ))}
+          <div className="flex flex-col gap-2" data-wow-nav-layer="true">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleWowSectionNavigation("wow", { closeMobileMenu: true })}
+                className={`flex items-center gap-3 flex-1 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${(isWowSectionActive || isMobileWowMenuOpen) ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
+              >
+                <Shield className="w-5 h-5" />
+                <span className="text-sm flex-1 text-left">WOW</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileWowMenuOpen((prev) => !prev)}
+                className={`flex items-center justify-center px-3.5 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${(isWowSectionActive || isMobileWowMenuOpen) ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
+                aria-expanded={isMobileWowMenuOpen}
+                aria-label="WOW 하위 메뉴 열기"
+              >
+                {isMobileWowMenuOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <div className={`flex flex-col gap-2 pl-4 transition-all duration-200 ${isMobileWowMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 overflow-hidden pointer-events-none"}`}>
+              {WOW_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleWowSectionNavigation(item.id, { closeMobileMenu: true })}
+                    className={getMobileWowMenuItemClasses(item.id)}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm">{item.label}</span>
+                      <span className={`mt-0.5 block text-[11px] ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>{item.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              navigateTo("admin");
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${activeTab === "admin" ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
+          >
+            {isAdminAuth ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+            <span className="text-sm">관리</span>
+          </button>
           <button
             onClick={handleToggleTheme}
             className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${shellTheme.mobileThemeButton}`}
