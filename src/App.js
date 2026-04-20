@@ -986,7 +986,7 @@ const WOW_NAV_ITEMS = [
   {
     id: "dungeontier",
     label: "던전 티어게임",
-    description: "준비 중인 WOW 콘텐츠",
+    description: "플레이한 인던 티어 게임",
     icon: Trophy,
   },
 ];
@@ -1086,6 +1086,7 @@ const normalizeWowDungeonTierItem = (item = {}) => ({
   imageUrl: `${item.imageUrl || ""}`.trim(),
   expansionType: normalizeWowDungeonExpansionType(item.expansionType),
   videoUrl: `${item.videoUrl || ""}`.trim(),
+  displayOrder: Number.isFinite(Number(item.displayOrder)) ? Number(item.displayOrder) : null,
   createdAt: item.createdAt || null,
   updatedAt: item.updatedAt || null,
 });
@@ -3039,6 +3040,16 @@ export default function App() {
       const nextItems = snapshot.docs
         .map((itemDoc) => normalizeWowDungeonTierItem({ id: itemDoc.id, ...itemDoc.data() }))
         .sort((a, b) => {
+          const orderA = Number.isFinite(a.displayOrder) ? a.displayOrder : null;
+          const orderB = Number.isFinite(b.displayOrder) ? b.displayOrder : null;
+
+          if (orderA !== null && orderB !== null && orderA !== orderB) {
+            return orderA - orderB;
+          }
+
+          if (orderA !== null && orderB === null) return -1;
+          if (orderA === null && orderB !== null) return 1;
+
           const expansionGap = getWowDungeonExpansionSortOrder(a.expansionType) - getWowDungeonExpansionSortOrder(b.expansionType);
           if (expansionGap !== 0) return expansionGap;
 
@@ -5495,6 +5506,11 @@ export default function App() {
     const normalizedImageUrl = `${wowDungeonTierForm.imageUrl || ""}`.trim();
     const normalizedVideoUrl = `${wowDungeonTierForm.videoUrl || ""}`.trim();
     const normalizedExpansionType = normalizeWowDungeonExpansionType(wowDungeonTierForm.expansionType);
+    const nextDisplayOrder = wowDungeonTierItems.reduce((maxOrder, item, index) => {
+      const fallbackOrder = index + 1;
+      const safeOrder = Number.isFinite(item.displayOrder) ? item.displayOrder : fallbackOrder;
+      return Math.max(maxOrder, safeOrder);
+    }, 0) + 1;
     const hasDuplicateName = wowDungeonTierItems.some((item) => (
       item.id !== wowDungeonTierForm.id
       && (item.name || "").trim().toLowerCase() === normalizedName.toLowerCase()
@@ -5545,6 +5561,7 @@ export default function App() {
       } else {
         await addDoc(collection(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION), {
           ...payload,
+          displayOrder: nextDisplayOrder,
           createdAt: new Date().toISOString(),
         });
         showToast("던전 카드를 등록했습니다.");
@@ -5557,6 +5574,42 @@ export default function App() {
       showToast("던전 카드를 저장하지 못했습니다.", "error");
     } finally {
       setIsWowDungeonTierSaving(false);
+    }
+  };
+
+  const handleMoveWowDungeonTierItemOrder = async (itemId, direction) => {
+    if (!user || !itemId) return;
+
+    const currentIndex = wowDungeonTierItems.findIndex((item) => item.id === itemId);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= wowDungeonTierItems.length) return;
+
+    const reorderedItems = [...wowDungeonTierItems];
+    const [movedItem] = reorderedItems.splice(currentIndex, 1);
+    reorderedItems.splice(targetIndex, 0, movedItem);
+
+    try {
+      const batch = writeBatch(db);
+      const timestamp = new Date().toISOString();
+
+      reorderedItems.forEach((item, index) => {
+        batch.update(
+          doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, item.id),
+          {
+            displayOrder: index + 1,
+            updatedAt: timestamp,
+          }
+        );
+      });
+
+      await batch.commit();
+      await updateLastModifiedTime();
+      showToast("던전 보관함 카드 순서를 변경했습니다.");
+    } catch (error) {
+      console.error(error);
+      showToast("던전 보관함 카드 순서를 변경하지 못했습니다.", "error");
     }
   };
 
@@ -6301,7 +6354,7 @@ export default function App() {
               className={`mt-5 rounded-2xl border-2 border-dashed p-3 transition ${wowDungeonTierDropTarget === "stash" ? (isLightTheme ? "border-indigo-400 bg-indigo-50/80 shadow-[0_18px_36px_rgba(79,70,229,0.12)]" : "border-indigo-300/60 bg-indigo-500/12 shadow-[0_0_26px_rgba(99,102,241,0.18)]") : (isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40")}`}
             >
               {wowDungeonTierStashItems.length > 0 ? (
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-2 gap-3">
                   {wowDungeonTierStashItems.map((item) => renderDungeonStashCard(item))}
                 </div>
               ) : (
@@ -9229,33 +9282,49 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h3 className={`text-base font-black ${adminTheme.heading}`}>등록된 던전 카드</h3>
-                    <span className={`text-xs ${adminTheme.mutedText}`}>오리지널/불성 순 정렬</span>
+                <div className="space-y-2.5">
+                  <div className={`flex items-center justify-between gap-3 flex-wrap rounded-2xl border px-4 py-3 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40"}`}>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <h3 className={`text-base font-black ${adminTheme.heading}`}>등록된 던전 카드</h3>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700 shadow-sm" : "border-gray-600 bg-gray-800 text-gray-100"}`}>
+                        총 {wowDungeonTierItems.length}장
+                      </span>
+                    </div>
+                    <span className={`text-xs font-medium ${adminTheme.mutedText}`}>위아래 버튼으로 보관함 노출 순서를 조정</span>
                   </div>
 
-                  {wowDungeonTierItems.length > 0 ? wowDungeonTierItems.map((item) => {
+                  {wowDungeonTierItems.length > 0 ? wowDungeonTierItems.map((item, index) => {
                     const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
                     const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+                    const isFirstItem = index === 0;
+                    const isLastItem = index === wowDungeonTierItems.length - 1;
+                    const orderButtonClass = isLightTheme
+                      ? "flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300 disabled:bg-slate-50"
+                      : "flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800 text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:border-gray-700 disabled:text-gray-500 disabled:bg-gray-900";
+                    const compactActionButtonClass = isLightTheme
+                      ? "h-8 rounded-lg border bg-white px-3 text-xs font-bold transition shadow-sm"
+                      : "h-8 rounded-lg border px-3 text-xs font-bold transition";
 
                     return (
-                      <div key={item.id} className={`rounded-2xl border p-3 flex flex-col md:flex-row md:items-center gap-4 ${expansionTheme.cardClass}`}>
-                        <div className={`w-full md:w-36 h-24 rounded-xl overflow-hidden border flex-shrink-0 ${expansionTheme.frameClass}`}>
+                      <div key={item.id} className={`rounded-2xl border p-2.5 grid grid-cols-[88px_minmax(0,1fr)] gap-3 items-center sm:grid-cols-[88px_minmax(0,1fr)_auto] ${expansionTheme.cardClass}`}>
+                        <div className={`h-16 rounded-xl overflow-hidden border flex-shrink-0 ${expansionTheme.frameClass}`}>
                           {item.imageUrl ? (
                             <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
                           ) : (
-                            <div className={`w-full h-full flex items-center justify-center text-sm font-black ${expansionTheme.metaClass}`}>
+                            <div className={`w-full h-full flex items-center justify-center text-[10px] font-black tracking-[0.18em] ${expansionTheme.metaClass}`}>
                               NO IMAGE
                             </div>
                           )}
                         </div>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <p className={`font-black text-lg break-keep ${expansionTheme.titleClass}`}>{item.name}</p>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className={`min-w-0 truncate font-black text-base break-keep ${expansionTheme.titleClass}`}>{item.name}</p>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700" : "border-gray-600 bg-gray-900 text-gray-100"}`}>
+                              순서 {index + 1}
+                            </span>
                             <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${expansionTheme.badgeClass}`}>
-                              {expansionMeta.shortLabel}
+                              {expansionMeta.label}
                             </span>
                             {item.videoUrl ? (
                               <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${expansionTheme.buttonClass}`}>
@@ -9264,34 +9333,58 @@ export default function App() {
                               </span>
                             ) : null}
                           </div>
-                          <p className={`text-sm ${expansionTheme.subtleClass}`}>
-                            {expansionMeta.label} 던전 카드
-                          </p>
-                          {item.videoUrl ? (
-                            <a
-                              href={item.videoUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className={`mt-2 inline-flex items-center gap-1 text-xs font-semibold ${expansionTheme.metaClass}`}
-                            >
-                              <Link2 className="w-3 h-3" />
-                              대표 영상 열기
-                            </a>
-                          ) : null}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <p className={`text-xs ${expansionTheme.subtleClass}`}>
+                              보관함 노출 순서 {index + 1}
+                            </p>
+                            {item.videoUrl ? (
+                              <a
+                                href={item.videoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`inline-flex items-center gap-1 text-xs font-semibold ${expansionTheme.metaClass}`}
+                              >
+                                <Link2 className="w-3 h-3" />
+                                대표 영상 열기
+                              </a>
+                            ) : (
+                              <span className={`text-xs ${expansionTheme.subtleClass}`}>
+                                대표 영상 없음
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="col-span-2 flex items-center justify-end gap-1.5 sm:col-span-1 sm:flex-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveWowDungeonTierItemOrder(item.id, "up")}
+                            disabled={isFirstItem}
+                            className={`${orderButtonClass} h-8 w-8`}
+                            title="위로 이동"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveWowDungeonTierItemOrder(item.id, "down")}
+                            disabled={isLastItem}
+                            className={`${orderButtonClass} h-8 w-8`}
+                            title="아래로 이동"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleEditWowDungeonTierItem(item)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm" : "bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700"}`}
+                            className={`${compactActionButtonClass} ${isLightTheme ? "border-slate-200 text-slate-700 hover:bg-slate-50" : "border-gray-600 text-gray-200 hover:bg-gray-700"}`}
                           >
                             수정
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteWowDungeonTierItem(item.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:text-rose-800 shadow-sm" : "bg-gray-800 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white"}`}
+                            className={`${compactActionButtonClass} ${isLightTheme ? "border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800" : "border-gray-600 text-gray-200 hover:bg-red-600 hover:border-red-500 hover:text-white"}`}
                           >
                             삭제
                           </button>
