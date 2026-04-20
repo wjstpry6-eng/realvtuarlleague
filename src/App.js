@@ -1065,12 +1065,166 @@ const getWowDungeonExpansionTheme = (expansionType = "original", isLightTheme = 
       };
 };
 
+const normalizeWowDungeonVideoUrls = (value = [], legacyValue = "") => {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value
+    ? [value]
+    : [];
+
+  const normalized = raw
+    .map((url) => `${url || ""}`.trim())
+    .filter((url, index, list) => url && list.indexOf(url) === index);
+
+  if (normalized.length > 0) return normalized;
+
+  const fallbackUrl = `${legacyValue || ""}`.trim();
+  return fallbackUrl ? [fallbackUrl] : [];
+};
+
+const createWowDungeonTierFormVideoUrls = (value = [], legacyValue = "") => {
+  const normalized = normalizeWowDungeonVideoUrls(value, legacyValue);
+  return normalized.length > 0 ? normalized : [""];
+};
+
+const getWowDungeonTierPrimaryVideoUrl = (item = {}) => (
+  normalizeWowDungeonVideoUrls(item?.videoUrls, item?.videoUrl)[0] || ""
+);
+
+const getWowDungeonTierVideoEmbedConfig = (videoUrl = "") => {
+  const normalizedUrl = `${videoUrl || ""}`.trim();
+  const baseConfig = {
+    originalUrl: normalizedUrl,
+    embedUrl: "",
+    sourceLabel: "외부 링크",
+    kind: "link",
+    canEmbed: false,
+    openInNewTabRecommended: false,
+    fallbackMessage: "",
+  };
+
+  if (!normalizedUrl) {
+    return {
+      ...baseConfig,
+      sourceLabel: "링크 없음",
+      fallbackMessage: "재생할 영상 링크가 없습니다.",
+    };
+  }
+
+  if (/\.(mp4|webm|ogg)(?:$|[?#])/i.test(normalizedUrl)) {
+    return {
+      ...baseConfig,
+      canEmbed: true,
+      kind: "native",
+      sourceLabel: "DIRECT VIDEO",
+    };
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedUrl);
+  } catch (error) {
+    return {
+      ...baseConfig,
+      fallbackMessage: "링크 형식이 올바르지 않아 앱 안에서 재생할 수 없습니다.",
+    };
+  }
+
+  const hostname = parsedUrl.hostname.replace(/^www\./i, "").toLowerCase();
+  const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+  const parentHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const createIframeConfig = (overrides = {}) => ({
+    ...baseConfig,
+    canEmbed: true,
+    kind: "iframe",
+    sourceLabel: hostname,
+    embedUrl: normalizedUrl,
+    ...overrides,
+  });
+  const createExternalOnlyConfig = (overrides = {}) => ({
+    ...baseConfig,
+    sourceLabel: hostname || "외부 링크",
+    openInNewTabRecommended: true,
+    fallbackMessage: "앱 안 재생이 제한될 수 있어 새 창에서 여는 방식을 권장합니다.",
+    ...overrides,
+  });
+
+  if (hostname === "youtu.be" || hostname.endsWith("youtube.com")) {
+    let videoId = "";
+
+    if (hostname === "youtu.be") {
+      videoId = pathSegments[0] || "";
+    } else if (["embed", "shorts", "live"].includes(pathSegments[0])) {
+      videoId = pathSegments[1] || "";
+    } else {
+      videoId = parsedUrl.searchParams.get("v") || "";
+    }
+
+    if (videoId) {
+      return createIframeConfig({
+        sourceLabel: "YouTube",
+        embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`,
+      });
+    }
+  }
+
+  if (hostname === "clips.twitch.tv") {
+    const clipId = pathSegments[0] || "";
+    if (clipId) {
+      return createIframeConfig({
+        sourceLabel: "Twitch Clip",
+        embedUrl: `https://clips.twitch.tv/embed?clip=${clipId}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+  }
+
+  if (hostname.endsWith("twitch.tv")) {
+    if (pathSegments[0] === "videos" && pathSegments[1]) {
+      return createIframeConfig({
+        sourceLabel: "Twitch",
+        embedUrl: `https://player.twitch.tv/?video=v${pathSegments[1]}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+
+    if (pathSegments[0] === "clip" && pathSegments[1]) {
+      return createIframeConfig({
+        sourceLabel: "Twitch Clip",
+        embedUrl: `https://clips.twitch.tv/embed?clip=${pathSegments[1]}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+
+    const channelName = pathSegments[0] || "";
+    if (channelName && !["directory", "downloads", "search", "settings", "p"].includes(channelName)) {
+      return createIframeConfig({
+        sourceLabel: "Twitch",
+        embedUrl: `https://player.twitch.tv/?channel=${channelName}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+  }
+
+  if (hostname.endsWith("sooplive.co.kr")) {
+    return createExternalOnlyConfig({
+      sourceLabel: "SOOP",
+      fallbackMessage: "SOOP 링크는 보안 정책 때문에 앱 안 재생이 막힐 수 있어 새 창 열기를 권장합니다.",
+    });
+  }
+
+  if (hostname.endsWith("afreecatv.com")) {
+    return createExternalOnlyConfig({
+      sourceLabel: "AfreecaTV",
+      fallbackMessage: "AfreecaTV 링크는 앱 안 재생이 제한될 수 있어 새 창 열기를 권장합니다.",
+    });
+  }
+
+  return createIframeConfig({ sourceLabel: hostname || "외부 링크" });
+};
+
 const createEmptyWowDungeonTierForm = () => ({
   id: null,
   name: "",
   imageUrl: "",
   expansionType: "original",
-  videoUrl: "",
+  videoUrls: [""],
 });
 
 const createEmptyWowDungeonTierPlacements = () => (
@@ -1080,16 +1234,21 @@ const createEmptyWowDungeonTierPlacements = () => (
   }, {})
 );
 
-const normalizeWowDungeonTierItem = (item = {}) => ({
-  id: item.id || null,
-  name: `${item.name || ""}`.trim(),
-  imageUrl: `${item.imageUrl || ""}`.trim(),
-  expansionType: normalizeWowDungeonExpansionType(item.expansionType),
-  videoUrl: `${item.videoUrl || ""}`.trim(),
-  displayOrder: Number.isFinite(Number(item.displayOrder)) ? Number(item.displayOrder) : null,
-  createdAt: item.createdAt || null,
-  updatedAt: item.updatedAt || null,
-});
+const normalizeWowDungeonTierItem = (item = {}) => {
+  const normalizedVideoUrls = normalizeWowDungeonVideoUrls(item.videoUrls, item.videoUrl);
+
+  return {
+    id: item.id || null,
+    name: `${item.name || ""}`.trim(),
+    imageUrl: `${item.imageUrl || ""}`.trim(),
+    expansionType: normalizeWowDungeonExpansionType(item.expansionType),
+    videoUrls: normalizedVideoUrls,
+    videoUrl: normalizedVideoUrls[0] || "",
+    displayOrder: Number.isFinite(Number(item.displayOrder)) ? Number(item.displayOrder) : null,
+    createdAt: item.createdAt || null,
+    updatedAt: item.updatedAt || null,
+  };
+};
 
 const normalizeWowDungeonTierPlacements = (value = {}, validItemIds = []) => {
   const validIdSet = Array.isArray(validItemIds) && validItemIds.length > 0
@@ -1225,6 +1384,7 @@ export default function App() {
   const [wowDungeonTierDropTarget, setWowDungeonTierDropTarget] = useState(null);
   const [wowDungeonTierSelectedItemId, setWowDungeonTierSelectedItemId] = useState(null);
   const [wowDungeonTierDetailItemId, setWowDungeonTierDetailItemId] = useState(null);
+  const [wowDungeonTierDetailVideoIndex, setWowDungeonTierDetailVideoIndex] = useState(0);
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
   const [raidAssignments, setRaidAssignments] = useState(() => createEmptyRaidLayout(getRaidConfig(DEFAULT_RAID_TYPE).groupCount, GUILD_MASTER_ID));
@@ -1508,6 +1668,10 @@ export default function App() {
     wowDungeonTierSelectedItemId ? wowDungeonTierItemMap[wowDungeonTierSelectedItemId] || null : null
   ), [wowDungeonTierSelectedItemId, wowDungeonTierItemMap]);
 
+  const wowDungeonTierFormNormalizedVideoUrls = useMemo(() => (
+    normalizeWowDungeonVideoUrls(wowDungeonTierForm.videoUrls)
+  ), [wowDungeonTierForm.videoUrls]);
+
   const wowDungeonTierSelectedTierId = useMemo(() => (
     findWowDungeonTierPlacementByItemId(wowDungeonTierPlacements, wowDungeonTierSelectedItemId)
   ), [wowDungeonTierPlacements, wowDungeonTierSelectedItemId]);
@@ -1519,6 +1683,21 @@ export default function App() {
   const wowDungeonTierDetailTierId = useMemo(() => (
     findWowDungeonTierPlacementByItemId(wowDungeonTierPlacements, wowDungeonTierDetailItemId)
   ), [wowDungeonTierPlacements, wowDungeonTierDetailItemId]);
+
+  const wowDungeonTierDetailVideoUrls = useMemo(() => (
+    normalizeWowDungeonVideoUrls(
+      wowDungeonTierDetailItem?.videoUrls,
+      wowDungeonTierDetailItem?.videoUrl
+    )
+  ), [wowDungeonTierDetailItem]);
+
+  const wowDungeonTierDetailActiveVideoUrl = useMemo(() => (
+    wowDungeonTierDetailVideoUrls[wowDungeonTierDetailVideoIndex] || ""
+  ), [wowDungeonTierDetailVideoIndex, wowDungeonTierDetailVideoUrls]);
+
+  const wowDungeonTierDetailVideoEmbedConfig = useMemo(() => (
+    getWowDungeonTierVideoEmbedConfig(wowDungeonTierDetailActiveVideoUrl)
+  ), [wowDungeonTierDetailActiveVideoUrl]);
 
   const requestSort = (key) => {
     let direction = 'desc'; 
@@ -3093,6 +3272,7 @@ export default function App() {
   useEffect(() => {
     if (wowDungeonTierDetailItemId && !wowDungeonTierItemMap[wowDungeonTierDetailItemId]) {
       setWowDungeonTierDetailItemId(null);
+      setWowDungeonTierDetailVideoIndex(0);
     }
   }, [wowDungeonTierDetailItemId, wowDungeonTierItemMap]);
 
@@ -3102,12 +3282,39 @@ export default function App() {
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
         setWowDungeonTierDetailItemId(null);
+        setWowDungeonTierDetailVideoIndex(0);
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setWowDungeonTierDetailVideoIndex((prev) => Math.max(prev - 1, 0));
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setWowDungeonTierDetailVideoIndex((prev) => Math.min(prev + 1, wowDungeonTierDetailVideoUrls.length - 1));
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [wowDungeonTierDetailItemId]);
+  }, [wowDungeonTierDetailItemId, wowDungeonTierDetailVideoUrls.length]);
+
+  useEffect(() => {
+    if (!wowDungeonTierDetailItemId) return;
+
+    if (wowDungeonTierDetailVideoUrls.length === 0) {
+      setWowDungeonTierDetailItemId(null);
+      setWowDungeonTierDetailVideoIndex(0);
+      return;
+    }
+
+    if (wowDungeonTierDetailVideoIndex >= wowDungeonTierDetailVideoUrls.length) {
+      setWowDungeonTierDetailVideoIndex(wowDungeonTierDetailVideoUrls.length - 1);
+    }
+  }, [wowDungeonTierDetailItemId, wowDungeonTierDetailVideoIndex, wowDungeonTierDetailVideoUrls]);
 
   useEffect(() => {
     if (!user) return;
@@ -5472,6 +5679,52 @@ export default function App() {
     }));
   };
 
+  const handleWowDungeonTierVideoUrlChange = (index, value) => {
+    setWowDungeonTierForm((prev) => {
+      const nextVideoUrls = Array.isArray(prev.videoUrls) && prev.videoUrls.length > 0
+        ? [...prev.videoUrls]
+        : createWowDungeonTierFormVideoUrls();
+      nextVideoUrls[index] = value;
+      return {
+        ...prev,
+        videoUrls: nextVideoUrls,
+      };
+    });
+  };
+
+  const handleAddWowDungeonTierVideoUrlField = () => {
+    setWowDungeonTierForm((prev) => ({
+      ...prev,
+      videoUrls: [
+        ...(Array.isArray(prev.videoUrls) && prev.videoUrls.length > 0
+          ? prev.videoUrls
+          : createWowDungeonTierFormVideoUrls()),
+        "",
+      ],
+    }));
+  };
+
+  const handleRemoveWowDungeonTierVideoUrlField = (index) => {
+    setWowDungeonTierForm((prev) => {
+      const currentVideoUrls = Array.isArray(prev.videoUrls) && prev.videoUrls.length > 0
+        ? [...prev.videoUrls]
+        : createWowDungeonTierFormVideoUrls();
+
+      if (currentVideoUrls.length <= 1) {
+        return {
+          ...prev,
+          videoUrls: [""],
+        };
+      }
+
+      const nextVideoUrls = currentVideoUrls.filter((_, currentIndex) => currentIndex !== index);
+      return {
+        ...prev,
+        videoUrls: nextVideoUrls.length > 0 ? nextVideoUrls : [""],
+      };
+    });
+  };
+
   const handleEditWowDungeonTierItem = (item) => {
     if (!item) return;
     const normalizedItem = normalizeWowDungeonTierItem(item);
@@ -5480,7 +5733,7 @@ export default function App() {
       name: normalizedItem.name,
       imageUrl: normalizedItem.imageUrl,
       expansionType: normalizedItem.expansionType,
-      videoUrl: normalizedItem.videoUrl,
+      videoUrls: createWowDungeonTierFormVideoUrls(normalizedItem.videoUrls, normalizedItem.videoUrl),
     });
     setAdminInnerTab("wow");
   };
@@ -5493,7 +5746,10 @@ export default function App() {
       await deleteDoc(doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, itemId));
       await updateLastModifiedTime();
       if (wowDungeonTierForm.id === itemId) resetWowDungeonTierForm();
-      if (wowDungeonTierDetailItemId === itemId) setWowDungeonTierDetailItemId(null);
+      if (wowDungeonTierDetailItemId === itemId) {
+        setWowDungeonTierDetailItemId(null);
+        setWowDungeonTierDetailVideoIndex(0);
+      }
       showToast("던전 카드를 삭제했습니다.");
     } catch (error) {
       console.error(error);
@@ -5504,7 +5760,9 @@ export default function App() {
   const handleSaveWowDungeonTierItem = async () => {
     const normalizedName = `${wowDungeonTierForm.name || ""}`.trim();
     const normalizedImageUrl = `${wowDungeonTierForm.imageUrl || ""}`.trim();
-    const normalizedVideoUrl = `${wowDungeonTierForm.videoUrl || ""}`.trim();
+    const rawVideoUrls = Array.isArray(wowDungeonTierForm.videoUrls) ? wowDungeonTierForm.videoUrls : [];
+    const trimmedVideoUrls = rawVideoUrls.map((url) => `${url || ""}`.trim());
+    const normalizedVideoUrls = trimmedVideoUrls.filter((url, index, list) => url && list.indexOf(url) === index);
     const normalizedExpansionType = normalizeWowDungeonExpansionType(wowDungeonTierForm.expansionType);
     const nextDisplayOrder = wowDungeonTierItems.reduce((maxOrder, item, index) => {
       const fallbackOrder = index + 1;
@@ -5536,8 +5794,9 @@ export default function App() {
       return;
     }
 
-    if (normalizedVideoUrl && !/^https?:\/\//i.test(normalizedVideoUrl)) {
-      showToast("대표 영상 URL은 비워두거나 http 또는 https로 시작해야 합니다.", "error");
+    const invalidVideoUrl = trimmedVideoUrls.find((url) => url && !/^https?:\/\//i.test(url));
+    if (invalidVideoUrl) {
+      showToast("영상 URL은 비워두거나 http 또는 https로 시작해야 합니다.", "error");
       return;
     }
 
@@ -5545,7 +5804,8 @@ export default function App() {
       name: normalizedName,
       imageUrl: normalizedImageUrl,
       expansionType: normalizedExpansionType,
-      videoUrl: normalizedVideoUrl,
+      videoUrls: normalizedVideoUrls,
+      videoUrl: normalizedVideoUrls[0] || "",
       updatedAt: new Date().toISOString(),
     };
 
@@ -5632,14 +5892,33 @@ export default function App() {
     setWowDungeonTierSelectedItemId((prev) => prev === itemId ? null : itemId);
   };
 
-  const handleOpenWowDungeonTierDetail = (itemId) => {
+  const handleOpenWowDungeonTierDetail = (itemId, initialVideoIndex = 0) => {
     if (!itemId) return;
+    const targetItem = wowDungeonTierItemMap[itemId];
+    const videoUrls = normalizeWowDungeonVideoUrls(targetItem?.videoUrls, targetItem?.videoUrl);
     setWowDungeonTierSelectedItemId(itemId);
+
+    if (videoUrls.length === 0) {
+      showToast("이 던전에는 재생할 영상이 아직 없습니다.", "error");
+      return;
+    }
+
+    const safeVideoIndex = Math.min(Math.max(initialVideoIndex, 0), videoUrls.length - 1);
     setWowDungeonTierDetailItemId(itemId);
+    setWowDungeonTierDetailVideoIndex(safeVideoIndex);
   };
 
   const handleCloseWowDungeonTierDetail = () => {
     setWowDungeonTierDetailItemId(null);
+    setWowDungeonTierDetailVideoIndex(0);
+  };
+
+  const handleMoveWowDungeonTierDetailVideo = (direction) => {
+    if (!wowDungeonTierDetailVideoUrls.length) return;
+    setWowDungeonTierDetailVideoIndex((prev) => {
+      const nextIndex = direction === "prev" ? prev - 1 : prev + 1;
+      return Math.min(Math.max(nextIndex, 0), wowDungeonTierDetailVideoUrls.length - 1);
+    });
   };
 
   const handleMoveSelectedWowDungeonTierItem = (nextTierId = null) => {
@@ -5977,6 +6256,9 @@ export default function App() {
       const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
       const isSelected = wowDungeonTierSelectedItemId === item.id;
       const isDragging = wowDungeonTierDragItemId === item.id;
+      const itemVideoUrls = normalizeWowDungeonVideoUrls(item.videoUrls, item.videoUrl);
+      const videoCount = itemVideoUrls.length;
+      const hasVideos = videoCount > 0;
 
       if (compact) {
         return (
@@ -5985,8 +6267,9 @@ export default function App() {
             role="button"
             tabIndex={0}
             draggable
-            title={`${item.name} · ${expansionMeta.label} · 좌클릭 상세보기 · 우클릭 보관함 이동`}
-            onClick={() => handleOpenWowDungeonTierDetail(item.id)}
+            title={`${item.name} · ${expansionMeta.label} · 클릭 선택 · 더블클릭 영상 재생`}
+            onClick={() => handleSelectWowDungeonTierItem(item.id)}
+            onDoubleClick={() => handleOpenWowDungeonTierDetail(item.id)}
             onContextMenu={(event) => {
               event.preventDefault();
               if (!currentTierId) return;
@@ -5996,7 +6279,7 @@ export default function App() {
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                handleOpenWowDungeonTierDetail(item.id);
+                handleSelectWowDungeonTierItem(item.id);
               }
             }}
             onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
@@ -6029,7 +6312,7 @@ export default function App() {
               {item.name}
             </span>
             <span className={`text-[11px] font-bold mt-0.5 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>
-              {item.videoUrl ? "영상 링크" : expansionMeta.label}
+              {hasVideos ? `영상 ${videoCount}개` : expansionMeta.label}
             </span>
           </div>
         );
@@ -6042,6 +6325,7 @@ export default function App() {
           tabIndex={0}
           draggable
           onClick={() => handleSelectWowDungeonTierItem(item.id)}
+          onDoubleClick={() => handleOpenWowDungeonTierDetail(item.id)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -6081,7 +6365,7 @@ export default function App() {
           <div className="p-4">
             <div className="flex items-center justify-between gap-2">
               <span className={`text-xs font-semibold ${expansionTheme.subtleClass}`}>{expansionMeta.label}</span>
-              <span className={`text-[11px] font-bold ${expansionTheme.metaClass}`}>{item.videoUrl ? "영상 링크 있음" : "이미지 카드"}</span>
+              <span className={`text-[11px] font-bold ${expansionTheme.metaClass}`}>{hasVideos ? `영상 ${videoCount}개` : "이미지 카드"}</span>
             </div>
             <h4 className={`mt-3 text-base font-black break-keep ${expansionTheme.titleClass}`}>{item.name}</h4>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -6104,10 +6388,10 @@ export default function App() {
                     event.stopPropagation();
                     handleOpenWowDungeonTierDetail(item.id);
                   }}
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${hasVideos ? expansionTheme.buttonClass : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")}`}
                 >
-                  <Search className="w-3 h-3" />
-                  상세
+                  <Tv className="w-3 h-3" />
+                  {hasVideos ? "재생" : "영상 없음"}
                 </button>
                 {currentTierId ? (
                   <button
@@ -6121,18 +6405,6 @@ export default function App() {
                     <ArrowLeft className="w-3 h-3" />
                     보관함
                   </button>
-                ) : null}
-                {item.videoUrl ? (
-                  <a
-                    href={item.videoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(event) => event.stopPropagation()}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${expansionTheme.buttonClass}`}
-                  >
-                    <Tv className="w-3 h-3" />
-                    영상
-                  </a>
                 ) : null}
               </div>
             </div>
@@ -6213,90 +6485,82 @@ export default function App() {
 
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(280px,2fr)] gap-5 items-start xl:items-stretch">
           <div className={`${publicTheme.surfaceCard} p-6 xl:h-[980px] flex flex-col`}>
-            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className={`text-xl font-black ${publicTheme.heading}`}>던전 티어표</h3>
                 <p className={`mt-2 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
-                  티어표에 배치된 카드는 좌클릭으로 상세보기와 등록된 동영상을 열 수 있고, 우클릭으로 바로 던전 보관함으로 되돌릴 수 있습니다.
+                  카드는 한 번 클릭하면 선택되고, 두 번 클릭하면 첫 번째 영상부터 바로 재생됩니다. 재생 중에는 좌우 버튼으로 다음 영상까지 이어서 볼 수 있습니다.
                 </p>
               </div>
-              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
-                <Star className={`w-3.5 h-3.5 ${isLightTheme ? "text-amber-500" : "text-amber-300"}`} />
-                브라우저 자동 저장
-              </div>
-            </div>
-
-            <div className={`mt-5 rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/60"}`}>
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0">
-                  <p className={`text-sm font-black ${publicTheme.heading}`}>
-                    {wowDungeonTierSelectedItem ? `선택된 카드: ${wowDungeonTierSelectedItem.name}` : "선택된 카드 없음"}
-                  </p>
-                  <p className={`mt-2 text-xs font-semibold ${publicTheme.faintText}`}>
-                    현재 위치: {selectedLocationLabel}
-                  </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
+                  <Star className={`w-3.5 h-3.5 ${isLightTheme ? "text-amber-500" : "text-amber-300"}`} />
+                  브라우저 자동 저장
                 </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {wowDungeonTierSelectedItem ? (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenWowDungeonTierDetail(wowDungeonTierSelectedItem.id)}
-                      className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50" : "border-indigo-400/30 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/18"}`}
-                    >
-                      선택 카드 상세
-                    </button>
-                  ) : null}
-                  {wowDungeonTierSelectedItem ? (
-                    <button
-                      type="button"
-                      onClick={() => setWowDungeonTierSelectedItemId(null)}
-                      className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
-                    >
-                      선택 해제
-                    </button>
-                  ) : null}
+                {wowDungeonTierSelectedItem ? (
                   <button
                     type="button"
-                    onClick={handleResetWowDungeonTierPlacements}
-                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-rose-200 bg-white text-rose-700 hover:bg-rose-50" : "border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18"}`}
+                    onClick={() => handleOpenWowDungeonTierDetail(wowDungeonTierSelectedItem.id)}
+                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50" : "border-indigo-400/30 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/18"}`}
                   >
-                    내 티어표 초기화
+                    선택 카드 재생
                   </button>
-                </div>
+                ) : null}
+                {wowDungeonTierSelectedItem ? (
+                  <button
+                    type="button"
+                    onClick={() => setWowDungeonTierSelectedItemId(null)}
+                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
+                  >
+                    선택 해제
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleResetWowDungeonTierPlacements}
+                  className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-rose-200 bg-white text-rose-700 hover:bg-rose-50" : "border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18"}`}
+                >
+                  내 티어표 초기화
+                </button>
               </div>
-
-              {wowDungeonTierSelectedItem ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
-                    const isActiveTier = wowDungeonTierSelectedTierId === tier.id;
-                    return (
-                      <button
-                        key={`quick-move-${tier.id}`}
-                        type="button"
-                        onClick={() => handleMoveSelectedWowDungeonTierItem(tier.id)}
-                        className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${
-                          isActiveTier
-                            ? (isLightTheme ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300/40 bg-slate-200 text-slate-950")
-                            : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")
-                        }`}
-                      >
-                        {tier.id} 티어로 이동
-                      </button>
-                    );
-                  })}
-                  {wowDungeonTierSelectedTierId ? (
-                    <button
-                      type="button"
-                      onClick={() => handleMoveSelectedWowDungeonTierItem(null)}
-                      className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${isLightTheme ? "border-sky-200 bg-white text-sky-700 hover:bg-sky-50" : "border-sky-400/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/18"}`}
-                    >
-                      보관함으로 이동
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
             </div>
+
+            {wowDungeonTierSelectedItem ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
+                  선택 카드: {wowDungeonTierSelectedItem.name}
+                </span>
+                <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${isLightTheme ? "border-slate-200 bg-white text-slate-500" : "border-gray-700 bg-gray-900/80 text-gray-400"}`}>
+                  현재 위치: {selectedLocationLabel}
+                </span>
+                {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
+                  const isActiveTier = wowDungeonTierSelectedTierId === tier.id;
+                  return (
+                    <button
+                      key={`quick-move-${tier.id}`}
+                      type="button"
+                      onClick={() => handleMoveSelectedWowDungeonTierItem(tier.id)}
+                      className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${
+                        isActiveTier
+                          ? (isLightTheme ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300/40 bg-slate-200 text-slate-950")
+                          : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")
+                      }`}
+                    >
+                      {tier.id} 티어로 이동
+                    </button>
+                  );
+                })}
+                {wowDungeonTierSelectedTierId ? (
+                  <button
+                    type="button"
+                    onClick={() => handleMoveSelectedWowDungeonTierItem(null)}
+                    className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${isLightTheme ? "border-sky-200 bg-white text-sky-700 hover:bg-sky-50" : "border-sky-400/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/18"}`}
+                  >
+                    보관함으로 이동
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className={`mt-6 flex-1 min-h-0 rounded-xl border overflow-hidden p-1 ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
               <div className="flex h-full min-h-0 flex-col gap-1">
@@ -6334,7 +6598,7 @@ export default function App() {
               <div>
                 <h3 className={`text-lg font-black ${publicTheme.heading}`}>던전 보관함</h3>
                 <p className={`mt-2 text-xs leading-5 break-keep ${publicTheme.mutedText}`}>
-                  더블클릭으로 해당 던전의 클립 영상 재생
+                  더블클릭으로 해당 던전의 첫 번째 영상 재생
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -6382,180 +6646,163 @@ export default function App() {
           </div>
         ) : null}
 
-        {wowDungeonTierDetailItem && (() => {
+        {wowDungeonTierDetailItem ? (() => {
           const detailExpansionMeta = getWowDungeonExpansionMeta(wowDungeonTierDetailItem.expansionType);
           const detailExpansionTheme = getWowDungeonExpansionTheme(wowDungeonTierDetailItem.expansionType, isLightTheme);
           const detailLocationLabel = wowDungeonTierDetailTierId ? `${wowDungeonTierDetailTierId} 티어` : "보관함";
-          const moveButtonBaseClass = "px-3 py-2 rounded-xl border text-sm font-bold transition";
+          const currentVideoNumber = wowDungeonTierDetailVideoIndex + 1;
+          const totalVideoCount = wowDungeonTierDetailVideoUrls.length;
+          const canGoPrevVideo = wowDungeonTierDetailVideoIndex > 0;
+          const canGoNextVideo = wowDungeonTierDetailVideoIndex < totalVideoCount - 1;
+          const videoFallbackMessage = wowDungeonTierDetailVideoEmbedConfig.fallbackMessage
+            || "임베드가 보이지 않거나 재생이 제한되면 오른쪽 위 새 창 열기를 사용해주세요.";
 
           return (
             <div
-              className={`fixed inset-0 z-[170] flex items-center justify-center px-4 py-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/50" : "bg-black/80"}`}
+              className={`fixed inset-0 z-[170] flex items-center justify-center px-3 py-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/55" : "bg-black/85"}`}
               onClick={handleCloseWowDungeonTierDetail}
             >
               <div
-                className={`w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-hidden rounded-[28px] border ${isLightTheme ? "bg-white border-slate-200 shadow-[0_32px_90px_rgba(15,23,42,0.22)]" : "bg-gray-900 border-gray-700 shadow-2xl"}`}
+                className={`w-full max-w-6xl overflow-hidden rounded-[30px] border ${isLightTheme ? "bg-white border-slate-200 shadow-[0_32px_90px_rgba(15,23,42,0.22)]" : "bg-gray-950 border-gray-700 shadow-2xl"}`}
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.08fr)_minmax(360px,0.92fr)]">
-                  <div className={`relative min-h-[320px] lg:min-h-[620px] ${detailExpansionTheme.frameClass}`}>
-                    {wowDungeonTierDetailItem.imageUrl ? (
-                      <img
-                        src={wowDungeonTierDetailItem.imageUrl}
-                        alt={wowDungeonTierDetailItem.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className={`w-full h-full flex items-center justify-center text-3xl font-black ${detailExpansionTheme.metaClass}`}>
-                        DUNGEON
-                      </div>
-                    )}
-
-                    <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-black/70 via-black/25 to-transparent">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black backdrop-blur-sm ${detailExpansionTheme.badgeClass}`}>
+                <div className={`flex flex-col gap-4 border-b px-4 py-4 sm:px-6 ${isLightTheme ? "border-slate-200 bg-slate-50/95" : "border-gray-800 bg-gray-950/95"}`}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className={`text-xs font-black uppercase tracking-[0.24em] ${detailExpansionTheme.metaClass}`}>Dungeon Player</p>
+                      <h3 className={`mt-2 text-2xl font-black break-keep ${publicTheme.heading}`}>{wowDungeonTierDetailItem.name}</h3>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${detailExpansionTheme.badgeClass}`}>
                           {detailExpansionMeta.label}
                         </span>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black backdrop-blur-sm ${isLightTheme ? "border-white/80 bg-white/90 text-slate-700" : "border-white/15 bg-black/40 text-gray-100"}`}>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700" : "border-gray-700 bg-gray-900 text-gray-100"}`}>
                           현재 위치: {detailLocationLabel}
                         </span>
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black backdrop-blur-sm ${isLightTheme ? "border-white/80 bg-white/90 text-slate-700" : "border-white/15 bg-black/40 text-gray-100"}`}>
-                          {wowDungeonTierDetailItem.videoUrl ? "영상 링크 포함" : "이미지 카드"}
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700" : "border-gray-700 bg-gray-900 text-gray-100"}`}>
+                          {currentVideoNumber} / {totalVideoCount}
                         </span>
                       </div>
                     </div>
-                  </div>
 
-                  <div className={`flex flex-col min-h-0 ${isLightTheme ? "bg-white" : "bg-gray-950/95"}`}>
-                    <div className={`px-6 py-5 border-b ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-950"}`}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className={`text-xs font-black uppercase tracking-[0.24em] ${detailExpansionTheme.metaClass}`}>Dungeon Detail</p>
-                          <h3 className={`mt-2 text-2xl font-black break-keep ${publicTheme.heading}`}>{wowDungeonTierDetailItem.name}</h3>
-                          <p className={`mt-2 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
-                            던전 카드의 대표 이미지와 영상 링크를 확인하고, 현재 티어 위치를 빠르게 바꿀 수 있습니다.
-                          </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={wowDungeonTierDetailActiveVideoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`inline-flex items-center rounded-xl border px-3 py-2 text-sm font-bold transition ${detailExpansionTheme.buttonClass}`}
+                      >
+                        <Globe className="mr-2 h-4 w-4" />
+                        새 창 열기
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => copyTextToClipboard(wowDungeonTierDetailActiveVideoUrl, "현재 영상 링크를 복사했습니다.")}
+                        className={`inline-flex items-center rounded-xl border px-3 py-2 text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800"}`}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        링크 복사
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCloseWowDungeonTierDetail}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${isLightTheme ? "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900" : "border-gray-700 bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-white"}`}
+                        aria-label="플레이어 닫기"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 sm:p-5">
+                  <div className={`relative overflow-hidden rounded-[28px] border ${isLightTheme ? "border-slate-200 bg-slate-100" : "border-gray-800 bg-black"}`}>
+                    <div className="aspect-[16/9] w-full bg-black">
+                      {wowDungeonTierDetailVideoEmbedConfig.kind === "native" ? (
+                        <video
+                          key={`${wowDungeonTierDetailItem.id}-${wowDungeonTierDetailVideoIndex}`}
+                          src={wowDungeonTierDetailActiveVideoUrl}
+                          controls
+                          autoPlay
+                          playsInline
+                          className="h-full w-full"
+                        />
+                      ) : wowDungeonTierDetailVideoEmbedConfig.canEmbed ? (
+                        <iframe
+                          key={`${wowDungeonTierDetailItem.id}-${wowDungeonTierDetailVideoIndex}`}
+                          src={wowDungeonTierDetailVideoEmbedConfig.embedUrl}
+                          title={`${wowDungeonTierDetailItem.name} 영상 ${currentVideoNumber}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          className="h-full w-full"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
+                          <Tv className={`h-10 w-10 ${detailExpansionTheme.metaClass}`} />
+                          <div>
+                            <p className={`text-lg font-black ${publicTheme.heading}`}>이 영상은 화면 안에서 바로 재생되지 않습니다.</p>
+                            <p className={`mt-2 text-sm leading-6 ${publicTheme.mutedText}`}>{videoFallbackMessage}</p>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleCloseWowDungeonTierDetail}
-                          className={`shrink-0 rounded-full border p-2 transition ${isLightTheme ? "border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:bg-gray-800"}`}
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
+                      )}
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
-                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>종류</p>
-                          <p className={`mt-2 text-lg font-black ${detailExpansionTheme.metaClass}`}>{detailExpansionMeta.label}</p>
-                        </div>
-                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
-                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>현재 위치</p>
-                          <p className={`mt-2 text-lg font-black ${publicTheme.heading}`}>{detailLocationLabel}</p>
-                        </div>
-                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
-                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>영상 링크</p>
-                          <p className={`mt-2 text-sm font-bold break-all ${wowDungeonTierDetailItem.videoUrl ? detailExpansionTheme.metaClass : publicTheme.mutedText}`}>
-                            {wowDungeonTierDetailItem.videoUrl || "등록되지 않음"}
-                          </p>
-                        </div>
-                        <div className={`rounded-2xl border p-4 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
-                          <p className={`text-xs font-black uppercase tracking-[0.22em] ${publicTheme.faintText}`}>저장 방식</p>
-                          <p className={`mt-2 text-sm font-bold ${publicTheme.heading}`}>이 브라우저에만 개인 저장</p>
-                          <p className={`mt-1 text-xs ${publicTheme.mutedText}`}>다른 기기나 브라우저와는 자동 동기화되지 않습니다.</p>
-                        </div>
-                      </div>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveWowDungeonTierDetailVideo("prev")}
+                      disabled={!canGoPrevVideo}
+                      className={`absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border backdrop-blur-sm transition sm:left-4 sm:h-12 sm:w-12 ${canGoPrevVideo ? (isLightTheme ? "border-slate-200 bg-white/95 text-slate-800 shadow-[0_12px_24px_rgba(15,23,42,0.14)] hover:bg-white" : "border-white/10 bg-black/65 text-white hover:bg-black/80") : (isLightTheme ? "border-slate-200 bg-white/70 text-slate-300 cursor-not-allowed" : "border-white/10 bg-black/40 text-white/30 cursor-not-allowed")}`}
+                      aria-label="이전 영상"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveWowDungeonTierDetailVideo("next")}
+                      disabled={!canGoNextVideo}
+                      className={`absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border backdrop-blur-sm transition sm:right-4 sm:h-12 sm:w-12 ${canGoNextVideo ? (isLightTheme ? "border-slate-200 bg-white/95 text-slate-800 shadow-[0_12px_24px_rgba(15,23,42,0.14)] hover:bg-white" : "border-white/10 bg-black/65 text-white hover:bg-black/80") : (isLightTheme ? "border-slate-200 bg-white/70 text-slate-300 cursor-not-allowed" : "border-white/10 bg-black/40 text-white/30 cursor-not-allowed")}`}
+                      aria-label="다음 영상"
+                    >
+                      <ArrowLeft className="h-5 w-5 rotate-180" />
+                    </button>
+                  </div>
 
-                      <div className={`rounded-2xl border p-5 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-800 bg-gray-900/70"}`}>
-                        <div className="flex flex-col gap-3">
-                          <div>
-                            <h4 className={`text-sm font-black ${publicTheme.heading}`}>빠른 티어 이동</h4>
-                            <p className={`mt-1 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
-                              모달 안에서도 바로 원하는 티어 줄로 보낼 수 있습니다.
-                            </p>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                moveWowDungeonTierItem(wowDungeonTierDetailItem.id, null);
-                                setWowDungeonTierSelectedItemId(wowDungeonTierDetailItem.id);
-                              }}
-                              className={`${moveButtonBaseClass} ${!wowDungeonTierDetailTierId ? (isLightTheme ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300/40 bg-slate-200 text-slate-950") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
-                            >
-                              보관함
-                            </button>
-                            {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
-                              const isActiveTier = wowDungeonTierDetailTierId === tier.id;
-                              return (
-                                <button
-                                  key={`detail-move-${tier.id}`}
-                                  type="button"
-                                  onClick={() => {
-                                    moveWowDungeonTierItem(wowDungeonTierDetailItem.id, tier.id);
-                                    setWowDungeonTierSelectedItemId(wowDungeonTierDetailItem.id);
-                                  }}
-                                  className={`${moveButtonBaseClass} ${isActiveTier ? (isLightTheme ? "border-indigo-500 bg-indigo-600 text-white" : "border-indigo-300/50 bg-indigo-200 text-indigo-950") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-100" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
-                                >
-                                  {tier.id}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectWowDungeonTierItem(wowDungeonTierDetailItem.id)}
-                          className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition ${wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? (isLightTheme ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-indigo-400/40 bg-indigo-500/15 text-indigo-100") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
-                        >
-                          {wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? "현재 선택된 카드" : "이 카드 선택"}
-                        </button>
-
-                        {wowDungeonTierDetailItem.videoUrl ? (
-                          <a
-                            href={wowDungeonTierDetailItem.videoUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition inline-flex items-center ${detailExpansionTheme.buttonClass}`}
-                          >
-                            <Tv className="w-4 h-4 mr-2" />
-                            대표 영상 보기
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled
-                            className={`px-4 py-2.5 rounded-xl border text-sm font-bold cursor-not-allowed ${isLightTheme ? "border-slate-200 bg-slate-100 text-slate-400" : "border-gray-800 bg-gray-900/80 text-gray-500"}`}
-                          >
-                            대표 영상 없음
-                          </button>
-                        )}
-
-                        {wowDungeonTierDetailItem.videoUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => copyTextToClipboard(wowDungeonTierDetailItem.videoUrl, "대표 영상 링크를 복사했습니다.")}
-                            className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800"}`}
-                          >
-                            <Copy className="w-4 h-4 inline mr-2" />
-                            영상 링크 복사
-                          </button>
+                  <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={`text-xs font-black uppercase tracking-[0.22em] ${detailExpansionTheme.metaClass}`}>
+                          {wowDungeonTierDetailVideoEmbedConfig.sourceLabel}
+                        </p>
+                        {wowDungeonTierDetailVideoEmbedConfig.openInNewTabRecommended ? (
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-black ${isLightTheme ? "border-amber-200 bg-amber-50 text-amber-700" : "border-amber-400/30 bg-amber-500/10 text-amber-200"}`}>
+                            새 창 권장
+                          </span>
                         ) : null}
                       </div>
+                      <p className={`mt-2 text-sm font-bold break-all ${publicTheme.heading}`}>
+                        {wowDungeonTierDetailActiveVideoUrl}
+                      </p>
+                      <p className={`mt-2 text-xs leading-5 ${publicTheme.mutedText}`}>
+                        {videoFallbackMessage}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectWowDungeonTierItem(wowDungeonTierDetailItem.id)}
+                        className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? (isLightTheme ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-indigo-400/40 bg-indigo-500/15 text-indigo-100") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
+                      >
+                        {wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? "현재 선택된 카드" : "이 카드 선택"}
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           );
-        })()}
+        })() : null}
+
       </div>
     );
   };
@@ -9207,15 +9454,53 @@ export default function App() {
                       </select>
                     </div>
 
-                    <div>
-                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>대표 영상 URL</label>
-                      <input
-                        type="text"
-                        value={wowDungeonTierForm.videoUrl}
-                        onChange={(e) => handleWowDungeonTierFormFieldChange("videoUrl", e.target.value)}
-                        placeholder="선택 입력"
-                        className={adminTheme.input}
-                      />
+                    <div className="md:col-span-2">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <label className={`block text-sm font-bold ${adminTheme.heading}`}>영상 URL 목록</label>
+                        <button
+                          type="button"
+                          onClick={handleAddWowDungeonTierVideoUrlField}
+                          className={adminTheme.ghostButton}
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          영상 추가
+                        </button>
+                      </div>
+                      <p className={`mb-3 text-xs ${adminTheme.mutedText}`}>
+                        입력한 순서대로 재생되고, 빈칸은 저장할 때 자동으로 제외됩니다.
+                      </p>
+                      <div className="space-y-2">
+                        {((Array.isArray(wowDungeonTierForm.videoUrls) && wowDungeonTierForm.videoUrls.length > 0)
+                          ? wowDungeonTierForm.videoUrls
+                          : createWowDungeonTierFormVideoUrls()
+                        ).map((videoUrl, index, videoUrls) => (
+                          <div key={`wow-dungeon-video-url-${index}`} className="flex items-center gap-2">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-500" : "border-gray-700 bg-gray-900 text-gray-300"}`}>
+                              {index + 1}
+                            </div>
+                            <input
+                              type="text"
+                              value={videoUrl}
+                              onChange={(e) => handleWowDungeonTierVideoUrlChange(index, e.target.value)}
+                              placeholder="https://..."
+                              className={`${adminTheme.input} min-w-0 flex-1`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveWowDungeonTierVideoUrlField(index)}
+                              disabled={videoUrls.length <= 1}
+                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition ${
+                                isLightTheme
+                                  ? "border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-300"
+                                  : "border-gray-700 bg-gray-900 text-gray-300 hover:border-red-500 hover:bg-red-500/10 hover:text-red-200 disabled:border-gray-800 disabled:bg-gray-900 disabled:text-gray-600"
+                              }`}
+                              title="영상 URL 삭제"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="md:col-span-2">
@@ -9250,7 +9535,7 @@ export default function App() {
                           {getWowDungeonExpansionMeta(wowDungeonTierForm.expansionType).label}
                         </span>
                         <span className={`text-xs font-semibold ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).subtleClass}`}>
-                          {wowDungeonTierForm.videoUrl ? "영상 링크 포함" : "영상 링크 없음"}
+                          {wowDungeonTierFormNormalizedVideoUrls.length > 0 ? `영상 ${wowDungeonTierFormNormalizedVideoUrls.length}개` : "영상 링크 없음"}
                         </span>
                       </div>
                       <div className={`mt-3 text-lg font-black break-keep ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).titleClass}`}>
@@ -9300,6 +9585,8 @@ export default function App() {
                   {wowDungeonTierItems.length > 0 ? wowDungeonTierItems.map((item, index) => {
                     const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
                     const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+                    const primaryVideoUrl = getWowDungeonTierPrimaryVideoUrl(item);
+                    const videoCount = Array.isArray(item.videoUrls) ? item.videoUrls.length : 0;
                     const isFirstItem = index === 0;
                     const isLastItem = index === wowDungeonTierItems.length - 1;
                     const orderButtonClass = isLightTheme
@@ -9330,10 +9617,10 @@ export default function App() {
                             <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${expansionTheme.badgeClass}`}>
                               {expansionMeta.label}
                             </span>
-                            {item.videoUrl ? (
+                            {videoCount > 0 ? (
                               <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${expansionTheme.buttonClass}`}>
                                 <Tv className="w-3 h-3 mr-1" />
-                                영상 있음
+                                영상 {videoCount}개
                               </span>
                             ) : null}
                           </div>
@@ -9341,19 +9628,19 @@ export default function App() {
                             <p className={`text-xs ${expansionTheme.subtleClass}`}>
                               보관함 노출 순서 {index + 1}
                             </p>
-                            {item.videoUrl ? (
+                            {primaryVideoUrl ? (
                               <a
-                                href={item.videoUrl}
+                                href={primaryVideoUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className={`inline-flex items-center gap-1 text-xs font-semibold ${expansionTheme.metaClass}`}
                               >
                                 <Link2 className="w-3 h-3" />
-                                대표 영상 열기
+                                첫 영상 열기
                               </a>
                             ) : (
                               <span className={`text-xs ${expansionTheme.subtleClass}`}>
-                                대표 영상 없음
+                                영상 없음
                               </span>
                             )}
                           </div>
