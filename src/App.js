@@ -1300,7 +1300,12 @@ const findWowDungeonTierPlacementByItemId = (placements = {}, itemId = "") => {
   return matchedTier?.id || null;
 };
 
-const moveWowDungeonTierItemBetweenTiers = (placements = {}, itemId = "", nextTierId = null) => {
+const moveWowDungeonTierItemBetweenTiers = (
+  placements = {},
+  itemId = "",
+  nextTierId = null,
+  { targetItemId = null, insertAfter = false } = {}
+) => {
   const nextPlacements = WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
     acc[tier.id] = Array.isArray(placements?.[tier.id]) ? [...placements[tier.id]] : [];
     return acc;
@@ -1311,7 +1316,15 @@ const moveWowDungeonTierItemBetweenTiers = (placements = {}, itemId = "", nextTi
   });
 
   if (nextTierId && nextPlacements[nextTierId]) {
-    nextPlacements[nextTierId].push(itemId);
+    let insertIndex = nextPlacements[nextTierId].length;
+
+    if (targetItemId && nextPlacements[nextTierId].includes(targetItemId)) {
+      insertIndex = nextPlacements[nextTierId].indexOf(targetItemId);
+      if (insertAfter) insertIndex += 1;
+    }
+
+    const safeIndex = Math.max(0, Math.min(insertIndex, nextPlacements[nextTierId].length));
+    nextPlacements[nextTierId].splice(safeIndex, 0, itemId);
   }
 
   return nextPlacements;
@@ -5874,11 +5887,11 @@ export default function App() {
     setWowDungeonTierDropTarget(null);
   };
 
-  const moveWowDungeonTierItem = (itemId, nextTierId = null) => {
+  const moveWowDungeonTierItem = (itemId, nextTierId = null, options = {}) => {
     if (!itemId) return;
 
     setWowDungeonTierPlacements((prev) => {
-      const next = moveWowDungeonTierItemBetweenTiers(prev, itemId, nextTierId);
+      const next = moveWowDungeonTierItemBetweenTiers(prev, itemId, nextTierId, options);
       return areWowDungeonTierPlacementsEqual(prev, next) ? prev : next;
     });
   };
@@ -5952,6 +5965,43 @@ export default function App() {
       moveWowDungeonTierItem(itemId, nextTierId);
       setWowDungeonTierSelectedItemId(itemId);
     }
+    clearWowDungeonTierDragState();
+  };
+
+  const getWowDungeonTierCardDropTargetKey = (tierId, itemId, insertAfter = false) => (
+    `tier:${tierId}:item:${itemId}:${insertAfter ? "after" : "before"}`
+  );
+
+  const getWowDungeonTierCardInsertAfter = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return (event.clientX - bounds.left) >= bounds.width / 2;
+  };
+
+  const handleWowDungeonTierCardDragOver = (event, tierId, targetItemId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+
+    const insertAfter = getWowDungeonTierCardInsertAfter(event);
+    const zoneId = getWowDungeonTierCardDropTargetKey(tierId, targetItemId, insertAfter);
+
+    if (wowDungeonTierDropTarget !== zoneId) {
+      setWowDungeonTierDropTarget(zoneId);
+    }
+  };
+
+  const handleWowDungeonTierCardDrop = (event, tierId, targetItemId) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const itemId = event.dataTransfer.getData("text/plain") || wowDungeonTierDragItemId;
+    const insertAfter = getWowDungeonTierCardInsertAfter(event);
+
+    if (itemId && itemId !== targetItemId) {
+      moveWowDungeonTierItem(itemId, tierId, { targetItemId, insertAfter });
+      setWowDungeonTierSelectedItemId(itemId);
+    }
+
     clearWowDungeonTierDragState();
   };
 
@@ -6246,6 +6296,10 @@ export default function App() {
       const itemVideoUrls = normalizeWowDungeonVideoUrls(item.videoUrls, item.videoUrl);
       const videoCount = itemVideoUrls.length;
       const hasVideos = videoCount > 0;
+      const beforeDropTargetKey = currentTierId ? getWowDungeonTierCardDropTargetKey(currentTierId, item.id, false) : "";
+      const afterDropTargetKey = currentTierId ? getWowDungeonTierCardDropTargetKey(currentTierId, item.id, true) : "";
+      const isDropBeforeActive = wowDungeonTierDropTarget === beforeDropTargetKey;
+      const isDropAfterActive = wowDungeonTierDropTarget === afterDropTargetKey;
 
       if (compact) {
         return (
@@ -6269,10 +6323,26 @@ export default function App() {
                 handleSelectWowDungeonTierItem(item.id);
               }
             }}
+            onDragOver={currentTierId ? (event) => handleWowDungeonTierCardDragOver(event, currentTierId, item.id) : undefined}
+            onDrop={currentTierId ? (event) => handleWowDungeonTierCardDrop(event, currentTierId, item.id) : undefined}
             onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
             onDragEnd={handleWowDungeonTierDragEnd}
             className="group relative flex w-[132px] md:w-[152px] flex-col items-center cursor-grab active:cursor-grabbing"
           >
+            <span
+              className={`pointer-events-none absolute inset-y-1 left-[-8px] z-20 w-[4px] rounded-full transition-opacity ${
+                isDropBeforeActive
+                  ? (isLightTheme ? "bg-indigo-500 opacity-100" : "bg-indigo-300 opacity-100")
+                  : "opacity-0"
+              }`}
+            />
+            <span
+              className={`pointer-events-none absolute inset-y-1 right-[-8px] z-20 w-[4px] rounded-full transition-opacity ${
+                isDropAfterActive
+                  ? (isLightTheme ? "bg-indigo-500 opacity-100" : "bg-indigo-300 opacity-100")
+                  : "opacity-0"
+              }`}
+            />
             <div
               className={`relative w-full aspect-[12/9] rounded-xl border-2 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform ${
                 isSelected
@@ -6498,7 +6568,7 @@ export default function App() {
               {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
                 const tierMeta = tierBoardMeta[tier.id];
                 const tierCards = wowDungeonTierCardsByTier[tier.id] || [];
-                const isDropActive = wowDungeonTierDropTarget === `tier:${tier.id}`;
+                const isDropActive = wowDungeonTierDropTarget === `tier:${tier.id}` || wowDungeonTierDropTarget?.startsWith(`tier:${tier.id}:item:`);
                 const sidebarClass = isLightTheme ? tierMeta.lightBoxClass : tierMeta.darkBoxClass;
                 const idTextClass = isLightTheme ? tierMeta.lightIdTextClass : tierMeta.darkIdTextClass;
 
