@@ -1672,10 +1672,6 @@ export default function App() {
     normalizeWowDungeonVideoUrls(wowDungeonTierForm.videoUrls)
   ), [wowDungeonTierForm.videoUrls]);
 
-  const wowDungeonTierSelectedTierId = useMemo(() => (
-    findWowDungeonTierPlacementByItemId(wowDungeonTierPlacements, wowDungeonTierSelectedItemId)
-  ), [wowDungeonTierPlacements, wowDungeonTierSelectedItemId]);
-
   const wowDungeonTierDetailItem = useMemo(() => (
     wowDungeonTierDetailItemId ? wowDungeonTierItemMap[wowDungeonTierDetailItemId] || null : null
   ), [wowDungeonTierDetailItemId, wowDungeonTierItemMap]);
@@ -5921,16 +5917,8 @@ export default function App() {
     });
   };
 
-  const handleMoveSelectedWowDungeonTierItem = (nextTierId = null) => {
-    if (!wowDungeonTierSelectedItemId) return;
-    moveWowDungeonTierItem(wowDungeonTierSelectedItemId, nextTierId);
-  };
-
-  const handleResetWowDungeonTierPlacements = () => {
-    setWowDungeonTierPlacements(createEmptyWowDungeonTierPlacements());
+  const handleClearSelectedWowDungeonTierItem = () => {
     setWowDungeonTierSelectedItemId(null);
-    clearWowDungeonTierDragState();
-    showToast("던전 티어표를 초기화했습니다.");
   };
 
   const handleWowDungeonTierDragStart = (event, itemId) => {
@@ -6250,7 +6238,6 @@ export default function App() {
         darkIdTextClass: "text-white",
       },
     };
-    const selectedLocationLabel = wowDungeonTierSelectedTierId ? `${wowDungeonTierSelectedTierId} 티어` : "보관함";
     const renderDungeonCard = (item, { currentTierId = null, compact = false } = {}) => {
       const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
       const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
@@ -6284,10 +6271,10 @@ export default function App() {
             }}
             onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
             onDragEnd={handleWowDungeonTierDragEnd}
-            className="group relative flex flex-col items-center cursor-grab active:cursor-grabbing"
+            className="group relative flex w-[132px] md:w-[152px] flex-col items-center cursor-grab active:cursor-grabbing"
           >
             <div
-              className={`relative w-16 h-16 rounded-lg border-2 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform ${
+              className={`relative w-full aspect-[12/9] rounded-xl border-2 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform ${
                 isSelected
                   ? (isLightTheme
                     ? "bg-slate-100 border-indigo-400 ring-2 ring-indigo-500 ring-offset-2 ring-offset-white"
@@ -6295,7 +6282,7 @@ export default function App() {
                   : (isLightTheme
                     ? "bg-slate-100 border-slate-200 group-hover:border-emerald-300"
                     : "bg-gray-700 border-gray-600 group-hover:border-green-400")
-              } ${isDragging ? "scale-95 opacity-60" : "group-hover:scale-110"}`}
+              } ${isDragging ? "scale-95 opacity-60" : "group-hover:scale-[1.03]"}`}
             >
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
@@ -6304,15 +6291,12 @@ export default function App() {
                   DUN
                 </div>
               )}
-              <span className={`absolute left-1 top-1 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+              <span className={`absolute left-1.5 top-1.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
                 {expansionMeta.shortLabel}
               </span>
             </div>
-            <span className={`mt-2 text-xs leading-[1.15rem] font-medium px-2 py-0.5 rounded text-center break-keep max-w-[92px] transition-colors ${isLightTheme ? "text-slate-900 bg-slate-100 group-hover:text-emerald-700" : "text-white bg-gray-900/80 group-hover:text-green-400"}`}>
+            <span className={`mt-2.5 text-xs leading-[1.15rem] font-medium px-2 py-0.5 rounded text-center break-keep w-full max-w-full transition-colors ${isLightTheme ? "text-slate-900 bg-slate-100 group-hover:text-emerald-700" : "text-white bg-gray-900/80 group-hover:text-green-400"}`}>
               {item.name}
-            </span>
-            <span className={`text-[11px] font-bold mt-0.5 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>
-              {hasVideos ? `영상 ${videoCount}개` : expansionMeta.label}
             </span>
           </div>
         );
@@ -6483,87 +6467,34 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(280px,2fr)] gap-5 items-start xl:items-stretch">
-          <div className={`${publicTheme.surfaceCard} p-6 xl:h-[980px] flex flex-col`}>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(280px,2fr)] gap-5 items-start">
+          <div className={`${publicTheme.surfaceCard} p-6`}>
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <h3 className={`text-xl font-black ${publicTheme.heading}`}>던전 티어표</h3>
-                <p className={`mt-2 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
-                  카드는 한 번 클릭하면 선택되고, 두 번 클릭하면 첫 번째 영상부터 바로 재생됩니다. 재생 중에는 좌우 버튼으로 다음 영상까지 이어서 볼 수 있습니다.
-                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
-                  <Star className={`w-3.5 h-3.5 ${isLightTheme ? "text-amber-500" : "text-amber-300"}`} />
-                  브라우저 자동 저장
-                </div>
-                {wowDungeonTierSelectedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenWowDungeonTierDetail(wowDungeonTierSelectedItem.id)}
-                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50" : "border-indigo-400/30 bg-indigo-500/10 text-indigo-200 hover:bg-indigo-500/18"}`}
-                  >
-                    선택 카드 재생
-                  </button>
-                ) : null}
-                {wowDungeonTierSelectedItem ? (
-                  <button
-                    type="button"
-                    onClick={() => setWowDungeonTierSelectedItemId(null)}
-                    className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
-                  >
-                    선택 해제
-                  </button>
-                ) : null}
                 <button
                   type="button"
-                  onClick={handleResetWowDungeonTierPlacements}
-                  className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${isLightTheme ? "border-rose-200 bg-white text-rose-700 hover:bg-rose-50" : "border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18"}`}
+                  onClick={handleClearSelectedWowDungeonTierItem}
+                  disabled={!wowDungeonTierSelectedItem}
+                  className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${
+                    wowDungeonTierSelectedItem
+                      ? (isLightTheme
+                        ? "border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
+                        : "border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18")
+                      : (isLightTheme
+                        ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "border-gray-700 bg-gray-900/80 text-gray-500 cursor-not-allowed")
+                  }`}
                 >
-                  내 티어표 초기화
+                  선택 초기화
                 </button>
               </div>
             </div>
 
-            {wowDungeonTierSelectedItem ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
-                  선택 카드: {wowDungeonTierSelectedItem.name}
-                </span>
-                <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${isLightTheme ? "border-slate-200 bg-white text-slate-500" : "border-gray-700 bg-gray-900/80 text-gray-400"}`}>
-                  현재 위치: {selectedLocationLabel}
-                </span>
-                {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
-                  const isActiveTier = wowDungeonTierSelectedTierId === tier.id;
-                  return (
-                    <button
-                      key={`quick-move-${tier.id}`}
-                      type="button"
-                      onClick={() => handleMoveSelectedWowDungeonTierItem(tier.id)}
-                      className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${
-                        isActiveTier
-                          ? (isLightTheme ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300/40 bg-slate-200 text-slate-950")
-                          : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")
-                      }`}
-                    >
-                      {tier.id} 티어로 이동
-                    </button>
-                  );
-                })}
-                {wowDungeonTierSelectedTierId ? (
-                  <button
-                    type="button"
-                    onClick={() => handleMoveSelectedWowDungeonTierItem(null)}
-                    className={`px-3 py-1.5 rounded-full border text-[11px] font-black transition ${isLightTheme ? "border-sky-200 bg-white text-sky-700 hover:bg-sky-50" : "border-sky-400/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/18"}`}
-                  >
-                    보관함으로 이동
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className={`mt-6 flex-1 min-h-0 rounded-xl border overflow-hidden p-1 ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
-              <div className="flex h-full min-h-0 flex-col gap-1">
+            <div className={`mt-6 rounded-xl border overflow-hidden ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
+              <div className={`flex flex-col ${isLightTheme ? "divide-y divide-slate-200" : "divide-y divide-gray-700"}`}>
               {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
                 const tierMeta = tierBoardMeta[tier.id];
                 const tierCards = wowDungeonTierCardsByTier[tier.id] || [];
@@ -6572,15 +6503,15 @@ export default function App() {
                 const idTextClass = isLightTheme ? tierMeta.lightIdTextClass : tierMeta.darkIdTextClass;
 
                 return (
-                  <div key={tier.id} className={`relative flex min-h-[112px] flex-1 flex-col overflow-hidden rounded-lg border md:flex-row ${isLightTheme ? "bg-white border-slate-200" : "bg-gray-800 border-gray-700"}`}>
-                    <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r shadow-inner relative z-10 overflow-hidden ${sidebarClass}`}>
+                  <div key={tier.id} className={`relative flex min-h-[168px] flex-col overflow-hidden md:flex-row ${isLightTheme ? "bg-white" : "bg-gray-800"}`}>
+                    <div className={`md:w-32 w-full flex-shrink-0 flex flex-col items-center justify-center p-4 border-b md:border-b-0 md:border-r shadow-inner relative z-10 overflow-hidden ${sidebarClass}`}>
                       <span className={`text-2xl font-extrabold relative z-10 ${idTextClass}`}>{tier.id}</span>
                     </div>
 
                     <div
                       onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, `tier:${tier.id}`)}
                       onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, tier.id)}
-                      className={`flex-1 h-full p-4 flex flex-wrap content-start gap-4 items-center transition ${isLightTheme ? "bg-white" : "bg-gray-800/80"} ${isDropActive ? (isLightTheme ? "ring-2 ring-indigo-400 ring-inset bg-indigo-50/70" : "ring-2 ring-indigo-300/60 ring-inset bg-indigo-500/10") : ""}`}
+                      className={`flex-1 p-5 md:p-6 flex flex-wrap content-start gap-5 items-start transition ${isLightTheme ? "bg-white" : "bg-gray-800/80"} ${isDropActive ? (isLightTheme ? "ring-2 ring-indigo-400 ring-inset bg-indigo-50/70" : "ring-2 ring-indigo-300/60 ring-inset bg-indigo-500/10") : ""}`}
                     >
                       {tierCards.length > 0 ? tierCards.map((item) => renderDungeonCard(item, { currentTierId: tier.id, compact: true })) : (
                         <span className={`text-sm italic p-2 ${publicTheme.emptyState}`}>해당 티어에 배치된 던전 카드 없음</span>
@@ -6593,7 +6524,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className={`${publicTheme.surfaceCard} p-5 xl:h-[980px] flex flex-col`}>
+          <div className={`${publicTheme.surfaceCard} self-start p-5 flex flex-col xl:sticky xl:top-24 xl:h-[calc(100vh-7rem)]`}>
             <div className="flex flex-col gap-3">
               <div>
                 <h3 className={`text-lg font-black ${publicTheme.heading}`}>던전 보관함</h3>
