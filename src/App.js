@@ -6211,8 +6211,8 @@ export default function App() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(260px,2fr)] gap-5 items-start">
-          <div className={`${publicTheme.surfaceCard} p-6`}>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(280px,2fr)] gap-5 items-start xl:items-stretch">
+          <div className={`${publicTheme.surfaceCard} p-6 xl:h-[980px] flex flex-col`}>
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <h3 className={`text-xl font-black ${publicTheme.heading}`}>던전 티어표</h3>
@@ -6298,7 +6298,8 @@ export default function App() {
               ) : null}
             </div>
 
-            <div className={`mt-6 rounded-xl border overflow-hidden flex flex-col gap-1 p-1 ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
+            <div className={`mt-6 flex-1 min-h-0 rounded-xl border overflow-hidden p-1 ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
+              <div className="flex h-full min-h-0 flex-col gap-1">
               {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
                 const tierMeta = tierBoardMeta[tier.id];
                 const tierCards = wowDungeonTierCardsByTier[tier.id] || [];
@@ -6307,7 +6308,7 @@ export default function App() {
                 const idTextClass = isLightTheme ? tierMeta.lightIdTextClass : tierMeta.darkIdTextClass;
 
                 return (
-                  <div key={tier.id} className={`flex flex-col md:flex-row rounded-lg overflow-hidden min-h-[100px] relative border ${isLightTheme ? "bg-white border-slate-200" : "bg-gray-800 border-gray-700"}`}>
+                  <div key={tier.id} className={`relative flex min-h-[112px] flex-1 flex-col overflow-hidden rounded-lg border md:flex-row ${isLightTheme ? "bg-white border-slate-200" : "bg-gray-800 border-gray-700"}`}>
                     <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r shadow-inner relative z-10 overflow-hidden ${sidebarClass}`}>
                       <span className={`text-2xl font-extrabold relative z-10 ${idTextClass}`}>{tier.id}</span>
                     </div>
@@ -6315,7 +6316,7 @@ export default function App() {
                     <div
                       onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, `tier:${tier.id}`)}
                       onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, tier.id)}
-                      className={`flex-1 p-4 flex flex-wrap gap-4 items-center transition ${isLightTheme ? "bg-white" : "bg-gray-800/80"} ${isDropActive ? (isLightTheme ? "ring-2 ring-indigo-400 ring-inset bg-indigo-50/70" : "ring-2 ring-indigo-300/60 ring-inset bg-indigo-500/10") : ""}`}
+                      className={`flex-1 h-full p-4 flex flex-wrap content-start gap-4 items-center transition ${isLightTheme ? "bg-white" : "bg-gray-800/80"} ${isDropActive ? (isLightTheme ? "ring-2 ring-indigo-400 ring-inset bg-indigo-50/70" : "ring-2 ring-indigo-300/60 ring-inset bg-indigo-500/10") : ""}`}
                     >
                       {tierCards.length > 0 ? tierCards.map((item) => renderDungeonCard(item, { currentTierId: tier.id, compact: true })) : (
                         <span className={`text-sm italic p-2 ${publicTheme.emptyState}`}>해당 티어에 배치된 던전 카드 없음</span>
@@ -6324,10 +6325,11 @@ export default function App() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
 
-          <div className={`${publicTheme.surfaceCard} p-5 xl:sticky xl:top-24`}>
+          <div className={`${publicTheme.surfaceCard} p-5 xl:h-[980px] flex flex-col`}>
             <div className="flex flex-col gap-3">
               <div>
                 <h3 className={`text-lg font-black ${publicTheme.heading}`}>던전 보관함</h3>
@@ -6351,11 +6353,13 @@ export default function App() {
             <div
               onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, "stash")}
               onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, null)}
-              className={`mt-5 rounded-2xl border-2 border-dashed p-3 transition ${wowDungeonTierDropTarget === "stash" ? (isLightTheme ? "border-indigo-400 bg-indigo-50/80 shadow-[0_18px_36px_rgba(79,70,229,0.12)]" : "border-indigo-300/60 bg-indigo-500/12 shadow-[0_0_26px_rgba(99,102,241,0.18)]") : (isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40")}`}
+              className={`mt-5 flex-1 min-h-0 rounded-2xl border-2 border-dashed p-3 transition ${wowDungeonTierDropTarget === "stash" ? (isLightTheme ? "border-indigo-400 bg-indigo-50/80 shadow-[0_18px_36px_rgba(79,70,229,0.12)]" : "border-indigo-300/60 bg-indigo-500/12 shadow-[0_0_26px_rgba(99,102,241,0.18)]") : (isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40")}`}
             >
               {wowDungeonTierStashItems.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {wowDungeonTierStashItems.map((item) => renderDungeonStashCard(item))}
+                <div className="h-full min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="grid grid-cols-2 gap-3">
+                    {wowDungeonTierStashItems.map((item) => renderDungeonStashCard(item))}
+                  </div>
                 </div>
               ) : (
                 <div className={`rounded-2xl border px-4 py-8 text-center text-sm ${isLightTheme ? "border-white/80 bg-white/80 text-slate-600" : "border-white/10 bg-black/20 text-gray-300"}`}>
