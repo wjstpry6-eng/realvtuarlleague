@@ -554,6 +554,7 @@ const BUSKING_PUBLIC_SHARD_COUNT = 12;
 const BUSKING_PUBLIC_SHARDS_COLLECTION = "public_shards";
 const APP_THEME_STORAGE_KEY = "wak_vleague_theme_v1";
 const DEFAULT_APP_THEME = "dark";
+const INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT = 15;
 
 const normalizeAppTheme = (value) => (
   value === "light" ? "light" : DEFAULT_APP_THEME
@@ -859,6 +860,32 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
     updatedAt: new Date().toISOString(),
   };
 };
+
+const createEmptyIndividualMatchResult = (rank, scoreChange = 0) => ({
+  playerName: "",
+  rank,
+  scoreChange,
+  fundingRatio: "",
+  fundingAmount: "",
+});
+
+const createDefaultIndividualMatchResults = () => ([
+  createEmptyIndividualMatchResult(1, 100),
+  createEmptyIndividualMatchResult(2, 50),
+]);
+
+const appendIndividualMatchResults = (results = [], count = 1) => ([
+  ...results,
+  ...Array.from({ length: count }, (_, index) =>
+    createEmptyIndividualMatchResult(results.length + index + 1)
+  ),
+]);
+
+const fillIndividualMatchResultsToCount = (results = [], targetCount = 100) => (
+  results.length >= targetCount
+    ? results
+    : appendIndividualMatchResults(results, targetCount - results.length)
+);
 
 const createEmptyTeamMatchResult = (id, rank, scoreChange = 0) => ({
   id,
@@ -1527,6 +1554,7 @@ export default function App() {
   const [isMobileWowMenuOpen, setIsMobileWowMenuOpen] = useState(false);
 
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
+  const [expandedIndividualMatchIds, setExpandedIndividualMatchIds] = useState([]);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
   const [playerCardSearchInput, setPlayerCardSearchInput] = useState("");
   const [playerCardSort, setPlayerCardSort] = useState({ key: "name", direction: "asc" });
@@ -1554,10 +1582,7 @@ export default function App() {
   const [hasFunding, setHasFunding] = useState(false);
   const [totalFunding, setTotalFunding] = useState("");
 
-  const [individualResults, setIndividualResults] = useState([
-    { playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" },
-    { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" },
-  ]);
+  const [individualResults, setIndividualResults] = useState(() => createDefaultIndividualMatchResults());
   const [teamResults, setTeamResults] = useState(() => createDefaultTeamMatchResults());
 
   const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
@@ -1709,8 +1734,8 @@ export default function App() {
   ), [wowDungeonTierDetailActiveVideoUrl]);
 
   const requestSort = (key) => {
-    let direction = 'desc'; 
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc'; 
+    let direction = 'desc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc';
     setSortConfig({ key, direction });
   };
 
@@ -1722,6 +1747,14 @@ export default function App() {
 
       return { key, direction: key === "name" ? "asc" : "desc" };
     });
+  };
+
+  const handleToggleIndividualMatchExpanded = (matchId) => {
+    setExpandedIndividualMatchIds((prev) => (
+      prev.includes(matchId)
+        ? prev.filter((id) => id !== matchId)
+        : [...prev, matchId]
+    ));
   };
 
   const handleToggleTheme = () => {
@@ -2209,8 +2242,8 @@ export default function App() {
   }, [wowRoster, wowSortConfig, selectedJobFilter, selectedWowSpecFilters, selectedWowPositionFilters, showWowRaidApplicantsOnly]);
 
   const requestWowSort = (key) => {
-    let direction = 'desc'; 
-    if (wowSortConfig && wowSortConfig.key === key && wowSortConfig.direction === 'desc') direction = 'asc'; 
+    let direction = 'desc';
+    if (wowSortConfig && wowSortConfig.key === key && wowSortConfig.direction === 'desc') direction = 'asc';
     setWowSortConfig({ key, direction });
   };
 
@@ -4653,9 +4686,10 @@ export default function App() {
     if (match.matchType === "team") {
       const normalizedTeams = getNormalizedTeamMatchResults(match);
       setEditTeamResults(normalizedTeams.length > 0 ? normalizedTeams : createDefaultTeamMatchResults());
-      setEditIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
+      setEditIndividualResults(createDefaultIndividualMatchResults());
     } else {
-      setEditIndividualResults([...(match.results || [])].map(r => ({...r, fundingRatio: r.fundingRatio || "", fundingAmount: r.fundingAmount || ""})));
+      const normalizedResults = [...(match.results || [])].map(r => ({...r, fundingRatio: r.fundingRatio || "", fundingAmount: r.fundingAmount || ""}));
+      setEditIndividualResults(normalizedResults.length > 0 ? normalizedResults : createDefaultIndividualMatchResults());
       setEditTeamResults(createDefaultTeamMatchResults());
     }
   };
@@ -4886,15 +4920,22 @@ export default function App() {
             </button>
           </div>
 
-          <div className="relative w-full xl:w-96">
-            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${publicTheme.mutedText}`} />
-            <input
-              type="text"
-              value={playerCardSearchInput}
-              onChange={(e) => setPlayerCardSearchInput(e.target.value)}
-              placeholder="선수명으로 검색"
-              className={isLightTheme ? "w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:bg-white focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-500/15" : "w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"}
-            />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+            <div className={`inline-flex items-center justify-between gap-2 rounded-xl border px-4 py-3 text-sm font-black whitespace-nowrap ${isLightTheme ? "border-fuchsia-100 bg-white text-slate-700 shadow-sm" : "border-purple-500/25 bg-purple-500/10 text-purple-100"}`}>
+              <span className={isLightTheme ? "text-slate-500" : "text-gray-300"}>총 참가자 수 :</span>
+              <span className={isLightTheme ? "text-fuchsia-700" : "text-purple-200"}>{players.length.toLocaleString()}명</span>
+            </div>
+
+            <div className="relative w-full sm:w-80 xl:w-96">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${publicTheme.mutedText}`} />
+              <input
+                type="text"
+                value={playerCardSearchInput}
+                onChange={(e) => setPlayerCardSearchInput(e.target.value)}
+                placeholder="선수명으로 검색"
+                className={isLightTheme ? "w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:bg-white focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-500/15" : "w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"}
+              />
+            </div>
           </div>
         </div>
 
@@ -5086,6 +5127,14 @@ export default function App() {
             );
           }
 
+          const sortedIndividualResults = [...(match.results || [])].sort((a, b) => a.rank - b.rank);
+          const isIndividualMatchExpanded = expandedIndividualMatchIds.includes(match.id);
+          const visibleIndividualResults = isIndividualMatchExpanded
+            ? sortedIndividualResults
+            : sortedIndividualResults.slice(0, INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT);
+          const hiddenIndividualResultCount = Math.max(sortedIndividualResults.length - INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT, 0);
+          const shouldShowIndividualResultToggle = sortedIndividualResults.length > INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT;
+
           return (
             <div id={`match-card-${match.id}`} key={match.id} className={`rounded-xl p-6 border transition flex flex-col ${isLightTheme ? "bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-800 shadow-md"} ${selectedMatchId === match.id ? (isLightTheme ? "border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_22px_40px_rgba(16,185,129,0.14)]" : "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]") : (isLightTheme ? "border-slate-200" : "border-gray-700")}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
@@ -5108,8 +5157,8 @@ export default function App() {
                 <span className={`text-base ${publicTheme.mutedText}`}>{match.date}</span>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 order-3">
-                {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 order-3">
+                {visibleIndividualResults.map((result, idx) => (
                     <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition-all duration-200 group hover:-translate-y-1 ${result.rank === 1 ? (isLightTheme ? "bg-white border-yellow-400 shadow-md hover:shadow-lg" : "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400") : (isLightTheme ? "bg-white border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md" : "bg-gray-700/30 border-gray-600 hover:border-green-400 hover:shadow-lg")}`}>
                       <div className="flex justify-between items-center mb-3">
                         <div className={`flex items-center gap-1.5 text-lg ${result.rank === 1 ? (isLightTheme ? "text-yellow-600 font-black" : "text-yellow-400 font-black") : (isLightTheme ? "text-slate-600 font-bold" : "text-gray-300 font-bold")}`}>
@@ -5118,7 +5167,7 @@ export default function App() {
                           )}
                           <span>{result.rank}위</span>
                         </div>
-                        <span className={`text-sm px-3 py-1 rounded-full border ${result.scoreChange >= 0 ? (isLightTheme ? "border-green-200 bg-green-50 text-green-700 font-black" : "bg-green-500/20 text-green-400 font-bold") : (isLightTheme ? "border-rose-200 bg-rose-50 text-rose-700 font-black" : "bg-red-500/20 text-red-400 font-bold")}`}>
+                        <span className={`text-sm px-3 py-1 rounded-full ${result.scoreChange >= 0 ? (isLightTheme ? "bg-green-50 text-green-700 font-black" : "bg-green-500/20 text-green-400 font-bold") : (isLightTheme ? "bg-rose-50 text-rose-700 font-black" : "bg-red-500/20 text-red-400 font-bold")}`}>
                           {result.scoreChange > 0 ? "+" : ""}{result.scoreChange} pt
                         </span>
                       </div>
@@ -5129,6 +5178,30 @@ export default function App() {
                     </div>
                   ))}
               </div>
+
+              {shouldShowIndividualResultToggle && (
+                <div className="order-4 mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleIndividualMatchExpanded(match.id)}
+                    className={`inline-flex items-center justify-center rounded-full border px-5 py-2 text-sm font-black transition ${
+                      isLightTheme
+                        ? "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                        : "border-gray-600 bg-gray-900/70 text-gray-200 hover:border-green-500/50 hover:bg-green-500/10 hover:text-green-300"
+                    }`}
+                  >
+                    {isIndividualMatchExpanded ? (
+                      <>
+                        접기 <ChevronUp className="w-4 h-4 ml-1.5" />
+                      </>
+                    ) : (
+                      <>
+                        전체 참가자 보기 ({hiddenIndividualResultCount}명 더 보기) <ChevronDown className="w-4 h-4 ml-1.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {expandedFundingMatchId === match.id && match.hasFunding && (
                 <div className={`order-2 mt-4 mb-4 p-5 border rounded-xl animate-in fade-in slide-in-from-top-2 ${isLightTheme ? "bg-gradient-to-b from-amber-50 to-white border-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_34px_rgba(15,23,42,0.08)]" : "bg-gradient-to-b from-gray-800 to-gray-900 border-yellow-700/40 shadow-inner"}`}>
@@ -8408,7 +8481,7 @@ export default function App() {
         setGameName("");
         setHasFunding(false);
         setTotalFunding("");
-        setIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
+        setIndividualResults(createDefaultIndividualMatchResults());
         setTeamResults(createDefaultTeamMatchResults());
         await updateLastModifiedTime(); 
         showToast(publishNow ? "경기 기록이 공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
@@ -8590,38 +8663,45 @@ export default function App() {
 
                 {matchMode === "individual" && (
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3">
-                    <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 입력합니다.</p>
-                    {individualResults.map((r, idx) => (
-                      <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
-                        <div className="flex gap-2">
-                          <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                          <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                          <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                          <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults(individualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                        {hasFunding && (
-                          <div className="flex gap-2 items-center sm:pl-[72px]">
-                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                            <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                              const val = e.target.value;
-                              const n = [...individualResults];
-                              n[idx].fundingRatio = val;
-                              n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
-                              setIndividualResults(n);
-                            }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                            <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                              const n = [...individualResults];
-                              n[idx].fundingAmount = e.target.value;
-                              n[idx].fundingRatio = "";
-                              setIndividualResults(n);
-                            }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-gray-500">개인별 순위와 점수를 입력합니다.</p>
+                      <span className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-300">{individualResults.length}명 등록칸</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {individualResults.map((r, idx) => (
+                        <div key={idx} className="flex min-w-0 flex-col gap-2 bg-gray-800/40 p-3 rounded-lg border border-gray-700/50">
+                          <div className="flex items-center justify-between gap-2">
+                            <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-14 bg-gray-800 text-white text-center rounded border border-gray-600 py-2 font-bold" />
+                            <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults((prev) => prev.filter((_, i) => i !== idx)); }} className="shrink-0 p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setIndividualResults([...individualResults, { playerName: "", rank: individualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                          <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="w-full min-w-0 bg-gray-800 text-white px-3 py-2 rounded border border-gray-600" />
+                          <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white text-center px-3 py-2 rounded border border-gray-600" />
+                          {hasFunding && (
+                            <div className="grid grid-cols-2 gap-2 rounded-lg border border-gray-700/50 bg-gray-900/35 p-2">
+                              <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
+                                const val = e.target.value;
+                                const n = [...individualResults];
+                                n[idx].fundingRatio = val;
+                                n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
+                                setIndividualResults(n);
+                              }} className="w-full bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
+                              <input type="number" placeholder="별풍선" value={r.fundingAmount || ""} onChange={(e) => {
+                                const n = [...individualResults];
+                                n[idx].fundingAmount = e.target.value;
+                                n[idx].fundingRatio = "";
+                                setIndividualResults(n);
+                              }} className="w-full bg-gray-800 text-yellow-400 px-2 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                      <button type="button" onClick={() => setIndividualResults((prev) => appendIndividualMatchResults(prev, 1))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+1명</button>
+                      <button type="button" onClick={() => setIndividualResults((prev) => appendIndividualMatchResults(prev, 4))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+4명</button>
+                      <button type="button" onClick={() => setIndividualResults((prev) => appendIndividualMatchResults(prev, 20))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+20명</button>
+                      <button type="button" onClick={() => setIndividualResults((prev) => fillIndividualMatchResultsToCount(prev, 100))} className="py-2 text-green-300 border border-dashed border-green-700 rounded hover:text-white hover:border-green-400 hover:bg-green-900/20 transition">100명까지 채우기</button>
+                    </div>
                   </div>
                 )}
 
@@ -10154,38 +10234,45 @@ export default function App() {
 
               {editMatchMode === "individual" && (
                 <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 mt-4">
-                  <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 수정합니다.</p>
-                  {editIndividualResults.map((r, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
-                      <div className="flex gap-2">
-                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
-                      </div>
-                      {editHasFunding && (
-                        <div className="flex gap-2 items-center sm:pl-[72px]">
-                          <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                          <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                            const val = e.target.value;
-                            const n = [...editIndividualResults];
-                            n[idx].fundingRatio = val;
-                            n[idx].fundingAmount = val && editTotalFunding ? Math.floor((Number(editTotalFunding) * Number(val)) / 100) : "";
-                            setEditIndividualResults(n);
-                          }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                          <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                            const n = [...editIndividualResults];
-                            n[idx].fundingAmount = e.target.value;
-                            n[idx].fundingRatio = "";
-                            setEditIndividualResults(n);
-                          }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-gray-500">개인별 순위와 점수를 수정합니다.</p>
+                    <span className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-300">{editIndividualResults.length}명 등록칸</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {editIndividualResults.map((r, idx) => (
+                      <div key={idx} className="flex min-w-0 flex-col gap-2 bg-gray-800/40 p-3 rounded-lg border border-gray-700/50">
+                        <div className="flex items-center justify-between gap-2">
+                          <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-14 bg-gray-800 text-white text-center rounded border border-gray-600 py-2 font-bold" />
+                          <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults((prev) => prev.filter((_, i) => i !== idx)); }} className="shrink-0 p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => setEditIndividualResults([...editIndividualResults, { playerName: "", rank: editIndividualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="w-full min-w-0 bg-gray-800 text-white px-3 py-2 rounded border border-gray-600" />
+                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white text-center px-3 py-2 rounded border border-gray-600" />
+                        {editHasFunding && (
+                          <div className="grid grid-cols-2 gap-2 rounded-lg border border-gray-700/50 bg-gray-900/35 p-2">
+                            <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
+                              const val = e.target.value;
+                              const n = [...editIndividualResults];
+                              n[idx].fundingRatio = val;
+                              n[idx].fundingAmount = val && editTotalFunding ? Math.floor((Number(editTotalFunding) * Number(val)) / 100) : "";
+                              setEditIndividualResults(n);
+                            }} className="w-full bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
+                            <input type="number" placeholder="별풍선" value={r.fundingAmount || ""} onChange={(e) => {
+                              const n = [...editIndividualResults];
+                              n[idx].fundingAmount = e.target.value;
+                              n[idx].fundingRatio = "";
+                              setEditIndividualResults(n);
+                            }} className="w-full bg-gray-800 text-yellow-400 px-2 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => appendIndividualMatchResults(prev, 1))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+1명</button>
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => appendIndividualMatchResults(prev, 4))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+4명</button>
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => appendIndividualMatchResults(prev, 20))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+20명</button>
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => fillIndividualMatchResultsToCount(prev, 100))} className="py-2 text-green-300 border border-dashed border-green-700 rounded hover:text-white hover:border-green-400 hover:bg-green-900/20 transition">100명까지 채우기</button>
+                  </div>
                 </div>
               )}
 
