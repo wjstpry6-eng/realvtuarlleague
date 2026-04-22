@@ -44,7 +44,9 @@ import {
   Copy,
   Link2,
   Sparkles,
-  Globe
+  Globe,
+  Sun,
+  Moon
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -112,7 +114,7 @@ const WOW_CLASS_COLORS = {
 const fallbackColors = ['#94a3b8', '#cbd5e1', '#64748b']; 
 
 // ★ 직업 뱃지에 파스텔 톤 반투명 효과를 주는 마법의 함수 ★
-const getJobBadgeStyle = (jobClass) => {
+const getJobBadgeStyle = (jobClass, isLightTheme = false) => {
   const hex = WOW_CLASS_COLORS[jobClass] || "#94a3b8"; 
   let r = 0, g = 0, b = 0;
   if (hex.length === 7) {
@@ -120,6 +122,20 @@ const getJobBadgeStyle = (jobClass) => {
     g = parseInt(hex.slice(3, 5), 16);
     b = parseInt(hex.slice(5, 7), 16);
   }
+
+  if (isLightTheme) {
+    const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    const tonedColor = luminance > 0.72
+      ? `rgb(${Math.max(48, Math.round(r * 0.38))}, ${Math.max(48, Math.round(g * 0.38))}, ${Math.max(48, Math.round(b * 0.38))})`
+      : `rgb(${Math.max(32, Math.round(r * 0.78))}, ${Math.max(32, Math.round(g * 0.78))}, ${Math.max(32, Math.round(b * 0.78))})`;
+
+    return {
+      color: tonedColor,
+      backgroundColor: `rgba(${r}, ${g}, ${b}, 0.12)`,
+      borderColor: `rgba(${r}, ${g}, ${b}, 0.24)`,
+    };
+  }
+
   return {
     color: hex,
     backgroundColor: `rgba(${r}, ${g}, ${b}, 0.15)`,
@@ -226,6 +242,69 @@ const WOW_POSITION_STYLE_MAP = {
     menuActiveClass: "border-emerald-300/70 bg-emerald-500/28 text-emerald-50",
     menuInactiveClass:
       "border-emerald-500/30 bg-emerald-500/12 text-emerald-100 hover:border-emerald-300/45 hover:bg-emerald-500/18",
+  },
+};
+
+const LIGHT_WOW_POSITION_STYLE_MAP = {
+  전체: {
+    selectedButtonClass:
+      "bg-slate-900 text-white border-slate-900 shadow-[0_14px_28px_rgba(15,23,42,0.16)]",
+    unselectedButtonClass:
+      "bg-white text-slate-700 border-slate-200 hover:text-slate-900 hover:border-slate-300 hover:bg-slate-50",
+    countSelectedClass: "bg-white/20 text-white",
+    countUnselectedClass: "bg-slate-100 text-slate-600",
+    tagClass: "border-slate-200 bg-slate-50 text-slate-700",
+    menuActiveClass: "border-slate-900 bg-slate-900 text-white",
+    menuInactiveClass:
+      "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
+  },
+  tank: {
+    selectedButtonClass:
+      "bg-sky-600 text-white border-sky-500 shadow-[0_14px_28px_rgba(2,132,199,0.16)]",
+    unselectedButtonClass:
+      "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 hover:border-sky-300",
+    countSelectedClass: "bg-white/20 text-white",
+    countUnselectedClass: "bg-sky-100 text-sky-700",
+    tagClass: "border-sky-200 bg-sky-50 text-sky-700",
+    menuActiveClass: "border-sky-500 bg-sky-600 text-white",
+    menuInactiveClass:
+      "border-sky-200 bg-white text-sky-700 hover:border-sky-300 hover:bg-sky-50",
+  },
+  meleeDealer: {
+    selectedButtonClass:
+      "bg-rose-600 text-white border-rose-500 shadow-[0_14px_28px_rgba(225,29,72,0.16)]",
+    unselectedButtonClass:
+      "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 hover:border-rose-300",
+    countSelectedClass: "bg-white/20 text-white",
+    countUnselectedClass: "bg-rose-100 text-rose-700",
+    tagClass: "border-rose-200 bg-rose-50 text-rose-700",
+    menuActiveClass: "border-rose-500 bg-rose-600 text-white",
+    menuInactiveClass:
+      "border-rose-200 bg-white text-rose-700 hover:border-rose-300 hover:bg-rose-50",
+  },
+  rangedDealer: {
+    selectedButtonClass:
+      "bg-red-600 text-white border-red-500 shadow-[0_14px_28px_rgba(220,38,38,0.16)]",
+    unselectedButtonClass:
+      "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 hover:border-red-300",
+    countSelectedClass: "bg-white/20 text-white",
+    countUnselectedClass: "bg-red-100 text-red-700",
+    tagClass: "border-red-200 bg-red-50 text-red-700",
+    menuActiveClass: "border-red-500 bg-red-600 text-white",
+    menuInactiveClass:
+      "border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50",
+  },
+  heal: {
+    selectedButtonClass:
+      "bg-emerald-600 text-white border-emerald-500 shadow-[0_14px_28px_rgba(5,150,105,0.16)]",
+    unselectedButtonClass:
+      "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300",
+    countSelectedClass: "bg-white/20 text-white",
+    countUnselectedClass: "bg-emerald-100 text-emerald-700",
+    tagClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    menuActiveClass: "border-emerald-500 bg-emerald-600 text-white",
+    menuInactiveClass:
+      "border-emerald-200 bg-white text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50",
   },
 };
 
@@ -349,24 +428,26 @@ const getWowPositionLabel = (positionId) =>
   getWowPositionMeta(positionId)?.label || "";
 const getWowPositionShortLabel = (positionId) =>
   getWowPositionMeta(positionId)?.shortLabel || "";
-const getWowPositionStyleMeta = (positionId) =>
-  WOW_POSITION_STYLE_MAP[positionId] || WOW_POSITION_STYLE_MAP["전체"];
-const getWowPositionFilterButtonClasses = (positionId, isSelected) => {
-  const styleMeta = getWowPositionStyleMeta(positionId);
+const getWowPositionStyleMeta = (positionId, isLightTheme = false) => {
+  const styleMap = isLightTheme ? LIGHT_WOW_POSITION_STYLE_MAP : WOW_POSITION_STYLE_MAP;
+  return styleMap[positionId] || styleMap["전체"];
+};
+const getWowPositionFilterButtonClasses = (positionId, isSelected, isLightTheme = false) => {
+  const styleMeta = getWowPositionStyleMeta(positionId, isLightTheme);
   return isSelected
     ? styleMeta.selectedButtonClass
     : styleMeta.unselectedButtonClass;
 };
-const getWowPositionCountClasses = (positionId, isSelected) => {
-  const styleMeta = getWowPositionStyleMeta(positionId);
+const getWowPositionCountClasses = (positionId, isSelected, isLightTheme = false) => {
+  const styleMeta = getWowPositionStyleMeta(positionId, isLightTheme);
   return isSelected
     ? styleMeta.countSelectedClass
     : styleMeta.countUnselectedClass;
 };
-const getWowPositionTagClasses = (positionId) =>
-  getWowPositionStyleMeta(positionId).tagClass;
-const getWowPositionMenuOptionClasses = (positionId, isActive) => {
-  const styleMeta = getWowPositionStyleMeta(positionId);
+const getWowPositionTagClasses = (positionId, isLightTheme = false) =>
+  getWowPositionStyleMeta(positionId, isLightTheme).tagClass;
+const getWowPositionMenuOptionClasses = (positionId, isActive, isLightTheme = false) => {
+  const styleMeta = getWowPositionStyleMeta(positionId, isLightTheme);
   return isActive
     ? styleMeta.menuActiveClass
     : styleMeta.menuInactiveClass;
@@ -374,6 +455,8 @@ const getWowPositionMenuOptionClasses = (positionId, isActive) => {
 
 const WOW_SPEC_TAG_CLASS = "border-slate-400/35 bg-slate-500/18 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]";
 const WOW_SPEC_EXTRA_TAG_CLASS = "border-slate-500/28 bg-slate-500/10 text-slate-300";
+const LIGHT_WOW_SPEC_TAG_CLASS = "border-slate-200 bg-slate-100 text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]";
+const LIGHT_WOW_SPEC_EXTRA_TAG_CLASS = "border-slate-200 bg-white text-slate-500";
 
 const matchesPreferredPositionFilters = (preferredPositions = [], selectedFilters = ["전체"]) => {
   if (!Array.isArray(selectedFilters) || selectedFilters.length === 0 || selectedFilters.includes("전체")) {
@@ -385,14 +468,32 @@ const matchesPreferredPositionFilters = (preferredPositions = [], selectedFilter
   return selectedFilters.some((filterId) => normalizedPositions.includes(filterId));
 };
 
+const normalizeWowPartnerGeneration = (value) => {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const isWowPartnerMember = (member = {}) => (
+  !!normalizeWowPartnerGeneration(member?.wowPartnerGeneration) || !!member?.isWowPartner
+);
+
+const getWowPartnerDisplayLabel = (member = {}) => {
+  const generation = normalizeWowPartnerGeneration(member?.wowPartnerGeneration);
+  return generation ? `${generation}대 와트너` : "와트너";
+};
+
 const normalizeWowMember = (member = {}) => {
   const specState = normalizeWowSpecState(member?.jobClass, member?.mainSpec, member?.availableSpecs);
+  const normalizedWowPartner = normalizeWowPartnerGeneration(member?.wowPartnerGeneration);
   return ({
     isApplied: false,
     isWowPartner: false,
+    wowPartnerGeneration: null,
     isBuskingParticipant: false,
     isRaidApplied: false,
     ...member,
+    isWowPartner: !!normalizedWowPartner || !!member?.isWowPartner,
+    wowPartnerGeneration: normalizedWowPartner,
     preferredPositions: normalizePreferredPositions(member?.preferredPositions),
     mainSpec: specState.mainSpec,
     availableSpecs: specState.availableSpecs,
@@ -451,6 +552,13 @@ const BUSKING_PUBLIC_REFRESH_MS = 5000;
 const BUSKING_PUBLIC_SUMMARY_DOC_ID = "busking_public";
 const BUSKING_PUBLIC_SHARD_COUNT = 12;
 const BUSKING_PUBLIC_SHARDS_COLLECTION = "public_shards";
+const APP_THEME_STORAGE_KEY = "wak_vleague_theme_v1";
+const DEFAULT_APP_THEME = "dark";
+const INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT = 15;
+
+const normalizeAppTheme = (value) => (
+  value === "light" ? "light" : DEFAULT_APP_THEME
+);
 
 
 const WOW_RAID_STAT_FIELDS = [
@@ -753,6 +861,32 @@ const buildBuskingPublicSummary = (roster = [], settings = {}, voteCounts = {}) 
   };
 };
 
+const createEmptyIndividualMatchResult = (rank, scoreChange = 0) => ({
+  playerName: "",
+  rank,
+  scoreChange,
+  fundingRatio: "",
+  fundingAmount: "",
+});
+
+const createDefaultIndividualMatchResults = () => ([
+  createEmptyIndividualMatchResult(1, 100),
+  createEmptyIndividualMatchResult(2, 50),
+]);
+
+const appendIndividualMatchResults = (results = [], count = 1) => ([
+  ...results,
+  ...Array.from({ length: count }, (_, index) =>
+    createEmptyIndividualMatchResult(results.length + index + 1)
+  ),
+]);
+
+const fillIndividualMatchResultsToCount = (results = [], targetCount = 100) => (
+  results.length >= targetCount
+    ? results
+    : appendIndividualMatchResults(results, targetCount - results.length)
+);
+
 const createEmptyTeamMatchResult = (id, rank, scoreChange = 0) => ({
   id,
   rank,
@@ -861,10 +995,379 @@ const getTeamMatchSetScoreLabel = (teams = []) => {
   return `${firstScore}:${secondScore}`;
 };
 
+const APP_TAB_IDS = ["home", "players", "matches", "stats", "tier", "wow", "wowraid", "dungeontier", "raid", "admin"];
+const WOW_SECTION_TAB_IDS = ["wow", "wowraid", "dungeontier"];
+const WOW_NAV_ITEMS = [
+  {
+    id: "wow",
+    label: "WOW 메인",
+    description: "길드 명단과 안내",
+    icon: Shield,
+  },
+  {
+    id: "wowraid",
+    label: "WOW 레이드",
+    description: "레이드 기록과 상세 보기",
+    icon: Layers,
+  },
+  {
+    id: "dungeontier",
+    label: "던전 티어게임",
+    description: "플레이한 인던 티어 게임",
+    icon: Trophy,
+  },
+];
+
+const WOW_DUNGEON_TIER_COLLECTION = "wow_dungeon_tier_items";
+const WOW_DUNGEON_TIER_LAYOUT_STORAGE_KEY = "wak_wow_dungeon_tier_layout_v1";
+const WOW_DUNGEON_TIER_LEVELS = [
+  { id: "S", label: "S 티어" },
+  { id: "A", label: "A 티어" },
+  { id: "B", label: "B 티어" },
+  { id: "C", label: "C 티어" },
+  { id: "D", label: "D 티어" },
+  { id: "F", label: "F 티어" },
+];
+const WOW_DUNGEON_EXPANSION_OPTIONS = [
+  { id: "original", label: "오리지널", shortLabel: "오리" },
+  { id: "tbc", label: "불타는 성전", shortLabel: "불성" },
+];
+
+const normalizeWowDungeonExpansionType = (value = "") => (
+  value === "tbc" ? "tbc" : "original"
+);
+
+const getWowDungeonExpansionMeta = (expansionType = "original") => (
+  WOW_DUNGEON_EXPANSION_OPTIONS.find((option) => option.id === normalizeWowDungeonExpansionType(expansionType))
+  || WOW_DUNGEON_EXPANSION_OPTIONS[0]
+);
+
+const getWowDungeonExpansionSortOrder = (expansionType = "original") => (
+  normalizeWowDungeonExpansionType(expansionType) === "original" ? 0 : 1
+);
+
+const getWowDungeonExpansionTheme = (expansionType = "original", isLightTheme = false) => {
+  const normalizedType = normalizeWowDungeonExpansionType(expansionType);
+
+  if (normalizedType === "tbc") {
+    return isLightTheme
+      ? {
+          cardClass: "border-rose-200 bg-[linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(255,241,242,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.08)]",
+          badgeClass: "border-rose-200 bg-rose-600 text-white",
+          frameClass: "border-rose-200 bg-rose-50",
+          titleClass: "text-slate-900",
+          metaClass: "text-rose-700",
+          subtleClass: "text-slate-500",
+          buttonClass: "border-rose-200 bg-white text-rose-700 hover:bg-rose-50",
+        }
+      : {
+          cardClass: "border-red-500/25 bg-gradient-to-br from-red-950/40 via-gray-900 to-gray-950 shadow-[0_0_24px_rgba(239,68,68,0.12)]",
+          badgeClass: "border-red-400/35 bg-red-500/15 text-red-200",
+          frameClass: "border-red-500/25 bg-red-950/30",
+          titleClass: "text-white",
+          metaClass: "text-red-200",
+          subtleClass: "text-gray-400",
+          buttonClass: "border-red-400/30 bg-red-500/10 text-red-200 hover:bg-red-500/18",
+        };
+  }
+
+  return isLightTheme
+    ? {
+        cardClass: "border-emerald-200 bg-[linear-gradient(135deg,_rgba(255,255,255,0.98),_rgba(236,253,245,0.98)_100%)] shadow-[0_18px_40px_rgba(15,23,42,0.08)]",
+        badgeClass: "border-emerald-200 bg-emerald-600 text-white",
+        frameClass: "border-emerald-200 bg-emerald-50",
+        titleClass: "text-slate-900",
+        metaClass: "text-emerald-700",
+        subtleClass: "text-slate-500",
+        buttonClass: "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50",
+      }
+    : {
+        cardClass: "border-emerald-500/25 bg-gradient-to-br from-emerald-950/35 via-gray-900 to-gray-950 shadow-[0_0_24px_rgba(16,185,129,0.12)]",
+        badgeClass: "border-emerald-400/35 bg-emerald-500/15 text-emerald-200",
+        frameClass: "border-emerald-500/25 bg-emerald-950/25",
+        titleClass: "text-white",
+        metaClass: "text-emerald-200",
+        subtleClass: "text-gray-400",
+        buttonClass: "border-emerald-400/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/18",
+      };
+};
+
+const normalizeWowDungeonVideoUrls = (value = [], legacyValue = "") => {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value
+    ? [value]
+    : [];
+
+  const normalized = raw
+    .map((url) => `${url || ""}`.trim())
+    .filter((url, index, list) => url && list.indexOf(url) === index);
+
+  if (normalized.length > 0) return normalized;
+
+  const fallbackUrl = `${legacyValue || ""}`.trim();
+  return fallbackUrl ? [fallbackUrl] : [];
+};
+
+const createWowDungeonTierFormVideoUrls = (value = [], legacyValue = "") => {
+  const normalized = normalizeWowDungeonVideoUrls(value, legacyValue);
+  return normalized.length > 0 ? normalized : [""];
+};
+
+const getWowDungeonTierPrimaryVideoUrl = (item = {}) => (
+  normalizeWowDungeonVideoUrls(item?.videoUrls, item?.videoUrl)[0] || ""
+);
+
+const getWowDungeonTierVideoEmbedConfig = (videoUrl = "") => {
+  const normalizedUrl = `${videoUrl || ""}`.trim();
+  const baseConfig = {
+    originalUrl: normalizedUrl,
+    embedUrl: "",
+    sourceLabel: "외부 링크",
+    kind: "link",
+    canEmbed: false,
+    openInNewTabRecommended: false,
+    fallbackMessage: "",
+  };
+
+  if (!normalizedUrl) {
+    return {
+      ...baseConfig,
+      sourceLabel: "링크 없음",
+      fallbackMessage: "재생할 영상 링크가 없습니다.",
+    };
+  }
+
+  if (/\.(mp4|webm|ogg)(?:$|[?#])/i.test(normalizedUrl)) {
+    return {
+      ...baseConfig,
+      canEmbed: true,
+      kind: "native",
+      sourceLabel: "DIRECT VIDEO",
+    };
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(normalizedUrl);
+  } catch (error) {
+    return {
+      ...baseConfig,
+      fallbackMessage: "링크 형식이 올바르지 않아 앱 안에서 재생할 수 없습니다.",
+    };
+  }
+
+  const hostname = parsedUrl.hostname.replace(/^www\./i, "").toLowerCase();
+  const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+  const parentHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
+  const createIframeConfig = (overrides = {}) => ({
+    ...baseConfig,
+    canEmbed: true,
+    kind: "iframe",
+    sourceLabel: hostname,
+    embedUrl: normalizedUrl,
+    ...overrides,
+  });
+  const createExternalOnlyConfig = (overrides = {}) => ({
+    ...baseConfig,
+    sourceLabel: hostname || "외부 링크",
+    openInNewTabRecommended: true,
+    fallbackMessage: "앱 안 재생이 제한될 수 있어 새 창에서 여는 방식을 권장합니다.",
+    ...overrides,
+  });
+
+  if (hostname === "youtu.be" || hostname.endsWith("youtube.com")) {
+    let videoId = "";
+
+    if (hostname === "youtu.be") {
+      videoId = pathSegments[0] || "";
+    } else if (["embed", "shorts", "live"].includes(pathSegments[0])) {
+      videoId = pathSegments[1] || "";
+    } else {
+      videoId = parsedUrl.searchParams.get("v") || "";
+    }
+
+    if (videoId) {
+      return createIframeConfig({
+        sourceLabel: "YouTube",
+        embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`,
+      });
+    }
+  }
+
+  if (hostname === "clips.twitch.tv") {
+    const clipId = pathSegments[0] || "";
+    if (clipId) {
+      return createIframeConfig({
+        sourceLabel: "Twitch Clip",
+        embedUrl: `https://clips.twitch.tv/embed?clip=${clipId}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+  }
+
+  if (hostname.endsWith("twitch.tv")) {
+    if (pathSegments[0] === "videos" && pathSegments[1]) {
+      return createIframeConfig({
+        sourceLabel: "Twitch",
+        embedUrl: `https://player.twitch.tv/?video=v${pathSegments[1]}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+
+    if (pathSegments[0] === "clip" && pathSegments[1]) {
+      return createIframeConfig({
+        sourceLabel: "Twitch Clip",
+        embedUrl: `https://clips.twitch.tv/embed?clip=${pathSegments[1]}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+
+    const channelName = pathSegments[0] || "";
+    if (channelName && !["directory", "downloads", "search", "settings", "p"].includes(channelName)) {
+      return createIframeConfig({
+        sourceLabel: "Twitch",
+        embedUrl: `https://player.twitch.tv/?channel=${channelName}&parent=${parentHost}&autoplay=true`,
+      });
+    }
+  }
+
+  if (hostname.endsWith("sooplive.co.kr")) {
+    return createExternalOnlyConfig({
+      sourceLabel: "SOOP",
+      fallbackMessage: "SOOP 링크는 보안 정책 때문에 앱 안 재생이 막힐 수 있어 새 창 열기를 권장합니다.",
+    });
+  }
+
+  if (hostname.endsWith("afreecatv.com")) {
+    return createExternalOnlyConfig({
+      sourceLabel: "AfreecaTV",
+      fallbackMessage: "AfreecaTV 링크는 앱 안 재생이 제한될 수 있어 새 창 열기를 권장합니다.",
+    });
+  }
+
+  return createIframeConfig({ sourceLabel: hostname || "외부 링크" });
+};
+
+const createEmptyWowDungeonTierForm = () => ({
+  id: null,
+  name: "",
+  imageUrl: "",
+  expansionType: "original",
+  videoUrls: [""],
+});
+
+const createEmptyWowDungeonTierPlacements = () => (
+  WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+    acc[tier.id] = [];
+    return acc;
+  }, {})
+);
+
+const normalizeWowDungeonTierItem = (item = {}) => {
+  const normalizedVideoUrls = normalizeWowDungeonVideoUrls(item.videoUrls, item.videoUrl);
+
+  return {
+    id: item.id || null,
+    name: `${item.name || ""}`.trim(),
+    imageUrl: `${item.imageUrl || ""}`.trim(),
+    expansionType: normalizeWowDungeonExpansionType(item.expansionType),
+    videoUrls: normalizedVideoUrls,
+    videoUrl: normalizedVideoUrls[0] || "",
+    displayOrder: Number.isFinite(Number(item.displayOrder)) ? Number(item.displayOrder) : null,
+    createdAt: item.createdAt || null,
+    updatedAt: item.updatedAt || null,
+  };
+};
+
+const normalizeWowDungeonTierPlacements = (value = {}, validItemIds = []) => {
+  const validIdSet = Array.isArray(validItemIds) && validItemIds.length > 0
+    ? new Set(validItemIds)
+    : null;
+  const seenIds = new Set();
+
+  return WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+    const rawIds = Array.isArray(value?.[tier.id]) ? value[tier.id] : [];
+    acc[tier.id] = rawIds.filter((itemId) => {
+      if (typeof itemId !== "string" || !itemId) return false;
+      if (seenIds.has(itemId)) return false;
+      if (validIdSet && !validIdSet.has(itemId)) return false;
+      seenIds.add(itemId);
+      return true;
+    });
+    return acc;
+  }, createEmptyWowDungeonTierPlacements());
+};
+
+const areWowDungeonTierPlacementsEqual = (left = {}, right = {}) => (
+  WOW_DUNGEON_TIER_LEVELS.every((tier) => {
+    const leftIds = Array.isArray(left?.[tier.id]) ? left[tier.id] : [];
+    const rightIds = Array.isArray(right?.[tier.id]) ? right[tier.id] : [];
+    if (leftIds.length !== rightIds.length) return false;
+    return leftIds.every((itemId, index) => itemId === rightIds[index]);
+  })
+);
+
+const readWowDungeonTierPlacementsFromStorage = () => {
+  if (typeof window === "undefined") return createEmptyWowDungeonTierPlacements();
+
+  try {
+    const rawValue = JSON.parse(localStorage.getItem(WOW_DUNGEON_TIER_LAYOUT_STORAGE_KEY) || "{}");
+    return normalizeWowDungeonTierPlacements(rawValue);
+  } catch (error) {
+    return createEmptyWowDungeonTierPlacements();
+  }
+};
+
+const findWowDungeonTierPlacementByItemId = (placements = {}, itemId = "") => {
+  if (!itemId) return null;
+
+  const matchedTier = WOW_DUNGEON_TIER_LEVELS.find((tier) => {
+    const tierIds = Array.isArray(placements?.[tier.id]) ? placements[tier.id] : [];
+    return tierIds.includes(itemId);
+  });
+
+  return matchedTier?.id || null;
+};
+
+const moveWowDungeonTierItemBetweenTiers = (
+  placements = {},
+  itemId = "",
+  nextTierId = null,
+  { targetItemId = null, insertAfter = false } = {}
+) => {
+  const nextPlacements = WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+    acc[tier.id] = Array.isArray(placements?.[tier.id]) ? [...placements[tier.id]] : [];
+    return acc;
+  }, createEmptyWowDungeonTierPlacements());
+
+  WOW_DUNGEON_TIER_LEVELS.forEach((tier) => {
+    nextPlacements[tier.id] = nextPlacements[tier.id].filter((currentItemId) => currentItemId !== itemId);
+  });
+
+  if (nextTierId && nextPlacements[nextTierId]) {
+    let insertIndex = nextPlacements[nextTierId].length;
+
+    if (targetItemId && nextPlacements[nextTierId].includes(targetItemId)) {
+      insertIndex = nextPlacements[nextTierId].indexOf(targetItemId);
+      if (insertAfter) insertIndex += 1;
+    }
+
+    const safeIndex = Math.max(0, Math.min(insertIndex, nextPlacements[nextTierId].length));
+    nextPlacements[nextTierId].splice(safeIndex, 0, itemId);
+  }
+
+  return nextPlacements;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     const hash = window.location.hash.replace("#", "");
-    return ["home", "players", "matches", "stats", "tier", "wow", "wowraid", "raid", "admin"].includes(hash) ? hash : "home";
+    return APP_TAB_IDS.includes(hash) ? hash : "home";
+  });
+  const [theme, setTheme] = useState(() => {
+    try {
+      return normalizeAppTheme(localStorage.getItem(APP_THEME_STORAGE_KEY));
+    } catch (error) {
+      return DEFAULT_APP_THEME;
+    }
   });
   const [user, setUser] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -913,6 +1416,15 @@ export default function App() {
   const [wowRaidFixedSearchInput, setWowRaidFixedSearchInput] = useState("");
   const [wowRaidGuestSearchInput, setWowRaidGuestSearchInput] = useState("");
   const [wowRaidStatSearchInput, setWowRaidStatSearchInput] = useState("");
+  const [wowDungeonTierItems, setWowDungeonTierItems] = useState([]);
+  const [wowDungeonTierForm, setWowDungeonTierForm] = useState(() => createEmptyWowDungeonTierForm());
+  const [isWowDungeonTierSaving, setIsWowDungeonTierSaving] = useState(false);
+  const [wowDungeonTierPlacements, setWowDungeonTierPlacements] = useState(() => readWowDungeonTierPlacementsFromStorage());
+  const [wowDungeonTierDragItemId, setWowDungeonTierDragItemId] = useState(null);
+  const [wowDungeonTierDropTarget, setWowDungeonTierDropTarget] = useState(null);
+  const [wowDungeonTierSelectedItemId, setWowDungeonTierSelectedItemId] = useState(null);
+  const [wowDungeonTierDetailItemId, setWowDungeonTierDetailItemId] = useState(null);
+  const [wowDungeonTierDetailVideoIndex, setWowDungeonTierDetailVideoIndex] = useState(0);
 
   const [raidType, setRaidType] = useState(DEFAULT_RAID_TYPE);
   const [raidAssignments, setRaidAssignments] = useState(() => createEmptyRaidLayout(getRaidConfig(DEFAULT_RAID_TYPE).groupCount, GUILD_MASTER_ID));
@@ -1038,8 +1550,11 @@ export default function App() {
 
   // ★ 모바일 퀵 메뉴 플로팅 버튼 상태 ★
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isWowNavMenuOpen, setIsWowNavMenuOpen] = useState(false);
+  const [isMobileWowMenuOpen, setIsMobileWowMenuOpen] = useState(false);
 
   const [expandedFundingMatchId, setExpandedFundingMatchId] = useState(null);
+  const [expandedIndividualMatchIds, setExpandedIndividualMatchIds] = useState([]);
   const [cheeringPlayerId, setCheeringPlayerId] = useState(null);
   const [playerCardSearchInput, setPlayerCardSearchInput] = useState("");
   const [playerCardSort, setPlayerCardSort] = useState({ key: "name", direction: "asc" });
@@ -1062,14 +1577,12 @@ export default function App() {
   const [isWowSubmitting, setIsWowSubmitting] = useState(false);
   const [wowAdminSearchTerm, setWowAdminSearchTerm] = useState("");
   const [wowAdminSortOption, setWowAdminSortOption] = useState("levelDesc");
+  const [wowPartnerGenerationInputs, setWowPartnerGenerationInputs] = useState({});
 
   const [hasFunding, setHasFunding] = useState(false);
   const [totalFunding, setTotalFunding] = useState("");
 
-  const [individualResults, setIndividualResults] = useState([
-    { playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" },
-    { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" },
-  ]);
+  const [individualResults, setIndividualResults] = useState(() => createDefaultIndividualMatchResults());
   const [teamResults, setTeamResults] = useState(() => createDefaultTeamMatchResults());
 
   const [sortConfig, setSortConfig] = useState({ key: 'points', direction: 'desc' });
@@ -1163,9 +1676,66 @@ export default function App() {
     return items;
   }, [players, playerCardSearchInput, playerCardSort]);
 
+  const wowDungeonTierItemMap = useMemo(() => (
+    wowDungeonTierItems.reduce((acc, item) => {
+      if (item?.id) acc[item.id] = item;
+      return acc;
+    }, {})
+  ), [wowDungeonTierItems]);
+
+  const wowDungeonTierCardsByTier = useMemo(() => (
+    WOW_DUNGEON_TIER_LEVELS.reduce((acc, tier) => {
+      acc[tier.id] = (wowDungeonTierPlacements?.[tier.id] || [])
+        .map((itemId) => wowDungeonTierItemMap[itemId])
+        .filter(Boolean);
+      return acc;
+    }, {})
+  ), [wowDungeonTierPlacements, wowDungeonTierItemMap]);
+
+  const wowDungeonTierPlacedIds = useMemo(() => (
+    new Set(
+      WOW_DUNGEON_TIER_LEVELS.flatMap((tier) => wowDungeonTierPlacements?.[tier.id] || [])
+    )
+  ), [wowDungeonTierPlacements]);
+
+  const wowDungeonTierStashItems = useMemo(() => (
+    wowDungeonTierItems.filter((item) => item?.id && !wowDungeonTierPlacedIds.has(item.id))
+  ), [wowDungeonTierItems, wowDungeonTierPlacedIds]);
+
+  const wowDungeonTierSelectedItem = useMemo(() => (
+    wowDungeonTierSelectedItemId ? wowDungeonTierItemMap[wowDungeonTierSelectedItemId] || null : null
+  ), [wowDungeonTierSelectedItemId, wowDungeonTierItemMap]);
+
+  const wowDungeonTierFormNormalizedVideoUrls = useMemo(() => (
+    normalizeWowDungeonVideoUrls(wowDungeonTierForm.videoUrls)
+  ), [wowDungeonTierForm.videoUrls]);
+
+  const wowDungeonTierDetailItem = useMemo(() => (
+    wowDungeonTierDetailItemId ? wowDungeonTierItemMap[wowDungeonTierDetailItemId] || null : null
+  ), [wowDungeonTierDetailItemId, wowDungeonTierItemMap]);
+
+  const wowDungeonTierDetailTierId = useMemo(() => (
+    findWowDungeonTierPlacementByItemId(wowDungeonTierPlacements, wowDungeonTierDetailItemId)
+  ), [wowDungeonTierPlacements, wowDungeonTierDetailItemId]);
+
+  const wowDungeonTierDetailVideoUrls = useMemo(() => (
+    normalizeWowDungeonVideoUrls(
+      wowDungeonTierDetailItem?.videoUrls,
+      wowDungeonTierDetailItem?.videoUrl
+    )
+  ), [wowDungeonTierDetailItem]);
+
+  const wowDungeonTierDetailActiveVideoUrl = useMemo(() => (
+    wowDungeonTierDetailVideoUrls[wowDungeonTierDetailVideoIndex] || ""
+  ), [wowDungeonTierDetailVideoIndex, wowDungeonTierDetailVideoUrls]);
+
+  const wowDungeonTierDetailVideoEmbedConfig = useMemo(() => (
+    getWowDungeonTierVideoEmbedConfig(wowDungeonTierDetailActiveVideoUrl)
+  ), [wowDungeonTierDetailActiveVideoUrl]);
+
   const requestSort = (key) => {
-    let direction = 'desc'; 
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc'; 
+    let direction = 'desc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') direction = 'asc';
     setSortConfig({ key, direction });
   };
 
@@ -1178,6 +1748,474 @@ export default function App() {
       return { key, direction: key === "name" ? "asc" : "desc" };
     });
   };
+
+  const handleToggleIndividualMatchExpanded = (matchId) => {
+    setExpandedIndividualMatchIds((prev) => (
+      prev.includes(matchId)
+        ? prev.filter((id) => id !== matchId)
+        : [...prev, matchId]
+    ));
+  };
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => prev === "light" ? "dark" : "light");
+  };
+
+  const isLightTheme = theme === "light";
+
+  const shellTheme = useMemo(() => ({
+    nav: isLightTheme
+      ? "bg-white/92 border-b border-slate-200/90 shadow-[0_12px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+      : "bg-gray-900 border-b border-gray-800 shadow-md",
+    navTitle: isLightTheme ? "text-slate-900" : "text-white",
+    navTitleIcon: isLightTheme ? "text-green-600" : "text-green-400",
+    brandBadge: isLightTheme
+      ? "flex items-center justify-center px-2 py-0.5 bg-slate-950 text-emerald-400 border border-emerald-500/40 rounded text-xs font-black tracking-widest transition-all duration-300 shadow-[0_10px_20px_rgba(22,163,74,0.14)] hover:bg-emerald-500 hover:text-white hover:border-emerald-500"
+      : "flex items-center justify-center px-2 py-0.5 bg-black text-green-400 border border-green-500/50 rounded text-xs font-black tracking-widest hover:bg-green-400 hover:text-black transition-all duration-300 shadow-[0_0_10px_rgba(74,222,128,0.3)] hover:shadow-[0_0_15px_rgba(74,222,128,0.6)]",
+    metaChip: isLightTheme
+      ? "text-[10px] md:text-xs font-medium text-slate-700 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm flex items-center whitespace-nowrap"
+      : "text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap",
+    popupOverlay: isLightTheme
+      ? "fixed inset-0 z-[500] flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm animate-in fade-in duration-300"
+      : "fixed inset-0 z-[500] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-300",
+    popupPanel: isLightTheme
+      ? "bg-white rounded-2xl w-full max-w-md border border-slate-200 shadow-[0_24px_60px_rgba(15,23,42,0.18)] overflow-hidden flex flex-col"
+      : "bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden flex flex-col",
+    popupHeader: isLightTheme
+      ? "flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50/95"
+      : "flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800/80",
+    popupHeaderTitle: isLightTheme
+      ? "text-lg font-black text-slate-900 flex items-center"
+      : "text-lg font-black text-white flex items-center",
+    popupCloseButton: isLightTheme
+      ? "p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+      : "p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors",
+    popupBody: isLightTheme
+      ? "p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-white"
+      : "p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-gray-900/50",
+    popupBodyTitle: isLightTheme
+      ? "text-xl font-bold text-slate-900 mb-4 leading-tight"
+      : "text-xl font-bold text-white mb-4 leading-tight",
+    popupBodyText: isLightTheme
+      ? "text-slate-600 text-sm leading-relaxed whitespace-pre-wrap break-keep"
+      : "text-gray-300 text-sm leading-relaxed whitespace-pre-wrap break-keep",
+    popupFooter: isLightTheme
+      ? "p-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center"
+      : "p-3 border-t border-gray-700 bg-gray-800 flex justify-between items-center",
+    popupCheckbox: isLightTheme
+      ? "w-4 h-4 accent-indigo-600 rounded bg-white border-slate-300 cursor-pointer"
+      : "w-4 h-4 accent-indigo-500 rounded bg-gray-700 border-gray-600 cursor-pointer",
+    popupFooterLabel: isLightTheme
+      ? "text-xs font-medium text-slate-500 group-hover:text-slate-800 select-none transition-colors"
+      : "text-xs font-medium text-gray-400 group-hover:text-gray-200 select-none transition-colors",
+    popupFooterButton: isLightTheme
+      ? "px-5 py-2 bg-slate-900 hover:bg-slate-700 text-white text-sm font-bold rounded-lg transition-colors"
+      : "px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg transition-colors",
+    toastBase: isLightTheme
+      ? "fixed bottom-6 right-6 z-[300] px-6 py-3 rounded-xl border shadow-[0_18px_40px_rgba(15,23,42,0.18)] text-sm font-semibold"
+      : "fixed bottom-6 right-6 z-[300] px-6 py-3 rounded-lg shadow-2xl text-white",
+    toastSuccess: isLightTheme ? "bg-white text-emerald-700 border-emerald-200" : "bg-green-600",
+    toastError: isLightTheme ? "bg-white text-rose-700 border-rose-200" : "bg-red-600",
+    mobileOverlay: isLightTheme
+      ? "fixed inset-0 z-[390] bg-slate-950/20 backdrop-blur-sm md:hidden transition-opacity"
+      : "fixed inset-0 z-[390] bg-black/40 backdrop-blur-sm md:hidden transition-opacity",
+    mobileMenuActive: isLightTheme
+      ? "bg-white border-green-500/30 text-green-700 font-black shadow-[0_12px_28px_rgba(22,163,74,0.14)]"
+      : "bg-gray-800 border-green-500/50 text-green-400 font-black shadow-[0_0_10px_rgba(74,222,128,0.2)]",
+    mobileMenuInactive: isLightTheme
+      ? "bg-white/95 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 shadow-[0_12px_24px_rgba(15,23,42,0.10)]"
+      : "bg-gray-800/90 border-gray-700/50 text-white font-bold hover:bg-gray-700",
+    mobileThemeButton: isLightTheme
+      ? "bg-white border-slate-200 text-slate-900 font-black shadow-[0_12px_24px_rgba(15,23,42,0.10)] hover:bg-slate-50"
+      : "bg-gray-800/90 border-gray-700/50 text-yellow-300 font-bold hover:bg-gray-700",
+    mobileFabOpen: isLightTheme
+      ? "bg-white border border-slate-200 rotate-90 shadow-[0_12px_24px_rgba(15,23,42,0.14)] text-slate-500"
+      : "bg-gray-800 border border-gray-600 rotate-90 shadow-none text-gray-400",
+    mobileFabClosed: isLightTheme
+      ? "bg-green-600 hover:bg-green-500 rotate-0 text-white shadow-[0_14px_28px_rgba(22,163,74,0.32)]"
+      : "bg-green-600 hover:bg-green-500 rotate-0 text-white shadow-[0_0_15px_rgba(34,197,94,0.4)]",
+  }), [isLightTheme]);
+
+  const isWowSectionActive = WOW_SECTION_TAB_IDS.includes(activeTab);
+
+  const getDesktopNavButtonClasses = (tabId, tone = "default", options = {}) => {
+    const isActive = typeof options.isActive === "boolean" ? options.isActive : activeTab === tabId;
+
+    if (isLightTheme) {
+      if (tone === "wow") {
+        return `px-2.5 py-1.5 rounded-lg text-sm font-medium flex items-center whitespace-nowrap border transition-colors ${
+          isActive
+            ? "bg-blue-50 text-blue-700 border-blue-200 shadow-sm"
+            : "text-blue-700 border-transparent hover:border-blue-200 hover:bg-white"
+        }`;
+      }
+
+      if (tone === "wowraid") {
+        return `px-2.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap border transition-colors ${
+          isActive
+            ? "bg-violet-50 text-violet-700 border-violet-200 shadow-sm"
+            : "text-violet-700 border-transparent hover:border-violet-200 hover:bg-white"
+        }`;
+      }
+
+      if (tone === "admin") {
+        return `px-2.5 py-1.5 rounded-lg border flex items-center text-sm font-medium whitespace-nowrap transition-colors ${
+          isActive
+            ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm"
+            : "text-slate-600 border-slate-200 hover:text-slate-900 hover:border-slate-300 hover:bg-white"
+        }`;
+      }
+
+      return `px-2.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap border transition-colors ${
+        isActive
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-sm"
+          : "text-slate-600 border-transparent hover:border-slate-200 hover:bg-white hover:text-slate-900"
+      }`;
+    }
+
+    if (tone === "wow") {
+      return `px-2.5 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${
+        isActive ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"
+      }`;
+    }
+
+    if (tone === "wowraid") {
+      return `px-2.5 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+        isActive ? "bg-violet-900/50 text-violet-300 border border-violet-500/50" : "text-violet-300 hover:text-white hover:bg-gray-800"
+      }`;
+    }
+
+    if (tone === "admin") {
+      return `px-2.5 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${
+        isActive ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"
+      }`;
+    }
+
+    return `px-2.5 py-1.5 rounded text-sm font-medium whitespace-nowrap ${
+      isActive ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"
+    }`;
+  };
+
+  const getWowNavMenuItemClasses = (tabId) => {
+    const isActive = activeTab === tabId;
+
+    if (isLightTheme) {
+      return `w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+        isActive
+          ? "border-blue-200 bg-blue-50 text-blue-700 shadow-sm"
+          : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-50"
+      }`;
+    }
+
+    return `w-full flex items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
+      isActive
+        ? "border-blue-500/40 bg-blue-900/40 text-blue-100"
+        : "border-transparent text-gray-200 hover:border-gray-700 hover:bg-gray-800"
+    }`;
+  };
+
+  const getMobileWowMenuItemClasses = (tabId) => {
+    const isActive = activeTab === tabId;
+
+    if (isLightTheme) {
+      return `flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+        isActive
+          ? "bg-blue-50 border-blue-200 text-blue-700 font-black shadow-[0_12px_24px_rgba(37,99,235,0.12)]"
+          : "bg-white/95 border-slate-200 text-slate-700 font-bold hover:bg-slate-50 shadow-[0_12px_24px_rgba(15,23,42,0.10)]"
+      }`;
+    }
+
+    return `flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+      isActive
+        ? "bg-blue-900/50 border-blue-500/50 text-blue-200 font-black shadow-[0_0_12px_rgba(59,130,246,0.16)]"
+        : "bg-gray-800/90 border-gray-700/50 text-gray-200 font-bold hover:bg-gray-700"
+    }`;
+  };
+
+  const publicTheme = useMemo(() => ({
+    heading: isLightTheme ? "text-slate-900" : "text-white",
+    bodyText: isLightTheme ? "text-slate-600" : "text-gray-300",
+    mutedText: isLightTheme ? "text-slate-500" : "text-gray-400",
+    faintText: isLightTheme ? "text-slate-400" : "text-gray-500",
+    surfaceCard: isLightTheme
+      ? "bg-white rounded-xl border border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]"
+      : "bg-gray-800 rounded-xl border border-gray-700",
+    surfaceCardSoft: isLightTheme
+      ? "bg-slate-50/90 border border-slate-200"
+      : "bg-gray-700/30 border border-gray-600",
+    searchInput: isLightTheme
+      ? "w-full rounded-xl border border-slate-300 bg-white py-3 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+      : "w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20",
+    heroHome: isLightTheme
+      ? "rounded-2xl p-8 shadow-[0_24px_56px_rgba(15,23,42,0.12)] border border-slate-200 bg-[linear-gradient(135deg,_rgba(236,253,245,0.98)_0%,_rgba(255,255,255,0.98)_46%,_rgba(238,242,255,0.98)_100%)] relative overflow-hidden flex items-center min-h-[240px]"
+      : "bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden flex items-center min-h-[240px]",
+    heroPlayers: isLightTheme
+      ? "bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(253,242,248,0.94)_35%,_rgba(238,242,255,0.96)_100%)] border border-fuchsia-200/80 rounded-2xl p-8 shadow-[0_24px_60px_rgba(15,23,42,0.10)] relative overflow-hidden"
+      : "bg-gradient-to-r from-pink-900/40 via-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-8 shadow-xl relative overflow-hidden",
+    heroTier: isLightTheme
+      ? "relative overflow-hidden rounded-2xl border border-amber-200 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.96),_rgba(254,243,199,0.92)_32%,_rgba(241,245,249,1)_100%)] p-5 shadow-[0_20px_48px_rgba(15,23,42,0.10)]"
+      : "relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-900/20 via-gray-800 to-slate-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.35)]",
+    emptyState: isLightTheme ? "text-slate-500" : "text-gray-500",
+    tableShell: isLightTheme
+      ? "bg-white rounded-xl border border-slate-200 overflow-hidden shadow-[0_18px_42px_rgba(15,23,42,0.08)] mt-8"
+      : "bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8",
+    tableHeaderWrap: isLightTheme
+      ? "p-5 border-b border-slate-200 bg-slate-50"
+      : "p-5 border-b border-gray-700 bg-gray-800/50",
+    tableHead: isLightTheme
+      ? "text-sm text-slate-500 bg-slate-100 uppercase"
+      : "text-sm text-gray-400 bg-gray-900 uppercase",
+    tableRow: isLightTheme
+      ? "border-b border-slate-200 hover:bg-slate-50 transition cursor-pointer"
+      : "border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer",
+    playersSortActive: isLightTheme
+      ? "bg-white text-slate-900 border-slate-200 shadow-sm"
+      : "bg-purple-500/15 text-purple-200 border-purple-400/40 shadow-[0_0_18px_rgba(168,85,247,0.12)]",
+    playersSortInactive: isLightTheme
+      ? "bg-transparent text-slate-500 border-transparent hover:bg-white hover:text-slate-900 hover:border-slate-200"
+      : "bg-gray-900/80 text-gray-300 border-gray-700 hover:border-purple-500/40 hover:text-white",
+  }), [isLightTheme]);
+
+  const wowSpecTagClass = isLightTheme ? LIGHT_WOW_SPEC_TAG_CLASS : WOW_SPEC_TAG_CLASS;
+  const wowSpecExtraTagClass = isLightTheme ? LIGHT_WOW_SPEC_EXTRA_TAG_CLASS : WOW_SPEC_EXTRA_TAG_CLASS;
+
+  const wowTheme = useMemo(() => ({
+    heading: isLightTheme ? "text-slate-900" : "text-white",
+    bodyText: isLightTheme ? "text-slate-600" : "text-gray-300",
+    mutedText: isLightTheme ? "text-slate-500" : "text-gray-400",
+    faintText: isLightTheme ? "text-slate-400" : "text-gray-500",
+    hero: isLightTheme
+      ? "bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.98),_rgba(219,234,254,0.96)_36%,_rgba(233,213,255,0.96)_78%,_rgba(241,245,249,1)_100%)] rounded-2xl p-8 shadow-[0_24px_60px_rgba(15,23,42,0.12)] border border-blue-200/80 relative overflow-hidden"
+      : "bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 rounded-2xl p-8 shadow-xl border border-blue-500/30 relative overflow-hidden",
+    heroTitle: isLightTheme
+      ? "text-3xl font-black text-slate-900 mb-3 flex items-center"
+      : "text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300 mb-3 flex items-center drop-shadow-md",
+    heroBody: isLightTheme
+      ? "text-slate-700 text-lg leading-relaxed max-w-2xl font-medium"
+      : "text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm",
+    noticeCard: isLightTheme
+      ? "bg-white rounded-xl border border-amber-200 shadow-[0_18px_40px_rgba(15,23,42,0.08)] p-6 relative overflow-hidden"
+      : "bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 relative overflow-hidden",
+    noticeBar: isLightTheme ? "bg-amber-500" : "bg-yellow-500",
+    statCard: isLightTheme
+      ? "bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
+      : "bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between",
+    faqCard: isLightTheme
+      ? "bg-white rounded-xl border border-slate-200 overflow-hidden shadow-[0_18px_40px_rgba(15,23,42,0.08)] mt-8 transition-all duration-300"
+      : "bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8 transition-all duration-300",
+    faqToggle: isLightTheme
+      ? "w-full p-5 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors outline-none"
+      : "w-full p-5 flex items-center justify-between bg-gray-800 hover:bg-gray-700/80 transition-colors outline-none",
+    faqNote: isLightTheme
+      ? "bg-amber-50 p-5 rounded-lg border border-amber-200 mt-4 relative overflow-hidden"
+      : "bg-gray-900/60 p-5 rounded-lg border border-gray-700/50 mt-4 relative overflow-hidden",
+    panel: isLightTheme
+      ? "bg-white rounded-xl border border-slate-200 overflow-hidden shadow-[0_18px_40px_rgba(15,23,42,0.08)] mt-8"
+      : "bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8",
+    panelHeader: isLightTheme
+      ? "p-5 border-b border-slate-200 bg-slate-50 flex flex-col gap-4 relative"
+      : "p-5 border-b border-gray-700 bg-gray-800/50 flex flex-col gap-4 relative",
+    searchShell: isLightTheme
+      ? "relative flex items-center w-full md:w-auto bg-white rounded-lg border border-slate-300 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] z-20 mt-2 md:mt-0"
+      : "relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20 mt-2 md:mt-0",
+    searchInput: isLightTheme
+      ? "w-full md:w-48 bg-transparent text-sm text-slate-900 focus:outline-none placeholder-slate-400 py-1.5"
+      : "w-full md:w-48 bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5",
+    dropdown: isLightTheme
+      ? "absolute top-full right-0 mt-2 w-full md:w-72 bg-white border border-slate-200 rounded-lg shadow-[0_18px_40px_rgba(15,23,42,0.12)] overflow-hidden custom-scrollbar max-h-60 z-50"
+      : "absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden custom-scrollbar max-h-60 z-50",
+    tableHead: isLightTheme ? "text-sm text-slate-500 bg-slate-100 uppercase" : "text-sm text-gray-400 bg-gray-900 uppercase",
+    tableHeadHover: isLightTheme ? "cursor-pointer group select-none hover:bg-slate-200 transition" : "cursor-pointer group select-none hover:bg-gray-800 transition",
+    highlightedRow: isLightTheme
+      ? "bg-violet-100/80 border-violet-300 shadow-[inset_0_0_16px_rgba(124,58,237,0.10)]"
+      : "bg-purple-800/40 border-purple-500 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)]",
+    qualifiedRow: isLightTheme ? "bg-white hover:bg-slate-50 border-slate-200" : "bg-yellow-900/10 hover:bg-yellow-900/20 border-gray-700",
+    defaultRow: isLightTheme ? "hover:bg-slate-50 border-slate-200" : "hover:bg-gray-700/50 border-gray-700",
+    actionCopyButton: isLightTheme
+      ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center whitespace-nowrap shadow-sm"
+      : "bg-gray-700/35 text-emerald-300 hover:bg-emerald-600/15 hover:text-emerald-200 border border-transparent hover:border-emerald-500/25 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center whitespace-nowrap",
+    actionRaidButton: isLightTheme
+      ? "relative overflow-hidden bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 text-white border border-fuchsia-200 hover:from-fuchsia-500 hover:via-violet-500 hover:to-indigo-500 px-3.5 py-1.5 rounded-lg text-sm font-black transition-all duration-200 flex items-center shadow-[0_18px_36px_rgba(124,58,237,0.24)] whitespace-nowrap"
+      : "relative overflow-hidden bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 text-white border border-fuchsia-300/25 hover:from-fuchsia-500 hover:via-violet-500 hover:to-indigo-500 px-3.5 py-1.5 rounded-lg text-sm font-black transition-all duration-200 flex items-center shadow-[0_0_28px_rgba(168,85,247,0.28)] hover:shadow-[0_0_36px_rgba(168,85,247,0.38)] whitespace-nowrap",
+    actionExternalLink: isLightTheme
+      ? "bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 hover:border-sky-300 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center whitespace-nowrap shadow-sm"
+      : "bg-cyan-600/5 text-cyan-300 border border-cyan-500/45 hover:bg-cyan-500/20 hover:border-cyan-300 hover:text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center whitespace-nowrap",
+    filterInactive: isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500",
+    filterActive: isLightTheme ? "bg-cyan-50 text-cyan-700 border-cyan-200 shadow-[0_12px_28px_rgba(8,145,178,0.10)]" : "bg-cyan-500/15 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(34,211,238,0.12)]",
+    emptyPanel: isLightTheme ? "bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-500 shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400",
+    faqExpandedPanel: isLightTheme ? "p-6 pt-2 border-t border-slate-200 bg-slate-50 animate-in fade-in slide-in-from-top-2" : "p-6 pt-2 border-t border-gray-700/50 bg-gray-800/50 animate-in fade-in slide-in-from-top-2",
+    faqExpandedContent: isLightTheme ? "space-y-6 text-slate-600 leading-relaxed text-sm md:text-base" : "space-y-6 text-gray-300 leading-relaxed text-sm md:text-base",
+    raidDetailHero: isLightTheme
+      ? "bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.98),_rgba(224,231,255,0.96)_34%,_rgba(241,245,249,1)_100%)] rounded-2xl border border-violet-200 overflow-hidden shadow-[0_24px_60px_rgba(15,23,42,0.12)]"
+      : "bg-gradient-to-r from-violet-900/35 via-indigo-900/35 to-slate-900 rounded-2xl border border-violet-500/20 overflow-hidden shadow-xl",
+    raidDetailImagePanel: isLightTheme ? "h-full min-h-[240px] bg-slate-100 border-b lg:border-b-0 lg:border-r border-slate-200" : "h-full min-h-[240px] bg-gray-900/60 border-b lg:border-b-0 lg:border-r border-white/5",
+    raidStatCard: isLightTheme ? "rounded-xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.06)]" : "rounded-xl border border-gray-700 bg-gray-900/60 p-4",
+    raidTabActive: isLightTheme ? "bg-violet-600 text-white border-violet-500 shadow-[0_14px_28px_rgba(124,58,237,0.16)]" : "bg-violet-600 text-white border-violet-400 shadow-[0_0_0_1px_rgba(196,181,253,0.18)]",
+    raidTabInactive: isLightTheme ? "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:text-slate-900" : "bg-gray-800 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white",
+    raidParticipantCard: isLightTheme ? "bg-white rounded-xl border border-slate-200 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg",
+    raidRankingCard: isLightTheme ? "bg-white rounded-xl border border-slate-200 p-5 shadow-sm" : "bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-5 shadow-lg",
+    raidTableShell: isLightTheme ? "bg-white rounded-xl border border-slate-200 overflow-hidden shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg",
+    raidTableHead: isLightTheme ? "bg-slate-100 text-slate-600" : "bg-gray-900/90 text-gray-300",
+    raidTableRow: isLightTheme ? "border-t border-slate-200 hover:bg-slate-50" : "border-t border-gray-700/80 hover:bg-gray-700/20",
+    backButton: isLightTheme ? "inline-flex items-center px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition shadow-sm" : "inline-flex items-center px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white font-bold hover:bg-gray-700 transition",
+  }), [isLightTheme]);
+
+  const raidTheme = useMemo(() => ({
+    backButton: isLightTheme
+      ? "inline-flex items-center px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:border-blue-300 hover:bg-slate-50 transition w-fit shadow-sm"
+      : "inline-flex items-center px-4 py-2 rounded-xl border border-gray-700 bg-gray-800/80 text-gray-200 hover:text-white hover:border-blue-500/50 hover:bg-gray-800 transition w-fit",
+    pinkButton: isLightTheme
+      ? "inline-flex items-center px-3.5 py-2 rounded-xl border border-fuchsia-200 bg-white text-fuchsia-700 hover:bg-fuchsia-50 transition shadow-sm"
+      : "inline-flex items-center px-3.5 py-2 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200 hover:bg-fuchsia-500/20 transition",
+    blueButton: isLightTheme
+      ? "inline-flex items-center px-3.5 py-2 rounded-xl border border-blue-200 bg-white text-blue-700 hover:bg-blue-50 transition shadow-sm"
+      : "inline-flex items-center px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition",
+    resetButton: isLightTheme
+      ? "inline-flex items-center px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition shadow-sm"
+      : "inline-flex items-center px-3.5 py-2 rounded-xl border border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition",
+    screenshotIdle: isLightTheme
+      ? "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 shadow-sm"
+      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20",
+    screenshotBusy: isLightTheme
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700 cursor-wait shadow-sm"
+      : "border-emerald-400/30 bg-emerald-500/10 text-emerald-100 cursor-wait",
+    hero: isLightTheme
+      ? "relative overflow-hidden rounded-3xl border border-fuchsia-200 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.98),_rgba(245,208,254,0.9)_28%,_rgba(219,234,254,0.92)_72%,_rgba(241,245,249,1)_100%)] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)]"
+      : "relative overflow-hidden rounded-3xl border border-fuchsia-500/20 bg-gradient-to-r from-[#1b1331] via-[#141a33] to-[#10203a] p-6 shadow-[0_20px_60px_rgba(76,29,149,0.18)]",
+    heroMetricCard: isLightTheme ? "rounded-2xl border border-white/70 bg-white/90 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)]" : "rounded-2xl border border-white/10 bg-white/5 p-4",
+    panel: isLightTheme ? "raid-light-surface rounded-2xl border border-slate-200 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)] overflow-hidden" : "rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden",
+    panelHeader: isLightTheme ? "px-5 py-4 border-b border-slate-200 bg-slate-50 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between" : "px-5 py-4 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
+    optionActive: isLightTheme ? "border-fuchsia-300 bg-fuchsia-50 text-fuchsia-700 shadow-[0_14px_28px_rgba(192,38,211,0.10)]" : "border-fuchsia-400 bg-fuchsia-500/20 text-fuchsia-100 shadow-[0_0_18px_rgba(168,85,247,0.18)]",
+    optionInactive: isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500",
+    miniPanelButton: isLightTheme ? "w-full rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:border-fuchsia-300 hover:bg-slate-50 transition px-2 py-3 flex flex-col items-center gap-1.5 shadow-sm" : "w-full rounded-xl border border-gray-700 bg-gray-900/80 text-gray-200 hover:text-white hover:border-fuchsia-500/40 hover:bg-gray-900 transition px-2 py-3 flex flex-col items-center gap-1.5",
+    miniPanelCount: isLightTheme ? "w-full rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-center shadow-sm" : "w-full rounded-xl border border-gray-700 bg-gray-900/60 px-2 py-2 text-center",
+    searchShell: isLightTheme ? "relative flex items-center flex-1 bg-white rounded-xl border border-slate-300 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]" : "relative flex items-center flex-1 bg-gray-900 rounded-xl border border-gray-700 px-1.5 py-1 shadow-inner",
+    searchInput: isLightTheme ? "w-full bg-transparent text-sm text-slate-900 focus:outline-none placeholder-slate-400 py-1" : "w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1",
+    filterToggleActive: isLightTheme ? "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700" : "border-fuchsia-400/40 bg-fuchsia-500/12 text-fuchsia-100",
+    filterToggleInactive: isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500",
+    levelFilterToggleActive: isLightTheme ? "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 shadow-[0_12px_28px_rgba(192,38,211,0.10)]" : "border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100",
+    levelFilterToggleInactive: isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500",
+    levelFilterSummary: isLightTheme ? "px-1.5 py-0.5 rounded-full bg-slate-100 text-[10px] text-slate-600" : "px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100",
+    levelFilterOptionActive: isLightTheme ? "border-blue-200 bg-blue-50 text-blue-700 shadow-[0_12px_28px_rgba(37,99,235,0.10)]" : "border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]",
+    levelFilterOptionInactive: isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500",
+    slotFilled: isLightTheme ? "border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50" : "border-gray-700 bg-gray-800/90 hover:border-blue-400/50 hover:bg-gray-800",
+    slotEmpty: isLightTheme ? "border-dashed border-slate-300 bg-slate-50 hover:border-fuchsia-300 hover:bg-white" : "border-dashed border-gray-700 bg-gray-900/60 hover:border-fuchsia-500/40 hover:bg-gray-900",
+    floatingPanel: isLightTheme ? "absolute right-0 top-[calc(100%+10px)] z-30 w-40 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)]" : "absolute right-0 top-[calc(100%+10px)] z-30 w-40 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl",
+    rolePanel: isLightTheme ? "absolute right-0 top-[calc(100%+10px)] z-30 w-44 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)]" : "absolute right-0 top-[calc(100%+10px)] z-30 w-44 rounded-2xl border border-gray-700 bg-gray-950/95 backdrop-blur p-2 shadow-2xl",
+    removeButton: isLightTheme ? "rounded-full border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 flex items-center justify-center transition shrink-0 shadow-sm" : "rounded-full border border-gray-700 bg-gray-900 text-gray-400 hover:text-white hover:border-red-400/40 hover:bg-red-500/10 flex items-center justify-center transition shrink-0",
+  }), [isLightTheme]);
+
+  const adminTheme = useMemo(() => ({
+    heading: isLightTheme ? "text-slate-900" : "text-white",
+    bodyText: isLightTheme ? "text-slate-600" : "text-gray-300",
+    mutedText: isLightTheme ? "text-slate-500" : "text-gray-400",
+    sectionDivider: isLightTheme ? "border-slate-200" : "border-gray-700",
+    loginCard: isLightTheme ? "max-w-md mx-auto mt-10 bg-white rounded-xl p-8 text-center shadow-[0_24px_60px_rgba(15,23,42,0.12)] border border-slate-200" : "max-w-md mx-auto mt-10 bg-gray-800 rounded-xl p-8 text-center shadow-xl border border-gray-700",
+    loginTitle: isLightTheme ? "text-2xl font-bold text-slate-900 mb-6" : "text-2xl font-bold text-white mb-6",
+    loginInput: isLightTheme ? "w-full bg-white text-slate-900 rounded-lg px-4 py-3 text-center border border-slate-300 focus:border-emerald-500 outline-none shadow-sm" : "w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-center border border-gray-600 focus:border-green-500 outline-none",
+    loginButton: isLightTheme ? "w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition flex items-center justify-center shadow-[0_14px_30px_rgba(22,163,74,0.18)]" : "w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition flex items-center justify-center shadow-lg",
+    shell: isLightTheme ? "max-w-3xl mx-auto space-y-8" : "max-w-3xl mx-auto space-y-8",
+    activityCard: isLightTheme ? "bg-white rounded-xl p-5 border border-slate-200 shadow-[0_18px_40px_rgba(15,23,42,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4" : "bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4",
+    tabBar: isLightTheme ? "flex gap-2 bg-white p-1.5 rounded-xl border border-slate-200 shadow-[0_12px_30px_rgba(15,23,42,0.08)]" : "flex gap-2 bg-gray-900 p-1.5 rounded-xl border border-gray-700",
+    tabActive: isLightTheme ? "bg-slate-900 text-white shadow-md border border-slate-900" : "bg-gray-700 text-white shadow-md border border-gray-600",
+    tabInactive: isLightTheme ? "text-slate-500 hover:text-slate-900 hover:bg-slate-50" : "text-gray-400 hover:text-white hover:bg-gray-800",
+    sectionCard: isLightTheme ? "bg-white rounded-xl p-6 border border-slate-200 shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg",
+    rowCard: isLightTheme ? "flex flex-col sm:flex-row sm:items-center gap-3 bg-slate-50 border border-slate-200 p-3 rounded-lg" : "flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg",
+    compactInput: isLightTheme ? "flex-1 bg-white text-sm text-slate-900 px-3 py-1.5 rounded border border-slate-300 focus:border-indigo-500 outline-none" : "flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none",
+    input: isLightTheme ? "w-full bg-white text-slate-900 rounded-lg px-4 py-3 border border-slate-300 focus:border-indigo-500 outline-none shadow-sm" : "w-full bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-indigo-500 outline-none",
+    textarea: isLightTheme ? "w-full h-48 bg-white text-slate-900 rounded-lg px-4 py-3 border border-slate-300 focus:border-indigo-500 outline-none resize-none custom-scrollbar shadow-sm" : "w-full h-48 bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-indigo-500 outline-none resize-none custom-scrollbar",
+    neutralButton: isLightTheme ? "px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-sm font-medium rounded transition whitespace-nowrap border border-slate-200 shadow-sm" : "px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded transition whitespace-nowrap",
+    ghostButton: isLightTheme ? "flex items-center text-sm bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 hover:text-blue-800 px-3 py-1.5 rounded transition shadow-sm" : "flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition",
+    dangerButton: isLightTheme ? "flex items-center text-sm bg-white text-rose-700 border border-rose-200 hover:bg-rose-50 hover:text-rose-800 px-3 py-1.5 rounded transition shadow-sm" : "flex items-center text-sm bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded transition",
+    warningPanel: isLightTheme ? "bg-amber-50 border border-amber-200 rounded-xl p-6" : "bg-purple-900/30 border border-purple-700/50 rounded-xl p-6",
+    dangerPanel: isLightTheme ? "bg-rose-50 border border-rose-200 rounded-xl p-6" : "bg-red-900/30 border border-red-700/50 rounded-xl p-6",
+  }), [isLightTheme]);
+
+  const globalThemeStyles = useMemo(() => (
+    `
+      [data-theme="light"] {
+        --app-selection-bg: rgba(79, 70, 229, 0.16);
+        --app-selection-color: #0f172a;
+        --app-scrollbar-thumb: rgba(100, 116, 139, 0.36);
+        --app-scrollbar-thumb-hover: rgba(79, 70, 229, 0.46);
+        --app-scrollbar-track: rgba(241, 245, 249, 0.95);
+        --app-focus-ring: rgba(79, 70, 229, 0.34);
+      }
+
+      [data-theme="dark"] {
+        --app-selection-bg: rgba(74, 222, 128, 0.22);
+        --app-selection-color: #f8fafc;
+        --app-scrollbar-thumb: rgba(71, 85, 105, 0.72);
+        --app-scrollbar-thumb-hover: rgba(34, 197, 94, 0.48);
+        --app-scrollbar-track: rgba(15, 23, 42, 0.88);
+        --app-focus-ring: rgba(74, 222, 128, 0.34);
+      }
+
+      [data-theme] ::selection {
+        background: var(--app-selection-bg);
+        color: var(--app-selection-color);
+      }
+
+      [data-theme] .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+      }
+
+      [data-theme] .custom-scrollbar::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+
+      [data-theme] .custom-scrollbar::-webkit-scrollbar-track {
+        background: var(--app-scrollbar-track);
+        border-radius: 9999px;
+      }
+
+      [data-theme] .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: var(--app-scrollbar-thumb);
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+
+      [data-theme] .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+        background: var(--app-scrollbar-thumb-hover);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+
+      [data-theme] button,
+      [data-theme] a,
+      [data-theme] input,
+      [data-theme] textarea,
+      [data-theme] select {
+        transition-property: background-color, color, border-color, box-shadow, opacity, transform;
+        transition-duration: 180ms;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      [data-theme] button:focus-visible,
+      [data-theme] a:focus-visible,
+      [data-theme] input:focus-visible,
+      [data-theme] textarea:focus-visible,
+      [data-theme] select:focus-visible {
+        outline: 2px solid var(--app-focus-ring);
+        outline-offset: 2px;
+      }
+
+      [data-theme] input[type="date"],
+      [data-theme] input[type="time"] {
+        color-scheme: ${isLightTheme ? "light" : "dark"};
+      }
+
+      @media (max-width: 768px) {
+        [data-theme] .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+      }
+    `
+  ), [isLightTheme]);
 
   const sortedWowRoster = useMemo(() => {
     let filteredItems = wowRoster;
@@ -1204,8 +2242,8 @@ export default function App() {
   }, [wowRoster, wowSortConfig, selectedJobFilter, selectedWowSpecFilters, selectedWowPositionFilters, showWowRaidApplicantsOnly]);
 
   const requestWowSort = (key) => {
-    let direction = 'desc'; 
-    if (wowSortConfig && wowSortConfig.key === key && wowSortConfig.direction === 'desc') direction = 'asc'; 
+    let direction = 'desc';
+    if (wowSortConfig && wowSortConfig.key === key && wowSortConfig.direction === 'desc') direction = 'asc';
     setWowSortConfig({ key, direction });
   };
 
@@ -1232,6 +2270,17 @@ export default function App() {
       });
     });
     return { stats, orderedIds: WOW_POSITION_OPTIONS.map((option) => option.id) };
+  }, [wowRoster]);
+
+  useEffect(() => {
+    setWowPartnerGenerationInputs((prev) => {
+      const validMemberIds = new Set(wowRoster.map((member) => member.id));
+      const next = {};
+      Object.entries(prev).forEach(([memberId, value]) => {
+        if (validMemberIds.has(memberId)) next[memberId] = value;
+      });
+      return next;
+    });
   }, [wowRoster]);
 
   useEffect(() => {
@@ -2006,16 +3055,63 @@ export default function App() {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (["home", "players", "matches", "stats", "tier", "wow", "wowraid", "raid", "admin"].includes(hash)) setActiveTab(hash);
+      if (APP_TAB_IDS.includes(hash)) setActiveTab(hash);
       else setActiveTab("home");
     };
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
+  useEffect(() => {
+    const normalizedTheme = normalizeAppTheme(theme);
+
+    try {
+      localStorage.setItem(APP_THEME_STORAGE_KEY, normalizedTheme);
+    } catch (error) {}
+
+    if (typeof document !== "undefined") {
+      document.documentElement.dataset.theme = normalizedTheme;
+      document.documentElement.style.colorScheme = normalizedTheme;
+      document.body?.setAttribute("data-theme", normalizedTheme);
+    }
+  }, [theme]);
+
   const navigateTo = (tabName) => {
     window.location.hash = tabName;
   };
+
+  const handleWowSectionNavigation = (tabId, { closeMobileMenu = false } = {}) => {
+    navigateTo(tabId);
+    setIsWowNavMenuOpen(false);
+
+    if (closeMobileMenu) {
+      setIsMobileWowMenuOpen(false);
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    setIsWowNavMenuOpen(false);
+    setIsMobileWowMenuOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) return;
+    setIsMobileWowMenuOpen(false);
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isWowNavMenuOpen && !isMobileWowMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (event.target.closest('[data-wow-nav-layer="true"]')) return;
+      setIsWowNavMenuOpen(false);
+      setIsMobileWowMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [isWowNavMenuOpen, isMobileWowMenuOpen]);
 
   useEffect(() => {
     if (activeTab !== "matches" || !selectedMatchId) return;
@@ -2155,6 +3251,112 @@ export default function App() {
 
     return () => unsubWowRaids();
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!["dungeontier", "admin"].includes(activeTab)) return;
+
+    const dungeonTierRef = collection(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION);
+    const unsubDungeonTierItems = onSnapshot(dungeonTierRef, (snapshot) => {
+      const nextItems = snapshot.docs
+        .map((itemDoc) => normalizeWowDungeonTierItem({ id: itemDoc.id, ...itemDoc.data() }))
+        .sort((a, b) => {
+          const orderA = Number.isFinite(a.displayOrder) ? a.displayOrder : null;
+          const orderB = Number.isFinite(b.displayOrder) ? b.displayOrder : null;
+
+          if (orderA !== null && orderB !== null && orderA !== orderB) {
+            return orderA - orderB;
+          }
+
+          if (orderA !== null && orderB === null) return -1;
+          if (orderA === null && orderB !== null) return 1;
+
+          const expansionGap = getWowDungeonExpansionSortOrder(a.expansionType) - getWowDungeonExpansionSortOrder(b.expansionType);
+          if (expansionGap !== 0) return expansionGap;
+
+          const nameGap = (a.name || "").localeCompare(b.name || "", "ko");
+          if (nameGap !== 0) return nameGap;
+
+          return (a.createdAt || "").localeCompare(b.createdAt || "");
+        });
+
+      setWowDungeonTierItems(nextItems);
+    });
+
+    return () => unsubDungeonTierItems();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    const validItemIds = wowDungeonTierItems.map((item) => item.id).filter(Boolean);
+    setWowDungeonTierPlacements((prev) => {
+      const normalized = normalizeWowDungeonTierPlacements(prev, validItemIds);
+      return areWowDungeonTierPlacementsEqual(prev, normalized) ? prev : normalized;
+    });
+  }, [wowDungeonTierItems]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      localStorage.setItem(
+        WOW_DUNGEON_TIER_LAYOUT_STORAGE_KEY,
+        JSON.stringify(normalizeWowDungeonTierPlacements(wowDungeonTierPlacements))
+      );
+    } catch (error) {}
+  }, [wowDungeonTierPlacements]);
+
+  useEffect(() => {
+    if (wowDungeonTierSelectedItemId && !wowDungeonTierItemMap[wowDungeonTierSelectedItemId]) {
+      setWowDungeonTierSelectedItemId(null);
+    }
+  }, [wowDungeonTierSelectedItemId, wowDungeonTierItemMap]);
+
+  useEffect(() => {
+    if (wowDungeonTierDetailItemId && !wowDungeonTierItemMap[wowDungeonTierDetailItemId]) {
+      setWowDungeonTierDetailItemId(null);
+      setWowDungeonTierDetailVideoIndex(0);
+    }
+  }, [wowDungeonTierDetailItemId, wowDungeonTierItemMap]);
+
+  useEffect(() => {
+    if (!wowDungeonTierDetailItemId) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setWowDungeonTierDetailItemId(null);
+        setWowDungeonTierDetailVideoIndex(0);
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setWowDungeonTierDetailVideoIndex((prev) => Math.max(prev - 1, 0));
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setWowDungeonTierDetailVideoIndex((prev) => Math.min(prev + 1, wowDungeonTierDetailVideoUrls.length - 1));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [wowDungeonTierDetailItemId, wowDungeonTierDetailVideoUrls.length]);
+
+  useEffect(() => {
+    if (!wowDungeonTierDetailItemId) return;
+
+    if (wowDungeonTierDetailVideoUrls.length === 0) {
+      setWowDungeonTierDetailItemId(null);
+      setWowDungeonTierDetailVideoIndex(0);
+      return;
+    }
+
+    if (wowDungeonTierDetailVideoIndex >= wowDungeonTierDetailVideoUrls.length) {
+      setWowDungeonTierDetailVideoIndex(wowDungeonTierDetailVideoUrls.length - 1);
+    }
+  }, [wowDungeonTierDetailItemId, wowDungeonTierDetailVideoIndex, wowDungeonTierDetailVideoUrls]);
 
   useEffect(() => {
     if (!user) return;
@@ -2500,6 +3702,7 @@ export default function App() {
         level: Number(wowLevel), 
         isApplied: false, 
         isWowPartner: false,
+        wowPartnerGeneration: null,
         isBuskingParticipant: false,
         isRaidApplied: false,
             preferredPositions: [],
@@ -2531,12 +3734,59 @@ export default function App() {
     } catch (error) {}
   };
 
-  const handleToggleWowPartner = async (id, currentStatus) => {
+  const handleWowPartnerGenerationInputChange = (memberId, value) => {
+    const sanitized = `${value || ""}`.replace(/[^0-9]/g, "");
+    setWowPartnerGenerationInputs((prev) => ({ ...prev, [memberId]: sanitized }));
+  };
+
+  const handleSaveWowPartnerGeneration = async (memberId) => {
     if (!user) return;
-    try { 
-      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", id), { isWowPartner: !currentStatus }); 
+
+    const inputValue = wowPartnerGenerationInputs[memberId];
+    const normalizedGeneration = normalizeWowPartnerGeneration(inputValue);
+    if (!normalizedGeneration) {
+      showToast("와트너 대수는 1 이상의 숫자로 입력해주세요.", "error");
+      return;
+    }
+
+    const duplicatePartner = wowRoster.find(
+      (member) =>
+        member.id !== memberId &&
+        normalizeWowPartnerGeneration(member.wowPartnerGeneration) === normalizedGeneration
+    );
+
+    if (duplicatePartner) {
+      showToast(`${normalizedGeneration}대 와트너는 이미 ${duplicatePartner.streamerName}님으로 설정되어 있습니다.`, "error");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), {
+        isWowPartner: true,
+        wowPartnerGeneration: normalizedGeneration,
+      });
+      setWowPartnerGenerationInputs((prev) => ({ ...prev, [memberId]: String(normalizedGeneration) }));
       await updateLastModifiedTime();
-    } catch (error) {}
+      showToast(`${normalizedGeneration}대 와트너로 저장했습니다.`);
+    } catch (error) {
+      showToast("와트너 대수를 저장하지 못했습니다.", "error");
+    }
+  };
+
+  const handleClearWowPartnerGeneration = async (memberId) => {
+    if (!user) return;
+
+    try {
+      await updateDoc(doc(db, "artifacts", appId, "public", "data", "wow_roster", memberId), {
+        isWowPartner: false,
+        wowPartnerGeneration: null,
+      });
+      setWowPartnerGenerationInputs((prev) => ({ ...prev, [memberId]: "" }));
+      await updateLastModifiedTime();
+      showToast("와트너 지정을 해제했습니다.");
+    } catch (error) {
+      showToast("와트너 지정을 해제하지 못했습니다.", "error");
+    }
   };
 
 
@@ -3436,9 +4686,10 @@ export default function App() {
     if (match.matchType === "team") {
       const normalizedTeams = getNormalizedTeamMatchResults(match);
       setEditTeamResults(normalizedTeams.length > 0 ? normalizedTeams : createDefaultTeamMatchResults());
-      setEditIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
+      setEditIndividualResults(createDefaultIndividualMatchResults());
     } else {
-      setEditIndividualResults([...(match.results || [])].map(r => ({...r, fundingRatio: r.fundingRatio || "", fundingAmount: r.fundingAmount || ""})));
+      const normalizedResults = [...(match.results || [])].map(r => ({...r, fundingRatio: r.fundingRatio || "", fundingAmount: r.fundingAmount || ""}));
+      setEditIndividualResults(normalizedResults.length > 0 ? normalizedResults : createDefaultIndividualMatchResults());
       setEditTeamResults(createDefaultTeamMatchResults());
     }
   };
@@ -3504,27 +4755,27 @@ export default function App() {
 
   const renderHomeView = () => (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-green-900 to-gray-900 rounded-2xl p-8 shadow-xl border border-green-800/50 relative overflow-hidden flex items-center min-h-[240px]">
+      <div className={publicTheme.heroHome}>
         <div className="relative z-10 w-full md:w-3/4 pr-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 md:whitespace-nowrap tracking-tight">우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
-          <p className="text-gray-300 mb-6 text-sm md:text-base break-keep">매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
+          <h2 className={`text-2xl md:text-3xl font-bold mb-2 md:whitespace-nowrap tracking-tight ${publicTheme.heading}`}>우왁굳의 버츄얼 종겜 리그에 오신 것을 환영합니다</h2>
+          <p className={`mb-6 text-sm md:text-base break-keep ${publicTheme.bodyText}`}>매주 바뀌는 게임과 실시간으로 갱신되는 티어표를 확인하세요.</p>
           <div className="flex flex-wrap gap-4">
             <button onClick={() => navigateTo("tier")} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg shadow-lg hover:bg-green-500 transition">
               <Trophy className="w-5 h-5 mr-2" /> 티어표 보기
             </button>
-            <button onClick={() => navigateTo("matches")} className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg hover:bg-gray-700 transition">
+            <button onClick={() => navigateTo("matches")} className={`flex items-center px-4 py-2 rounded-lg border shadow-lg transition ${isLightTheme ? "bg-white text-slate-900 border-slate-300 shadow-sm hover:bg-slate-100 hover:shadow-md" : "bg-gray-800 text-white border-gray-700 hover:bg-gray-700"}`}>
               <Swords className="w-5 h-5 mr-2" /> 경기 기록
             </button>
-            <button onClick={() => navigateTo("wow")} className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-900 to-purple-900 text-white rounded-lg border border-blue-700/50 shadow-lg hover:from-blue-800 hover:to-purple-800 transition">
+            <button onClick={() => navigateTo("wow")} className={`flex items-center px-4 py-2 text-white rounded-lg border shadow-lg transition ${isLightTheme ? "bg-gradient-to-r from-blue-600 to-violet-600 border-blue-300 hover:from-blue-500 hover:to-violet-500" : "bg-gradient-to-r from-blue-900 to-purple-900 border-blue-700/50 hover:from-blue-800 hover:to-purple-800"}`}>
               <Shield className="w-5 h-5 mr-2" /> 와우 왁타버스 길드
             </button>
           </div>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
-            <Gamepad2 className="w-6 h-6 mr-2 text-green-400" /> 최근 경기
+        <div className={`${isLightTheme ? "bg-white rounded-xl border border-slate-200 shadow-md" : publicTheme.surfaceCard} p-6`}>
+          <h3 className={`text-2xl font-bold mb-5 flex items-center ${publicTheme.heading}`}>
+            <Gamepad2 className={`w-6 h-6 mr-2 ${isLightTheme ? "text-green-600" : "text-green-400"}`} /> 최근 경기
           </h3>
           {publishedMatches.length > 0 ? (
             <div className="space-y-4">
@@ -3542,17 +4793,21 @@ export default function App() {
                       setSelectedMatchId(match.id);
                       navigateTo("matches");
                     }}
-                    className="w-full text-left bg-gray-700/50 p-4 rounded-lg flex justify-between items-center hover:bg-gray-700 transition border border-transparent hover:border-green-500/40"
+                    className={`w-full text-left p-4 rounded-lg flex justify-between items-center transition border ${
+                      isLightTheme
+                        ? "bg-slate-50/90 border-slate-200 shadow-sm hover:bg-white hover:border-emerald-200 hover:shadow-md"
+                        : "bg-gray-700/50 border-transparent hover:bg-gray-700 hover:border-green-500/40"
+                    }`}
                   >
                     <div>
                       <div className="flex items-center">
-                        {match.matchType === "team" && <Users className="w-4 h-4 text-indigo-400 mr-1.5" />}
-                        <p className="font-bold text-white text-lg">{match.gameName}</p>
+                        {match.matchType === "team" && <Users className={`w-4 h-4 mr-1.5 ${isLightTheme ? "text-blue-600" : "text-indigo-400"}`} />}
+                        <p className={`font-bold text-lg ${publicTheme.heading}`}>{match.gameName}</p>
                       </div>
-                      <p className="text-sm text-gray-400 mt-1">{match.date}</p>
+                      <p className={`text-sm mt-1 ${publicTheme.mutedText}`}>{match.date}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-base text-yellow-400 font-bold">
+                      <p className={`text-base font-bold ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>
                         1위: {firstPlaceLabel}
                       </p>
                     </div>
@@ -3561,35 +4816,35 @@ export default function App() {
               })}
             </div>
           ) : (
-            <p className="text-gray-400 text-lg">최근 경기가 없습니다.</p>
+            <p className={`${publicTheme.mutedText} text-lg`}>최근 경기가 없습니다.</p>
           )}
         </div>
-        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-          <h3 className="text-2xl font-bold text-white mb-5 flex items-center">
-            <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> TOP 5
+        <div className={`${isLightTheme ? "bg-white rounded-xl border border-slate-200 shadow-md" : publicTheme.surfaceCard} p-6`}>
+          <h3 className={`text-2xl font-bold mb-5 flex items-center ${publicTheme.heading}`}>
+            <BarChart3 className={`w-6 h-6 mr-2 ${isLightTheme ? "text-green-600" : "text-green-400"}`} /> TOP 5
           </h3>
           {players.length > 0 ? (
             <div className="space-y-3">
               {[...players].sort((a, b) => b.points - a.points).slice(0, 5).map((player, idx) => (
-                  <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="flex items-center bg-gray-700/30 p-3 rounded-lg cursor-pointer hover:bg-gray-600/50 transition group">
+                  <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className={`flex items-center p-3 rounded-lg cursor-pointer transition group border ${isLightTheme ? "bg-slate-50/90 border-slate-200 shadow-sm hover:bg-white hover:border-emerald-200 hover:shadow-md" : "bg-gray-700/30 border-transparent hover:bg-gray-600/50"}`}>
                     <div className={`w-10 h-10 text-lg rounded-full flex items-center justify-center font-bold mr-4 ${
                       idx === 0 ? "bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)]" : 
                       idx === 1 ? "bg-slate-300 text-black shadow-[0_0_10px_rgba(203,213,225,0.5)]" :
                       idx === 2 ? "bg-amber-600 text-white shadow-[0_0_10px_rgba(217,119,6,0.5)]" :
-                      "bg-gray-600 text-white"
+                      (isLightTheme ? "bg-slate-100 text-slate-700 border border-slate-200" : "bg-gray-600 text-white")
                     }`}>
                       {idx + 1}
                     </div>
                     <div className="flex-1 flex items-center gap-3">
-                      <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 group-hover:border-green-400 transition" />
-                      <span className="font-bold text-lg text-white group-hover:text-green-400 transition">{player.name}</span>
+                      <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt="avatar" className={`w-10 h-10 rounded-full object-cover border transition ${isLightTheme ? "bg-slate-100 border-slate-200 group-hover:border-emerald-300" : "bg-gray-800 border-gray-600 group-hover:border-green-400"}`} />
+                      <span className={`font-bold text-lg transition ${isLightTheme ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-green-400"}`}>{player.name}</span>
                     </div>
-                    <div className="text-green-400 font-black text-lg">{player.points} pt</div>
+                    <div className={`font-black text-lg ${isLightTheme ? "text-emerald-700" : "text-green-400"}`}>{player.points} pt</div>
                   </div>
                 ))}
             </div>
           ) : (
-            <p className="text-gray-400 text-lg">참가자가 없습니다.</p>
+            <p className={`${publicTheme.mutedText} text-lg`}>참가자가 없습니다.</p>
           )}
         </div>
       </div>
@@ -3602,23 +4857,23 @@ export default function App() {
     const votesToday = storageData.date === todayStr ? storageData.votes : [];
     const getPlayerSortButtonClasses = (isActive) => (
       isActive
-        ? "bg-purple-500/15 text-purple-200 border-purple-400/40 shadow-[0_0_18px_rgba(168,85,247,0.12)]"
-        : "bg-gray-900/80 text-gray-300 border-gray-700 hover:border-purple-500/40 hover:text-white"
+        ? publicTheme.playersSortActive
+        : publicTheme.playersSortInactive
     );
 
     return (
       <div className="space-y-8">
-        <div className="bg-gradient-to-r from-pink-900/40 via-purple-900/40 to-indigo-900/40 border border-purple-500/30 rounded-2xl p-8 shadow-xl relative overflow-hidden">
+        <div className={publicTheme.heroPlayers}>
           <div className="absolute -right-4 -top-4 opacity-10">
             <Users className="w-48 h-48 text-purple-500" />
           </div>
           <div className="relative z-10 text-center">
-            <h2 className="text-2xl md:text-3xl font-black text-white mb-3 flex items-center justify-center drop-shadow-md">
+            <h2 className={`text-2xl md:text-3xl font-black mb-3 flex items-center justify-center drop-shadow-md ${publicTheme.heading}`}>
               <Users className="w-8 h-8 mr-3 text-purple-400" /> 참가 선수 갤러리
             </h2>
-            <p className="text-gray-300 text-base md:text-lg leading-relaxed max-w-2xl mx-auto break-keep">
+            <p className={`text-base md:text-lg leading-relaxed max-w-2xl mx-auto break-keep ${publicTheme.bodyText}`}>
               버츄얼 종겜 리그에 참여한 이력이 있는 스트리머들의 프로필을 확인하실 수 있습니다.<br/>
-              <span className="text-purple-200 font-medium text-sm md:text-base mt-4 inline-block bg-white/5 px-6 py-2 rounded-full border border-white/10 shadow-sm backdrop-blur-sm">
+              <span className={`font-medium text-sm md:text-base mt-4 inline-block px-6 py-2 rounded-full shadow-sm backdrop-blur-sm ${isLightTheme ? "text-pink-700 bg-pink-100/80" : "text-purple-200 bg-white/5 border border-white/10"}`}>
                 💡 궁금한 스트리머의 프로필을 클릭해보세요!
               </span>
             </p>
@@ -3626,7 +4881,7 @@ export default function App() {
         </div>
 
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
+          <div className={`flex flex-wrap gap-2 ${isLightTheme ? "rounded-2xl border border-slate-200 bg-slate-100/90 p-1.5 shadow-sm" : ""}`}>
             <button
               type="button"
               onClick={() => handlePlayerCardSortChange("name")}
@@ -3636,7 +4891,7 @@ export default function App() {
               {playerCardSort.key === "name" ? (
                 playerCardSort.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
               ) : (
-                <span className="text-xs text-gray-500">기본</span>
+                <span className={`text-xs ${isLightTheme ? "text-slate-400" : "text-gray-500"}`}>기본</span>
               )}
             </button>
             <button
@@ -3648,7 +4903,7 @@ export default function App() {
               {playerCardSort.key === "points" ? (
                 playerCardSort.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
               ) : (
-                <Trophy className="w-3.5 h-3.5 text-gray-500" />
+                <Trophy className={`w-3.5 h-3.5 ${isLightTheme ? "text-slate-400" : "text-gray-500"}`} />
               )}
             </button>
             <button
@@ -3660,20 +4915,27 @@ export default function App() {
               {playerCardSort.key === "hearts" ? (
                 playerCardSort.direction === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />
               ) : (
-                <Heart className="w-3.5 h-3.5 text-gray-500" />
+                <Heart className={`w-3.5 h-3.5 ${isLightTheme ? "text-slate-400" : "text-gray-500"}`} />
               )}
             </button>
           </div>
 
-          <div className="relative w-full xl:w-96">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={playerCardSearchInput}
-              onChange={(e) => setPlayerCardSearchInput(e.target.value)}
-              placeholder="선수명으로 검색"
-              className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-            />
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+            <div className={`inline-flex items-center justify-between gap-2 rounded-xl border px-4 py-3 text-sm font-black whitespace-nowrap ${isLightTheme ? "border-fuchsia-100 bg-white text-slate-700 shadow-sm" : "border-purple-500/25 bg-purple-500/10 text-purple-100"}`}>
+              <span className={isLightTheme ? "text-slate-500" : "text-gray-300"}>총 참가자 수 :</span>
+              <span className={isLightTheme ? "text-fuchsia-700" : "text-purple-200"}>{players.length.toLocaleString()}명</span>
+            </div>
+
+            <div className="relative w-full sm:w-80 xl:w-96">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${publicTheme.mutedText}`} />
+              <input
+                type="text"
+                value={playerCardSearchInput}
+                onChange={(e) => setPlayerCardSearchInput(e.target.value)}
+                placeholder="선수명으로 검색"
+                className={isLightTheme ? "w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:bg-white focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-500/15" : "w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"}
+              />
+            </div>
           </div>
         </div>
 
@@ -3685,13 +4947,13 @@ export default function App() {
               : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(player.name)}`;
 
             return (
-              <div key={player.id} className="bg-gradient-to-b from-gray-800 to-gray-800/95 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:-translate-y-1 hover:border-purple-500/50 hover:shadow-[0_0_18px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col min-h-[248px]">
+              <div key={player.id} className={`rounded-2xl border overflow-hidden transition-all duration-300 group flex flex-col min-h-[248px] ${isLightTheme ? "bg-white border-slate-200 shadow-[0_18px_36px_rgba(15,23,42,0.08)] hover:-translate-y-1 hover:border-fuchsia-200 hover:shadow-[0_24px_48px_rgba(15,23,42,0.14)]" : "bg-gradient-to-b from-gray-800 to-gray-800/95 border-gray-700 shadow-lg hover:-translate-y-1 hover:border-purple-500/50 hover:shadow-[0_0_18px_rgba(168,85,247,0.2)]"}`}>
                 <div className="p-3.5 md:p-4 flex-1 flex flex-col items-center cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
-                  <div className="w-16 h-16 md:w-[4.5rem] md:h-[4.5rem] rounded-full bg-gray-700 border-2 border-gray-600 mb-3 overflow-hidden group-hover:scale-110 group-hover:border-purple-400 transition-all duration-300 shadow-md">
+                  <div className={`w-16 h-16 md:w-[4.5rem] md:h-[4.5rem] rounded-full border-2 mb-3 overflow-hidden group-hover:scale-110 transition-all duration-300 shadow-md ${isLightTheme ? "bg-slate-100 border-slate-200 group-hover:border-fuchsia-300" : "bg-gray-700 border-gray-600 group-hover:border-purple-400"}`}>
                     <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
                   </div>
-                  <h3 className="font-bold text-white text-sm md:text-[15px] text-center break-all leading-tight group-hover:text-purple-400 transition-colors">{player.name}</h3>
-                  <span className="text-xs font-bold text-green-400 bg-green-900/20 px-2.5 py-0.5 rounded-full mt-2 border border-green-800/30">{player.points} pt</span>
+                  <h3 className={`font-bold text-sm md:text-[15px] text-center break-all leading-tight transition-colors ${isLightTheme ? "text-slate-900 group-hover:text-fuchsia-700" : "text-white group-hover:text-purple-400"}`}>{player.name}</h3>
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full mt-2 border ${isLightTheme ? "text-green-700 bg-green-100 border-green-200 shadow-sm" : "text-green-400 bg-green-900/20 border-green-800/30"}`}>{player.points} pt</span>
                 </div>
                 <div className="px-3 pb-3.5 space-y-2 mt-auto">
                   <button
@@ -3699,17 +4961,17 @@ export default function App() {
                     disabled={cheeringPlayerId === player.id}
                     className={`w-full flex items-center justify-center py-2.5 rounded-xl font-bold text-xs transition-all duration-300 transform active:scale-95 ${
                       cheeringPlayerId === player.id
-                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed"
+                        ? (isLightTheme ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed" : "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed")
                         : hasVotedToday
-                          ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer"
-                          : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]"
+                          ? (isLightTheme ? "bg-pink-50 border border-pink-200 text-pink-700 hover:bg-pink-100 cursor-pointer" : "bg-pink-500/10 border border-pink-500/50 text-pink-400 hover:bg-pink-500/20 cursor-pointer")
+                          : (isLightTheme ? "bg-pink-600 hover:bg-pink-500 text-white shadow-[0_14px_30px_rgba(219,39,119,0.18)]" : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_4px_14px_rgba(236,72,153,0.3)]")
                     }`}
                   >
                     {cheeringPlayerId === player.id ? (
-                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-gray-400" /> 처리 중...</>
+                      <><Loader2 className={`w-3.5 h-3.5 mr-1.5 animate-spin ${isLightTheme ? "text-slate-400" : "text-gray-400"}`} /> 처리 중...</>
                     ) : (
                       <>
-                        <Heart className={`w-3.5 h-3.5 mr-1 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
+                        <Heart className={`w-3.5 h-3.5 mr-1 ${hasVotedToday ? (isLightTheme ? "fill-pink-600 text-pink-600" : "fill-pink-400 text-pink-400") : "fill-transparent text-white"}`} />
                         {hasVotedToday ? "응원완료" : "응원하기"} {(player.hearts || 0).toLocaleString()}
                       </>
                     )}
@@ -3719,7 +4981,7 @@ export default function App() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={e => e.stopPropagation()}
-                    className="w-full flex items-center justify-center py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"
+                    className={isLightTheme ? "w-full flex items-center justify-center py-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 font-bold text-xs transition-colors" : "w-full flex items-center justify-center py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors shadow-md"}
                   >
                     📺 방송국 가기
                   </a>
@@ -3729,14 +4991,14 @@ export default function App() {
           })}
 
           {players.length === 0 && (
-            <div className="col-span-full py-16 text-center text-gray-500">
+            <div className={`col-span-full py-16 text-center ${publicTheme.emptyState}`}>
               <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p>아직 등록된 선수가 없습니다.</p>
             </div>
           )}
 
           {players.length > 0 && filteredPlayersForGallery.length === 0 && (
-            <div className="col-span-full py-16 text-center text-gray-500">
+            <div className={`col-span-full py-16 text-center ${publicTheme.emptyState}`}>
               <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
               <p>검색 결과가 없습니다.</p>
             </div>
@@ -3749,17 +5011,17 @@ export default function App() {
   const renderMatchesView = () => (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <h2 className="text-3xl font-bold text-white flex items-center">
-          <Swords className="w-8 h-8 mr-3 text-green-400" /> 경기 기록
+        <h2 className={`text-3xl font-bold flex items-center ${publicTheme.heading}`}>
+          <Swords className={`w-8 h-8 mr-3 ${isLightTheme ? "text-green-600" : "text-green-400"}`} /> 경기 기록
         </h2>
         <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${publicTheme.mutedText}`} />
           <input
             type="text"
             value={matchSearchInput}
             onChange={(e) => setMatchSearchInput(e.target.value)}
             placeholder="게임명 또는 참가 선수 검색"
-            className="w-full rounded-xl border border-gray-700 bg-gray-900/80 py-3 pl-10 pr-4 text-sm text-white placeholder-gray-500 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+            className={publicTheme.searchInput}
           />
         </div>
       </div>
@@ -3770,53 +5032,56 @@ export default function App() {
             const setScoreLabel = getTeamMatchSetScoreLabel(sortedTeams);
 
             return (
-              <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
+              <div id={`match-card-${match.id}`} key={match.id} className={`rounded-xl p-6 border transition flex flex-col ${isLightTheme ? "bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-800 shadow-md"} ${selectedMatchId === match.id ? (isLightTheme ? "border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_22px_40px_rgba(16,185,129,0.14)]" : "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]") : (isLightTheme ? "border-slate-200" : "border-gray-700")}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                   <div className="flex items-center flex-wrap gap-3">
-                    <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
+                    <h3 className={`text-2xl font-bold ${publicTheme.heading}`}>{match.gameName}</h3>
                     <div className="flex items-center gap-2">
-                      <span className="bg-indigo-900/50 text-indigo-300 border border-indigo-700/50 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
-                        <Users className="w-4 h-4 mr-1.5" /> 팀전
-                      </span>
+                    <span className={`px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm border ${isLightTheme ? "bg-blue-50 text-blue-600 border-blue-200" : "bg-indigo-900/50 text-indigo-300 border-indigo-700/50"}`}>
+                      <Users className="w-4 h-4 mr-1.5" /> 팀전
+                    </span>
                       {setScoreLabel && (
-                        <span className="bg-sky-900/40 text-sky-200 border border-sky-700/50 px-3 py-1 rounded text-sm font-bold shadow-sm">
+                        <span className={`px-3 py-1 rounded text-sm font-bold shadow-sm border ${isLightTheme ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-sky-900/40 text-sky-200 border-sky-700/50"}`}>
                           세트 결과 {setScoreLabel}
                         </span>
                       )}
                       {match.hasFunding && (
                         <button 
                           onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
-                          className="bg-yellow-900/40 text-yellow-400 border border-yellow-700/50 px-3 py-1 rounded text-sm font-bold flex items-center hover:bg-yellow-800/60 transition shadow-sm"
+                          className={`px-3 py-1 rounded text-sm font-bold flex items-center transition shadow-sm border ${isLightTheme ? "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" : "bg-yellow-900/40 text-yellow-400 border-yellow-700/50 hover:bg-yellow-800/60"}`}
                         >
                           <Coins className="w-4 h-4 mr-1.5" /> 펀딩 결산 {expandedFundingMatchId === match.id ? <ChevronUp className="w-4 h-4 ml-1"/> : <ChevronDown className="w-4 h-4 ml-1"/>}
                         </button>
                       )}
                     </div>
                   </div>
-                  <span className="text-base text-gray-400">{match.date}</span>
+                  <span className={`text-base ${publicTheme.mutedText}`}>{match.date}</span>
                 </div>
 
                 <div className="flex flex-col gap-4 order-3">
                   {sortedTeams.map((team, idx) => (
-                    <div key={idx} className={`p-5 rounded-lg border ${team.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30" : "bg-gray-700/30 border-gray-600"}`}>
-                      <div className="flex justify-between items-center mb-4 border-b border-gray-600/50 pb-3">
+                    <div key={idx} className={`p-5 rounded-xl border transition-all duration-200 ${team.rank === 1 ? (isLightTheme ? "bg-white border-yellow-400 shadow-md hover:-translate-y-1 hover:shadow-lg" : "bg-yellow-500/10 border-yellow-500/30") : (isLightTheme ? "bg-white border-slate-200 shadow-sm hover:-translate-y-1 hover:border-slate-300 hover:shadow-md" : "bg-gray-700/30 border-gray-600")}`}>
+                      <div className={`flex justify-between items-center mb-4 pb-3 border-b ${isLightTheme ? "border-slate-200" : "border-gray-600/50"}`}>
                         <div className="flex items-center gap-2">
-                          <span className={`text-lg font-bold ${team.rank === 1 ? "text-yellow-400" : "text-gray-300"}`}>{team.rank}위 팀</span>
+                          {team.rank === 1 && (
+                            <Crown className={`w-4 h-4 ${isLightTheme ? "text-yellow-500 fill-yellow-500" : "text-yellow-400"}`} />
+                          )}
+                          <span className={`text-lg ${team.rank === 1 ? (isLightTheme ? "text-yellow-600 font-black" : "text-yellow-400 font-black") : (isLightTheme ? "text-slate-700 font-bold" : "text-gray-300 font-bold")}`}>{team.rank}위 팀</span>
                           {team.setWins !== "" && team.setWins !== null && team.setWins !== undefined && (
-                            <span className="px-2.5 py-1 rounded text-xs font-black border border-sky-500/30 bg-sky-500/10 text-sky-200">
+                            <span className={`px-2.5 py-1 rounded text-xs font-black border ${isLightTheme ? "border-sky-200 bg-sky-50 text-sky-700" : "border-sky-500/30 bg-sky-500/10 text-sky-200"}`}>
                               {team.setWins}승
                             </span>
                           )}
                         </div>
-                        <span className={`text-sm font-bold px-3 py-1 rounded ${team.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                        <span className={`text-sm px-3 py-1 rounded-full border ${team.scoreChange >= 0 ? (isLightTheme ? "border-green-200 bg-green-50 text-green-700 font-black" : "bg-green-500/20 text-green-400 font-bold") : (isLightTheme ? "border-rose-200 bg-rose-50 text-rose-700 font-black" : "bg-red-500/20 text-red-400 font-bold")}`}>
                           {team.scoreChange > 0 ? "+" : ""}{team.scoreChange} pt
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-3">
                         {team.players.map((p) => (
-                          <div key={p} onClick={() => setSelectedPlayer(p)} className="flex items-center bg-gray-900 px-4 py-2 rounded-full border border-gray-700 shadow-sm cursor-pointer hover:border-green-400 transition group">
-                            <img src={getAvatarSrc(p)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }} alt="avatar" className="w-8 h-8 rounded-full mr-2.5 bg-gray-800 object-cover border border-gray-600" />
-                            <span className="text-base font-bold text-white group-hover:text-green-400">{p}</span>
+                          <div key={p} onClick={() => setSelectedPlayer(p)} className={`flex items-center px-4 py-2 rounded-full border shadow-sm cursor-pointer transition group ${isLightTheme ? "bg-white border-slate-200 hover:border-emerald-200" : "bg-gray-900 border-gray-700 hover:border-green-400"}`}>
+                            <img src={getAvatarSrc(p)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${p}`; }} alt="avatar" className={`w-8 h-8 rounded-full mr-2.5 object-cover border ${isLightTheme ? "bg-slate-100 border-slate-200" : "bg-gray-800 border-gray-600"}`} />
+                            <span className={`text-base font-bold ${isLightTheme ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-green-400"}`}>{p}</span>
                           </div>
                         ))}
                       </div>
@@ -3825,11 +5090,11 @@ export default function App() {
                 </div>
 
                 {expandedFundingMatchId === match.id && match.hasFunding && (
-                  <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
-                     <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
-                        <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
-                        <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
-                          <Star className="w-6 h-6 mr-2 fill-yellow-400 text-yellow-400" />
+                  <div className={`order-2 mt-4 mb-4 p-5 border rounded-xl animate-in fade-in slide-in-from-top-2 ${isLightTheme ? "bg-gradient-to-b from-amber-50 to-white border-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_34px_rgba(15,23,42,0.08)]" : "bg-gradient-to-b from-gray-800 to-gray-900 border-yellow-700/40 shadow-inner"}`}>
+                     <div className={`text-center mb-5 pb-4 border-b ${isLightTheme ? "border-amber-100" : "border-gray-700/50"}`}>
+                        <span className={`text-sm font-bold ${publicTheme.mutedText}`}>총 펀딩 규모</span>
+                        <div className={`text-3xl font-black mt-1 flex items-center justify-center ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>
+                          <Star className={`w-6 h-6 mr-2 ${isLightTheme ? "fill-amber-600 text-amber-600" : "fill-yellow-400 text-yellow-400"}`} />
                           {(match.totalFunding || 0).toLocaleString()} 개
                         </div>
                      </div>
@@ -3838,20 +5103,20 @@ export default function App() {
                            const fAmount = Number(team.fundingAmount) || 0;
                            const fRatio = Number(team.fundingRatio) || 0;
                            return (
-                             <div key={idx} className="flex flex-col bg-gray-800 p-4 rounded-lg border border-gray-700 shadow-sm">
-                                <div className="flex justify-between items-center mb-3 border-b border-gray-700/80 pb-3">
-                                   <span className={`text-base font-bold ${team.rank===1?'text-yellow-400':'text-gray-300'}`}>{team.rank}위 팀 상금</span>
-                                   <div className="text-right">
-                                      <span className="text-yellow-400 font-black text-xl">{Number(fAmount).toLocaleString()}개</span>
-                                      {fRatio > 0 && <span className="text-xs text-gray-400 font-bold ml-1.5">({fRatio}%)</span>}
-                                   </div>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                   {team.players.map(p => (
-                                      <span key={p} className="text-sm text-gray-200 font-medium bg-gray-700 px-2.5 py-1 rounded">{p}</span>
-                                   ))}
-                                </div>
-                             </div>
+                             <div key={idx} className={`flex flex-col p-4 rounded-lg border shadow-sm ${isLightTheme ? "bg-white border-amber-100" : "bg-gray-800 border-gray-700"}`}>
+                                <div className={`flex justify-between items-center mb-3 pb-3 border-b ${isLightTheme ? "border-slate-100" : "border-gray-700/80"}`}>
+                                   <span className={`text-base font-bold ${team.rank===1 ? (isLightTheme ? "text-amber-700" : "text-yellow-400") : (isLightTheme ? "text-slate-700" : "text-gray-300")}`}>{team.rank}위 팀 상금</span>
+                                    <div className="text-right">
+                                       <span className={`font-black text-xl ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>{Number(fAmount).toLocaleString()}개</span>
+                                       {fRatio > 0 && <span className={`text-xs font-bold ml-1.5 ${publicTheme.mutedText}`}>({fRatio}%)</span>}
+                                    </div>
+                                 </div>
+                                 <div className="flex flex-wrap gap-1.5">
+                                    {team.players.map(p => (
+                                       <span key={p} className={`text-sm font-medium px-2.5 py-1 rounded ${isLightTheme ? "text-slate-700 bg-slate-100" : "text-gray-200 bg-gray-700"}`}>{p}</span>
+                                    ))}
+                                 </div>
+                              </div>
                            );
                         })}
                      </div>
@@ -3862,64 +5127,101 @@ export default function App() {
             );
           }
 
+          const sortedIndividualResults = [...(match.results || [])].sort((a, b) => a.rank - b.rank);
+          const isIndividualMatchExpanded = expandedIndividualMatchIds.includes(match.id);
+          const visibleIndividualResults = isIndividualMatchExpanded
+            ? sortedIndividualResults
+            : sortedIndividualResults.slice(0, INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT);
+          const hiddenIndividualResultCount = Math.max(sortedIndividualResults.length - INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT, 0);
+          const shouldShowIndividualResultToggle = sortedIndividualResults.length > INDIVIDUAL_MATCH_COLLAPSED_RESULT_LIMIT;
+
           return (
-            <div id={`match-card-${match.id}`} key={match.id} className={`bg-gray-800 rounded-xl p-6 border shadow-md transition flex flex-col ${selectedMatchId === match.id ? "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]" : "border-gray-700"}`}>
+            <div id={`match-card-${match.id}`} key={match.id} className={`rounded-xl p-6 border transition flex flex-col ${isLightTheme ? "bg-white shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-800 shadow-md"} ${selectedMatchId === match.id ? (isLightTheme ? "border-emerald-300 shadow-[0_0_0_1px_rgba(16,185,129,0.18),0_22px_40px_rgba(16,185,129,0.14)]" : "border-green-500 shadow-[0_0_0_1px_rgba(34,197,94,0.35),0_0_18px_rgba(34,197,94,0.18)]") : (isLightTheme ? "border-slate-200" : "border-gray-700")}`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
                 <div className="flex items-center flex-wrap gap-3">
-                  <h3 className="text-2xl font-bold text-white">{match.gameName}</h3>
+                  <h3 className={`text-2xl font-bold ${publicTheme.heading}`}>{match.gameName}</h3>
                   <div className="flex items-center gap-2">
-                    <span className="bg-gray-700 text-gray-300 border border-gray-600 px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm">
+                    <span className={`px-3 py-1 rounded text-sm font-bold flex items-center shadow-sm border ${isLightTheme ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-gray-700 text-gray-300 border-gray-600"}`}>
                       <User className="w-4 h-4 mr-1.5" /> 개인전
                     </span>
                     {match.hasFunding && (
                       <button 
                         onClick={() => setExpandedFundingMatchId(expandedFundingMatchId === match.id ? null : match.id)}
-                        className="bg-yellow-900/40 text-yellow-400 border border-yellow-700/50 px-3 py-1 rounded text-sm font-bold flex items-center hover:bg-yellow-800/60 transition shadow-sm"
+                        className={`px-3 py-1 rounded text-sm font-bold flex items-center transition shadow-sm border ${isLightTheme ? "bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100" : "bg-yellow-900/40 text-yellow-400 border-yellow-700/50 hover:bg-yellow-800/60"}`}
                       >
                         <Coins className="w-4 h-4 mr-1.5" /> 펀딩 결산 {expandedFundingMatchId === match.id ? <ChevronUp className="w-4 h-4 ml-1"/> : <ChevronDown className="w-4 h-4 ml-1"/>}
                       </button>
                     )}
                   </div>
                 </div>
-                <span className="text-base text-gray-400">{match.date}</span>
+                <span className={`text-base ${publicTheme.mutedText}`}>{match.date}</span>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 order-3">
-                {[...(match.results || [])].sort((a, b) => a.rank - b.rank).map((result, idx) => (
-                    <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition group hover:-translate-y-1 hover:shadow-lg ${result.rank === 1 ? "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400" : "bg-gray-700/30 border-gray-600 hover:border-green-400"}`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 order-3">
+                {visibleIndividualResults.map((result, idx) => (
+                    <div key={idx} onClick={() => setSelectedPlayer(result.playerName)} className={`p-4 rounded-xl border flex flex-col justify-center cursor-pointer transition-all duration-200 group hover:-translate-y-1 ${result.rank === 1 ? (isLightTheme ? "bg-white border-yellow-400 shadow-md hover:shadow-lg" : "bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-400") : (isLightTheme ? "bg-white border-slate-200 shadow-sm hover:border-slate-300 hover:shadow-md" : "bg-gray-700/30 border-gray-600 hover:border-green-400 hover:shadow-lg")}`}>
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-lg font-bold text-gray-300">{result.rank}위</span>
-                        <span className={`text-sm font-bold px-3 py-1 rounded ${result.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                        <div className={`flex items-center gap-1.5 text-lg ${result.rank === 1 ? (isLightTheme ? "text-yellow-600 font-black" : "text-yellow-400 font-black") : (isLightTheme ? "text-slate-600 font-bold" : "text-gray-300 font-bold")}`}>
+                          {result.rank === 1 && (
+                            <Crown className={`w-4 h-4 ${isLightTheme ? "text-yellow-500 fill-yellow-500" : "text-yellow-400"}`} />
+                          )}
+                          <span>{result.rank}위</span>
+                        </div>
+                        <span className={`text-sm px-3 py-1 rounded-full ${result.scoreChange >= 0 ? (isLightTheme ? "bg-green-50 text-green-700 font-black" : "bg-green-500/20 text-green-400 font-bold") : (isLightTheme ? "bg-rose-50 text-rose-700 font-black" : "bg-red-500/20 text-red-400 font-bold")}`}>
                           {result.scoreChange > 0 ? "+" : ""}{result.scoreChange} pt
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
-                        <img src={getAvatarSrc(result.playerName)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }} alt="avatar" className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600" />
-                        <span className="font-bold text-white truncate text-xl group-hover:text-green-400 transition">{result.playerName}</span>
+                        <img src={getAvatarSrc(result.playerName)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${result.playerName}`; }} alt="avatar" className={`w-10 h-10 rounded-full object-cover border ${isLightTheme ? "bg-slate-100 border-slate-200" : "bg-gray-800 border-gray-600"}`} />
+                        <span className={`font-bold truncate text-xl transition ${isLightTheme ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-green-400"}`}>{result.playerName}</span>
                       </div>
                     </div>
                   ))}
               </div>
 
+              {shouldShowIndividualResultToggle && (
+                <div className="order-4 mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleIndividualMatchExpanded(match.id)}
+                    className={`inline-flex items-center justify-center rounded-full border px-5 py-2 text-sm font-black transition ${
+                      isLightTheme
+                        ? "border-slate-200 bg-slate-50 text-slate-700 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+                        : "border-gray-600 bg-gray-900/70 text-gray-200 hover:border-green-500/50 hover:bg-green-500/10 hover:text-green-300"
+                    }`}
+                  >
+                    {isIndividualMatchExpanded ? (
+                      <>
+                        접기 <ChevronUp className="w-4 h-4 ml-1.5" />
+                      </>
+                    ) : (
+                      <>
+                        전체 참가자 보기 ({hiddenIndividualResultCount}명 더 보기) <ChevronDown className="w-4 h-4 ml-1.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {expandedFundingMatchId === match.id && match.hasFunding && (
-                <div className="order-2 mt-4 mb-4 p-5 bg-gradient-to-b from-gray-800 to-gray-900 border border-yellow-700/40 rounded-xl shadow-inner animate-in fade-in slide-in-from-top-2">
-                   <div className="text-center mb-5 pb-4 border-b border-gray-700/50">
-                      <span className="text-sm text-gray-400 font-bold">총 펀딩 규모</span>
-                      <div className="text-3xl font-black text-yellow-400 mt-1 flex items-center justify-center">
-                        <Star className="w-6 h-6 mr-2 fill-yellow-400 text-yellow-400" />
+                <div className={`order-2 mt-4 mb-4 p-5 border rounded-xl animate-in fade-in slide-in-from-top-2 ${isLightTheme ? "bg-gradient-to-b from-amber-50 to-white border-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_16px_34px_rgba(15,23,42,0.08)]" : "bg-gradient-to-b from-gray-800 to-gray-900 border-yellow-700/40 shadow-inner"}`}>
+                   <div className={`text-center mb-5 pb-4 border-b ${isLightTheme ? "border-amber-100" : "border-gray-700/50"}`}>
+                      <span className={`text-sm font-bold ${publicTheme.mutedText}`}>총 펀딩 규모</span>
+                      <div className={`text-3xl font-black mt-1 flex items-center justify-center ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>
+                        <Star className={`w-6 h-6 mr-2 ${isLightTheme ? "fill-amber-600 text-amber-600" : "fill-yellow-400 text-yellow-400"}`} />
                         {(match.totalFunding || 0).toLocaleString()} 개
                       </div>
                    </div>
                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {[...(match.results || [])].sort((a,b) => a.rank - b.rank).map((r, i) => (
-                         <div key={i} className="flex justify-between items-center bg-gray-800 p-3.5 rounded-lg border border-gray-700 shadow-sm hover:border-yellow-500/30 transition">
+                         <div key={i} className={`flex justify-between items-center p-3.5 rounded-lg border shadow-sm transition ${isLightTheme ? "bg-white border-amber-100 hover:border-amber-200" : "bg-gray-800 border-gray-700 hover:border-yellow-500/30"}`}>
                             <div className="flex items-center gap-2">
-                               <span className={`text-base font-black w-8 text-center ${r.rank===1?'text-yellow-400':'text-gray-400'}`}>{r.rank}</span>
-                               <span className="text-white font-bold text-lg truncate w-24">{r.playerName}</span>
+                               <span className={`text-base font-black w-8 text-center ${r.rank===1 ? (isLightTheme ? "text-amber-700" : "text-yellow-400") : (isLightTheme ? "text-slate-500" : "text-gray-400")}`}>{r.rank}</span>
+                               <span className={`font-bold text-lg truncate w-24 ${publicTheme.heading}`}>{r.playerName}</span>
                             </div>
                             <div className="text-right flex flex-col">
-                               <span className="text-yellow-400 font-black text-lg">{Number(r.fundingAmount).toLocaleString()}개</span>
-                               {r.fundingRatio > 0 && <span className="text-[10px] text-gray-500 font-bold">({r.fundingRatio}%)</span>}
+                               <span className={`font-black text-lg ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>{Number(r.fundingAmount).toLocaleString()}개</span>
+                               {r.fundingRatio > 0 && <span className={`text-[10px] font-bold ${publicTheme.faintText}`}>({r.fundingRatio}%)</span>}
                             </div>
                          </div>
                       ))}
@@ -3930,9 +5232,9 @@ export default function App() {
             </div>
           );
         })}
-        {publishedMatches.length === 0 && <p className="text-gray-400 text-center py-12 text-lg">기록이 없습니다.</p>}
+        {publishedMatches.length === 0 && <p className={`${publicTheme.mutedText} text-center py-12 text-lg`}>기록이 없습니다.</p>}
         {publishedMatches.length > 0 && filteredPublishedMatches.length === 0 && (
-          <p className="text-gray-400 text-center py-12 text-lg">검색 결과가 없습니다.</p>
+          <p className={`${publicTheme.mutedText} text-center py-12 text-lg`}>검색 결과가 없습니다.</p>
         )}
       </div>
     </div>
@@ -3944,91 +5246,93 @@ export default function App() {
     const bestAvgPlayer = [...playerStatsMap].filter(p => p.matchCount > 0).sort((a, b) => b.avgScore - a.avgScore)[0];
 
     const SortIcon = ({ columnKey }) => {
-      if (sortConfig.key !== columnKey) return <ChevronDown className="w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition" />;
-      return sortConfig.direction === 'asc' ? <ChevronUp className="w-4 h-4 ml-1 text-green-400" /> : <ChevronDown className="w-4 h-4 ml-1 text-green-400" />;
+      if (sortConfig.key !== columnKey) return <ChevronDown className={`w-4 h-4 ml-1 opacity-30 group-hover:opacity-100 transition ${publicTheme.mutedText}`} />;
+      return sortConfig.direction === 'asc'
+        ? <ChevronUp className={`w-4 h-4 ml-1 ${isLightTheme ? "text-emerald-600" : "text-green-400"}`} />
+        : <ChevronDown className={`w-4 h-4 ml-1 ${isLightTheme ? "text-emerald-600" : "text-green-400"}`} />;
     };
 
     return (
       <div className="space-y-8">
         <div>
-          <h2 className="text-3xl font-bold text-white flex items-center mb-3">
-            <TrendingUp className="w-8 h-8 mr-3 text-indigo-400" /> 종합 통계 대시보드
+          <h2 className={`text-3xl font-bold flex items-center mb-3 ${publicTheme.heading}`}>
+            <TrendingUp className={`w-8 h-8 mr-3 ${isLightTheme ? "text-indigo-600" : "text-indigo-400"}`} /> 종합 통계 대시보드
           </h2>
-          <p className="text-base text-gray-400">매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.</p>
+          <p className={`text-base ${publicTheme.mutedText}`}>매주 새로운 게임, 새로운 참가자들이 만들어내는 치열한 리그의 누적 기록입니다.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
+          <div className={`rounded-xl p-6 flex flex-col items-center relative overflow-hidden ${isLightTheme ? "bg-white border border-slate-200 shadow-sm" : "bg-gradient-to-br from-yellow-900/40 to-gray-800 border border-yellow-700/50"}`}>
             <div className="absolute -right-4 -top-4 opacity-10"><Crown className="w-40 h-40 text-yellow-500" /></div>
-            <Crown className="w-10 h-10 text-yellow-400 mb-3" />
-            <h3 className="text-lg font-bold text-gray-300 mb-1">👑 종합 우승왕</h3>
-            <p className="text-xs md:text-sm text-yellow-500/70 mb-4 text-center break-keep">1위를 가장 많이 달성한 유저</p>
+            <Crown className={`w-10 h-10 mb-3 ${isLightTheme ? "text-amber-600" : "text-yellow-400"}`} />
+            <h3 className={`text-lg font-bold mb-1 ${isLightTheme ? "text-slate-700" : "text-gray-300"}`}>👑 종합 우승왕</h3>
+            <p className={`text-xs md:text-sm mb-4 text-center break-keep ${isLightTheme ? "text-amber-700/80" : "text-yellow-500/70"}`}>1위를 가장 많이 달성한 유저</p>
             {mostWinsPlayer && mostWinsPlayer.winCount > 0 ? (
               <>
                 <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(mostWinsPlayer.name)}>
-                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-yellow-500/50 group-hover:scale-110 transition" />
-                  <span className="text-2xl font-black text-white group-hover:text-yellow-400 transition">{mostWinsPlayer.name}</span>
+                  <img src={getAvatarSrc(mostWinsPlayer.name)} alt="avatar" className={`w-12 h-12 rounded-full object-cover border-2 group-hover:scale-110 transition ${isLightTheme ? "bg-white border-amber-200" : "bg-gray-900 border-yellow-500/50"}`} />
+                  <span className={`text-2xl font-black transition ${isLightTheme ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-yellow-400"}`}>{mostWinsPlayer.name}</span>
                 </div>
-                <p className="text-yellow-400 font-bold mt-4 bg-yellow-900/30 px-4 py-1.5 rounded-full text-base">총 {mostWinsPlayer.winCount}회 우승</p>
+                <p className={`font-bold mt-4 px-4 py-1.5 rounded-full text-base ${isLightTheme ? "text-amber-700 bg-amber-100" : "text-yellow-400 bg-yellow-900/30"}`}>총 {mostWinsPlayer.winCount}회 우승</p>
               </>
-            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
+            ) : (<span className={`${publicTheme.faintText} mt-2 text-base`}>기록 없음</span>)}
           </div>
 
-          <div className="bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
+          <div className={`rounded-xl p-6 flex flex-col items-center relative overflow-hidden ${isLightTheme ? "bg-white border border-slate-200 shadow-sm" : "bg-gradient-to-br from-emerald-900/40 to-gray-800 border border-emerald-700/50"}`}>
             <div className="absolute -right-4 -top-4 opacity-10"><Clover className="w-40 h-40 text-emerald-500" /></div>
-            <Clover className="w-10 h-10 text-emerald-400 mb-3" />
-            <h3 className="text-lg font-bold text-gray-300 mb-1">🍀 선택받은 자</h3>
-            <p className="text-xs md:text-sm text-emerald-500/70 mb-4 text-center break-keep">경기에 가장 많이 참가한 유저</p>
+            <Clover className={`w-10 h-10 mb-3 ${isLightTheme ? "text-emerald-600" : "text-emerald-400"}`} />
+            <h3 className={`text-lg font-bold mb-1 ${isLightTheme ? "text-slate-700" : "text-gray-300"}`}>🍀 선택받은 자</h3>
+            <p className={`text-xs md:text-sm mb-4 text-center break-keep ${isLightTheme ? "text-emerald-700/80" : "text-emerald-500/70"}`}>경기에 가장 많이 참가한 유저</p>
             {mostPlayedPlayer && mostPlayedPlayer.matchCount > 0 ? (
               <>
                 <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(mostPlayedPlayer.name)}>
-                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-emerald-500/50 group-hover:scale-110 transition" />
-                  <span className="text-2xl font-black text-white group-hover:text-emerald-400 transition">{mostPlayedPlayer.name}</span>
+                  <img src={getAvatarSrc(mostPlayedPlayer.name)} alt="avatar" className={`w-12 h-12 rounded-full object-cover border-2 group-hover:scale-110 transition ${isLightTheme ? "bg-white border-emerald-200" : "bg-gray-900 border-emerald-500/50"}`} />
+                  <span className={`text-2xl font-black transition ${isLightTheme ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-emerald-400"}`}>{mostPlayedPlayer.name}</span>
                 </div>
-                <p className="text-emerald-400 font-bold mt-4 bg-emerald-900/30 px-4 py-1.5 rounded-full text-base">총 {mostPlayedPlayer.matchCount}회 참가</p>
+                <p className={`font-bold mt-4 px-4 py-1.5 rounded-full text-base ${isLightTheme ? "text-emerald-700 bg-emerald-100" : "text-emerald-400 bg-emerald-900/30"}`}>총 {mostPlayedPlayer.matchCount}회 참가</p>
               </>
-            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
+            ) : (<span className={`${publicTheme.faintText} mt-2 text-base`}>기록 없음</span>)}
           </div>
 
-          <div className="bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50 rounded-xl p-6 flex flex-col items-center relative overflow-hidden">
+          <div className={`rounded-xl p-6 flex flex-col items-center relative overflow-hidden ${isLightTheme ? "bg-white border border-slate-200 shadow-sm" : "bg-gradient-to-br from-cyan-900/40 to-gray-800 border border-cyan-700/50"}`}>
             <div className="absolute -right-4 -top-4 opacity-10"><Gem className="w-40 h-40 text-cyan-500" /></div>
-            <Gem className="w-10 h-10 text-cyan-400 mb-3" />
-            <h3 className="text-lg font-bold text-gray-300 mb-1">💎 최고 효율 플레이어</h3>
-            <p className="text-xs md:text-sm text-cyan-500/70 mb-4 text-center break-keep">경기당 평균 획득 점수가 가장 높은 유저</p>
+            <Gem className={`w-10 h-10 mb-3 ${isLightTheme ? "text-sky-600" : "text-cyan-400"}`} />
+            <h3 className={`text-lg font-bold mb-1 ${isLightTheme ? "text-slate-700" : "text-gray-300"}`}>💎 최고 효율 플레이어</h3>
+            <p className={`text-xs md:text-sm mb-4 text-center break-keep ${isLightTheme ? "text-sky-700/80" : "text-cyan-500/70"}`}>경기당 평균 획득 점수가 가장 높은 유저</p>
             {bestAvgPlayer && bestAvgPlayer.matchCount > 0 ? (
               <>
                 <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedPlayer(bestAvgPlayer.name)}>
-                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className="w-12 h-12 rounded-full bg-gray-900 object-cover border-2 border-cyan-500/50 group-hover:scale-110 transition" />
-                  <span className="text-2xl font-black text-white group-hover:text-cyan-400 transition">{bestAvgPlayer.name}</span>
+                  <img src={getAvatarSrc(bestAvgPlayer.name)} alt="avatar" className={`w-12 h-12 rounded-full object-cover border-2 group-hover:scale-110 transition ${isLightTheme ? "bg-white border-sky-200" : "bg-gray-900 border-cyan-500/50"}`} />
+                  <span className={`text-2xl font-black transition ${isLightTheme ? "text-slate-900 group-hover:text-sky-700" : "text-white group-hover:text-cyan-400"}`}>{bestAvgPlayer.name}</span>
                 </div>
-                <p className="text-cyan-400 font-bold mt-4 bg-cyan-900/30 px-4 py-1.5 rounded-full text-base">평균 {bestAvgPlayer.avgScore} pt</p>
+                <p className={`font-bold mt-4 px-4 py-1.5 rounded-full text-base ${isLightTheme ? "text-blue-700 bg-blue-100" : "text-cyan-400 bg-cyan-900/30"}`}>평균 {bestAvgPlayer.avgScore} pt</p>
               </>
-            ) : (<span className="text-gray-500 mt-2 text-base">기록 없음</span>)}
+            ) : (<span className={`${publicTheme.faintText} mt-2 text-base`}>기록 없음</span>)}
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
-          <div className="p-5 border-b border-gray-700 bg-gray-800/50">
-            <h3 className="text-xl font-bold text-white flex items-center">
-              <BarChart3 className="w-6 h-6 mr-2 text-green-400" /> 참가자 전체 통계 리스트
+        <div className={publicTheme.tableShell}>
+          <div className={publicTheme.tableHeaderWrap}>
+            <h3 className={`text-xl font-bold flex items-center ${publicTheme.heading}`}>
+              <BarChart3 className={`w-6 h-6 mr-2 ${isLightTheme ? "text-green-600" : "text-green-400"}`} /> 참가자 전체 통계 리스트
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-base text-left">
-              <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
+              <thead className={isLightTheme ? "bg-slate-100 text-slate-600 uppercase" : publicTheme.tableHead}>
                 <tr>
-                  <th scope="col" className="px-6 py-5 rounded-tl-lg">순위</th>
-                  <th scope="col" className="px-6 py-5">선수명</th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('matchCount')}>
+                  <th scope="col" className={`px-6 py-5 rounded-tl-lg ${isLightTheme ? "font-bold tracking-[0.08em]" : ""}`}>순위</th>
+                  <th scope="col" className={`px-6 py-5 ${isLightTheme ? "font-bold tracking-[0.08em]" : ""}`}>선수명</th>
+                  <th scope="col" className={`px-6 py-5 cursor-pointer group select-none transition ${isLightTheme ? "font-bold tracking-[0.08em] hover:bg-slate-200/80" : "hover:bg-gray-800"}`} onClick={() => requestSort('matchCount')}>
                     <div className="flex items-center justify-center">참가 횟수 <SortIcon columnKey="matchCount" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('winCount')}>
+                  <th scope="col" className={`px-6 py-5 cursor-pointer group select-none transition ${isLightTheme ? "font-bold tracking-[0.08em] hover:bg-slate-200/80" : "hover:bg-gray-800"}`} onClick={() => requestSort('winCount')}>
                     <div className="flex items-center justify-center">1위 횟수 <SortIcon columnKey="winCount" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestSort('avgScore')}>
+                  <th scope="col" className={`px-6 py-5 cursor-pointer group select-none transition ${isLightTheme ? "font-bold tracking-[0.08em] hover:bg-slate-200/80" : "hover:bg-gray-800"}`} onClick={() => requestSort('avgScore')}>
                     <div className="flex items-center justify-center">평균 획득 점수 <SortIcon columnKey="avgScore" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestSort('points')}>
+                  <th scope="col" className={`px-6 py-5 cursor-pointer group select-none transition rounded-tr-lg ${isLightTheme ? "font-bold tracking-[0.08em] hover:bg-slate-200/80" : "hover:bg-gray-800"}`} onClick={() => requestSort('points')}>
                     <div className="flex items-center justify-end">총 획득 점수 <SortIcon columnKey="points" /></div>
                   </th>
                 </tr>
@@ -4036,22 +5340,24 @@ export default function App() {
               <tbody>
                 {sortedPlayerStats.length > 0 ? (
                   sortedPlayerStats.map((player, idx) => (
-                    <tr key={player.id} className="border-b border-gray-700 hover:bg-gray-700/50 transition cursor-pointer" onClick={() => setSelectedPlayer(player.name)}>
-                      <td className="px-6 py-5 font-bold text-gray-400 text-lg">{idx + 1}</td>
-                      <td className="px-6 py-5 font-bold text-white flex items-center gap-4 text-lg">
-                        <img src={getAvatarSrc(player.name)} alt={player.name} className="w-8 h-8 rounded-full bg-gray-900 object-cover border border-gray-600" />
+                    <tr key={player.id} className={publicTheme.tableRow} onClick={() => setSelectedPlayer(player.name)}>
+                      <td className={`px-6 py-5 font-bold text-lg ${publicTheme.mutedText}`}>{idx + 1}</td>
+                      <td className={`px-6 py-5 font-bold flex items-center gap-4 text-lg ${publicTheme.heading}`}>
+                        <img src={getAvatarSrc(player.name)} alt={player.name} className={`w-8 h-8 rounded-full object-cover border ${isLightTheme ? "bg-slate-100 border-slate-200" : "bg-gray-900 border-gray-600"}`} />
                         {player.name}
                       </td>
-                      <td className="px-6 py-5 text-center text-gray-300 text-lg">{player.matchCount}회</td>
-                      <td className="px-6 py-5 text-center text-gray-300 text-lg">
-                        {player.winCount > 0 ? <span className="text-yellow-400 font-bold">{player.winCount}회</span> : "0회"}
+                      <td className={`px-6 py-5 text-center text-lg ${isLightTheme ? "text-slate-600" : "text-gray-300"}`}>{player.matchCount}회</td>
+                      <td className={`px-6 py-5 text-center text-lg ${isLightTheme ? "text-slate-600" : "text-gray-300"}`}>
+                        {player.winCount > 0 ? <span className={`font-bold ${isLightTheme ? "text-amber-600" : "text-yellow-400"}`}>{player.winCount}회</span> : "0회"}
                       </td>
-                      <td className="px-6 py-5 text-center font-medium text-cyan-400 text-lg">{player.avgScore} pt</td>
-                      <td className="px-6 py-5 text-right font-black text-green-400 text-xl">{player.points} pt</td>
+                      <td className={`px-6 py-5 text-center font-medium text-lg ${isLightTheme ? "text-blue-600" : "text-cyan-400"}`}>{player.avgScore} pt</td>
+                      <td className="px-6 py-5 text-right">
+                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-sm ${isLightTheme ? "bg-emerald-50 text-emerald-700 font-black" : "font-black text-green-400 text-xl"}`}>{player.points} pt</span>
+                      </td>
                     </tr>
                   ))
                 ) : (
-                  <tr><td colSpan="6" className="px-6 py-12 text-center text-gray-500 text-lg">아직 등록된 참가자 통계가 없습니다.</td></tr>
+                  <tr><td colSpan="6" className={`px-6 py-12 text-center text-lg ${publicTheme.emptyState}`}>아직 등록된 참가자 통계가 없습니다.</td></tr>
                 )}
               </tbody>
             </table>
@@ -4110,37 +5416,45 @@ export default function App() {
       return { ...tier, players: playersInTier, rankLabel };
     });
 
-    const tierPointGuide = [
-      { label: "1등", points: "+30pt", accentClass: "border-yellow-400/55 bg-yellow-500/10 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.08)]", valueClass: "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.45)]" },
-      { label: "2등", points: "+20pt", accentClass: "border-slate-300/55 bg-slate-200/5 text-slate-100 shadow-[0_0_16px_rgba(226,232,240,0.06)]", valueClass: "text-slate-200" },
-      { label: "3등", points: "+10pt", accentClass: "border-orange-400/55 bg-orange-500/8 text-orange-100 shadow-[0_0_16px_rgba(251,146,60,0.06)]", valueClass: "text-orange-300" },
-      { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-400/35 bg-transparent text-emerald-100", valueClass: "text-emerald-300" },
-      { label: "최하위", points: "0pt", accentClass: "border-gray-600/35 bg-gray-900/40 text-gray-300", valueClass: "text-gray-400" },
-    ];
+    const tierPointGuide = isLightTheme
+      ? [
+          { label: "1등", points: "+30pt", accentClass: "border-amber-200 bg-amber-50 text-amber-800 shadow-[0_12px_28px_rgba(217,119,6,0.08)]", valueClass: "text-amber-700" },
+          { label: "2등", points: "+20pt", accentClass: "border-slate-200 bg-white text-slate-700 shadow-[0_12px_28px_rgba(15,23,42,0.06)]", valueClass: "text-slate-700" },
+          { label: "3등", points: "+10pt", accentClass: "border-orange-200 bg-orange-50 text-orange-800 shadow-[0_12px_28px_rgba(234,88,12,0.08)]", valueClass: "text-orange-700" },
+          { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-200 bg-emerald-50 text-emerald-800", valueClass: "text-emerald-700" },
+          { label: "최하위", points: "0pt", accentClass: "border-slate-200 bg-slate-50 text-slate-600", valueClass: "text-slate-500" },
+        ]
+      : [
+          { label: "1등", points: "+30pt", accentClass: "border-yellow-400/55 bg-yellow-500/10 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.08)]", valueClass: "text-yellow-300 drop-shadow-[0_0_10px_rgba(250,204,21,0.45)]" },
+          { label: "2등", points: "+20pt", accentClass: "border-slate-300/55 bg-slate-200/5 text-slate-100 shadow-[0_0_16px_rgba(226,232,240,0.06)]", valueClass: "text-slate-200" },
+          { label: "3등", points: "+10pt", accentClass: "border-orange-400/55 bg-orange-500/8 text-orange-100 shadow-[0_0_16px_rgba(251,146,60,0.06)]", valueClass: "text-orange-300" },
+          { label: "그 외 참가자", points: "+3pt", accentClass: "border-emerald-400/35 bg-transparent text-emerald-100", valueClass: "text-emerald-300" },
+          { label: "최하위", points: "0pt", accentClass: "border-gray-600/35 bg-gray-900/40 text-gray-300", valueClass: "text-gray-400" },
+        ];
 
     return (
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-bold text-white flex items-center">
-              <Trophy className="w-6 h-6 mr-2 text-yellow-400" /> 공식 실력 티어표
+            <h2 className={`text-2xl font-bold flex items-center ${publicTheme.heading}`}>
+              <Trophy className={`w-6 h-6 mr-2 ${isLightTheme ? "text-amber-600" : "text-yellow-400"}`} /> 공식 실력 티어표
             </h2>
-            <p className="text-sm text-gray-400 mt-1">상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.</p>
+            <p className={`text-sm mt-1 ${publicTheme.mutedText}`}>상대평가(백분율) 기준에 따라 전체 등수로 티어가 실시간 결정됩니다.</p>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-900/20 via-gray-800 to-slate-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.35)]">
+        <div className={publicTheme.heroTier}>
           <div className="absolute -right-8 -top-8 opacity-10 pointer-events-none">
             <Star className="w-28 h-28 text-amber-300" />
           </div>
           <div className="relative z-10">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/12 shadow-[0_0_18px_rgba(251,191,36,0.12)]">
-                <Trophy className="h-5 w-5 text-amber-300" />
+              <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${isLightTheme ? "border-amber-200 bg-white shadow-[0_12px_24px_rgba(217,119,6,0.08)]" : "border-amber-400/30 bg-amber-500/12 shadow-[0_0_18px_rgba(251,191,36,0.12)]"}`}>
+                <Trophy className={`h-5 w-5 ${isLightTheme ? "text-amber-600" : "text-amber-300"}`} />
               </div>
               <div className="min-w-0">
-                <h3 className="text-lg font-black text-white">티어는 이렇게 정해져요</h3>
-                <p className="mt-1 text-sm leading-6 text-gray-300 break-keep">
+                <h3 className={`text-lg font-black ${publicTheme.heading}`}>티어는 이렇게 정해져요</h3>
+                <p className={`mt-1 text-sm leading-6 break-keep ${publicTheme.bodyText}`}>
                   경기 결과에 따라 아래 기준으로 포인트가 누적되며, 누적 포인트를 바탕으로 티어가 정해집니다.
                 </p>
               </div>
@@ -4158,58 +5472,62 @@ export default function App() {
               ))}
             </div>
 
-            <p className="mt-4 text-xs leading-5 text-gray-400 break-keep">
+            <p className={`mt-4 text-xs leading-5 break-keep ${publicTheme.mutedText}`}>
               해당 기준은 왁굳님의 의견에 따라 언제든지 변경될 수 있습니다.
             </p>
           </div>
         </div>
 
-        <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden flex flex-col gap-1 p-1">
+        <div className={`${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"} rounded-xl border overflow-hidden flex flex-col gap-1 p-1`}>
           {categorizedPlayers.map((tier) => {
             const isEmperor = tier.id === "S+";
             return (
-            <div key={tier.id} className="flex flex-col md:flex-row bg-gray-800 rounded-lg overflow-hidden min-h-[100px] relative border border-gray-700">
+            <div key={tier.id} className={`flex flex-col md:flex-row rounded-lg overflow-hidden min-h-[100px] relative border ${isLightTheme ? "bg-white border-slate-200" : "bg-gray-800 border-gray-700"}`}>
               
               {/* ★ S+ 티어가 들어간 왼쪽 박스에만 황금빛 오라 적용 (오른쪽 테두리는 깔끔하게 회색으로 통일) ★ */}
-              <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r border-gray-900 shadow-inner relative z-10 overflow-hidden ${
+              <div className={`md:w-28 w-full flex-shrink-0 flex flex-col items-center justify-center p-3 border-b md:border-b-0 md:border-r shadow-inner relative z-10 overflow-hidden ${
                 isEmperor 
-                  ? 'bg-gradient-to-br from-gray-900 via-black to-yellow-900/40 shadow-[0_0_20px_rgba(250,204,21,0.4)]' 
-                  : tier.color
+                  ? (isLightTheme ? 'border-amber-200 bg-gradient-to-br from-amber-100 via-amber-50 to-white shadow-[0_12px_28px_rgba(217,119,6,0.12)]' : 'border-gray-900 bg-gradient-to-br from-gray-900 via-black to-yellow-900/40 shadow-[0_0_20px_rgba(250,204,21,0.4)]')
+                  : (isLightTheme
+                      ? (tier.id === "S" ? "border-red-200 bg-red-50" : tier.id === "A+" ? "border-orange-200 bg-orange-50" : tier.id === "A" ? "border-orange-100 bg-orange-50/70" : tier.id === "B" ? "border-amber-200 bg-amber-50" : tier.id === "C" ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50")
+                      : `border-gray-900 ${tier.color}`)
               }`}>
                 {/* 어둠 속에서 뿜어져 나오는 네온 빛반사 효과 */}
                 {isEmperor && (
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-yellow-500/30 via-transparent to-transparent pointer-events-none"></div>
                 )}
                 {/* 은은하게 빛나는 왕관 */}
-                {isEmperor && <Crown className="absolute top-2 right-2 w-4 h-4 text-yellow-400 opacity-90 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]" />}
+                {isEmperor && <Crown className={`absolute top-2 right-2 w-4 h-4 opacity-90 ${isLightTheme ? "text-amber-600" : "text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]"}`} />}
                 
                 {/* S+ 텍스트 자체의 황금빛 그라데이션과 그림자 */}
                 <span className={`text-2xl font-extrabold text-shadow relative z-10 ${
                   isEmperor 
-                    ? 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]' 
-                    : 'text-white'
+                    ? (isLightTheme ? 'text-amber-700' : 'text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)]')
+                    : (isLightTheme
+                        ? (tier.id === "S" ? "text-red-700" : tier.id === "A+" ? "text-orange-700" : tier.id === "A" ? "text-orange-600" : tier.id === "B" ? "text-amber-700" : tier.id === "C" ? "text-emerald-700" : "text-blue-700")
+                        : 'text-white')
                 }`}>
                   {tier.id}
                 </span>
-                <span className={`text-xs font-bold mt-1 text-center relative z-10 ${isEmperor ? 'text-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.5)]' : 'text-white/90'}`}>{tier.label}</span>
-                <span className={`text-[10px] mt-0.5 text-center relative z-10 ${isEmperor ? 'text-yellow-500/80' : 'text-white/70'}`}>{tier.rankLabel}</span>
+                <span className={`text-xs font-bold mt-1 text-center relative z-10 ${isEmperor ? (isLightTheme ? "text-amber-700" : 'text-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.5)]') : (isLightTheme ? "text-slate-700" : 'text-white/90')}`}>{tier.label}</span>
+                <span className={`text-[10px] mt-0.5 text-center relative z-10 ${isEmperor ? (isLightTheme ? "text-amber-600/80" : 'text-yellow-500/80') : (isLightTheme ? "text-slate-500" : 'text-white/70')}`}>{tier.rankLabel}</span>
               </div>
               
-              <div className="flex-1 p-4 flex flex-wrap gap-4 items-center bg-gray-800/80">
+              <div className={`flex-1 p-4 flex flex-wrap gap-4 items-center ${isLightTheme ? "bg-white" : "bg-gray-800/80"}`}>
                 {tier.players.length > 0 ? (
                   tier.players.map((player) => {
                     return (
                       <div key={player.id} onClick={() => setSelectedPlayer(player.name)} className="group relative flex flex-col items-center cursor-pointer">
-                        <div className="w-16 h-16 rounded-lg bg-gray-700 border-2 border-gray-600 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 group-hover:border-green-400">
+                        <div className={`w-16 h-16 rounded-lg border-2 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform group-hover:scale-110 ${isLightTheme ? "bg-slate-100 border-slate-200 group-hover:border-emerald-300" : "bg-gray-700 border-gray-600 group-hover:border-green-400"}`}>
                           <img src={getAvatarSrc(player.name)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${player.name}`; }} alt={player.name} className="w-full h-full object-cover" />
                         </div>
-                        <span className="mt-2 text-sm font-medium text-white bg-gray-900/80 px-2 py-0.5 rounded group-hover:text-green-400 transition-colors">{player.name}</span>
-                        <span className="text-xs font-bold text-green-400 mt-0.5">{player.points} pt</span>
+                        <span className={`mt-2 text-sm font-medium px-2 py-0.5 rounded transition-colors ${isLightTheme ? "text-slate-900 bg-slate-100 group-hover:text-emerald-700" : "text-white bg-gray-900/80 group-hover:text-green-400"}`}>{player.name}</span>
+                        <span className={`text-xs font-bold mt-0.5 ${isLightTheme ? "text-emerald-700" : "text-green-400"}`}>{player.points} pt</span>
                       </div>
                     );
                   })
                 ) : (
-                  <span className="text-gray-500 text-sm italic p-2">해당 티어 플레이어 없음</span>
+                  <span className={`text-sm italic p-2 ${publicTheme.emptyState}`}>해당 티어 플레이어 없음</span>
                 )}
               </div>
             </div>
@@ -4432,6 +5750,334 @@ export default function App() {
     }
   };
 
+  const resetWowDungeonTierForm = () => {
+    setWowDungeonTierForm(createEmptyWowDungeonTierForm());
+  };
+
+  const handleWowDungeonTierFormFieldChange = (field, value) => {
+    setWowDungeonTierForm((prev) => ({
+      ...prev,
+      [field]: field === "expansionType" ? normalizeWowDungeonExpansionType(value) : value,
+    }));
+  };
+
+  const handleWowDungeonTierVideoUrlChange = (index, value) => {
+    setWowDungeonTierForm((prev) => {
+      const nextVideoUrls = Array.isArray(prev.videoUrls) && prev.videoUrls.length > 0
+        ? [...prev.videoUrls]
+        : createWowDungeonTierFormVideoUrls();
+      nextVideoUrls[index] = value;
+      return {
+        ...prev,
+        videoUrls: nextVideoUrls,
+      };
+    });
+  };
+
+  const handleAddWowDungeonTierVideoUrlField = () => {
+    setWowDungeonTierForm((prev) => ({
+      ...prev,
+      videoUrls: [
+        ...(Array.isArray(prev.videoUrls) && prev.videoUrls.length > 0
+          ? prev.videoUrls
+          : createWowDungeonTierFormVideoUrls()),
+        "",
+      ],
+    }));
+  };
+
+  const handleRemoveWowDungeonTierVideoUrlField = (index) => {
+    setWowDungeonTierForm((prev) => {
+      const currentVideoUrls = Array.isArray(prev.videoUrls) && prev.videoUrls.length > 0
+        ? [...prev.videoUrls]
+        : createWowDungeonTierFormVideoUrls();
+
+      if (currentVideoUrls.length <= 1) {
+        return {
+          ...prev,
+          videoUrls: [""],
+        };
+      }
+
+      const nextVideoUrls = currentVideoUrls.filter((_, currentIndex) => currentIndex !== index);
+      return {
+        ...prev,
+        videoUrls: nextVideoUrls.length > 0 ? nextVideoUrls : [""],
+      };
+    });
+  };
+
+  const handleEditWowDungeonTierItem = (item) => {
+    if (!item) return;
+    const normalizedItem = normalizeWowDungeonTierItem(item);
+    setWowDungeonTierForm({
+      id: normalizedItem.id,
+      name: normalizedItem.name,
+      imageUrl: normalizedItem.imageUrl,
+      expansionType: normalizedItem.expansionType,
+      videoUrls: createWowDungeonTierFormVideoUrls(normalizedItem.videoUrls, normalizedItem.videoUrl),
+    });
+    setAdminInnerTab("wow");
+  };
+
+  const handleDeleteWowDungeonTierItem = async (itemId) => {
+    if (!itemId) return;
+    if (!window.confirm("이 던전 카드를 삭제하시겠습니까?")) return;
+
+    try {
+      await deleteDoc(doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, itemId));
+      await updateLastModifiedTime();
+      if (wowDungeonTierForm.id === itemId) resetWowDungeonTierForm();
+      if (wowDungeonTierDetailItemId === itemId) {
+        setWowDungeonTierDetailItemId(null);
+        setWowDungeonTierDetailVideoIndex(0);
+      }
+      showToast("던전 카드를 삭제했습니다.");
+    } catch (error) {
+      console.error(error);
+      showToast("던전 카드를 삭제하지 못했습니다.", "error");
+    }
+  };
+
+  const handleSaveWowDungeonTierItem = async () => {
+    const normalizedName = `${wowDungeonTierForm.name || ""}`.trim();
+    const normalizedImageUrl = `${wowDungeonTierForm.imageUrl || ""}`.trim();
+    const rawVideoUrls = Array.isArray(wowDungeonTierForm.videoUrls) ? wowDungeonTierForm.videoUrls : [];
+    const trimmedVideoUrls = rawVideoUrls.map((url) => `${url || ""}`.trim());
+    const normalizedVideoUrls = trimmedVideoUrls.filter((url, index, list) => url && list.indexOf(url) === index);
+    const normalizedExpansionType = normalizeWowDungeonExpansionType(wowDungeonTierForm.expansionType);
+    const nextDisplayOrder = wowDungeonTierItems.reduce((maxOrder, item, index) => {
+      const fallbackOrder = index + 1;
+      const safeOrder = Number.isFinite(item.displayOrder) ? item.displayOrder : fallbackOrder;
+      return Math.max(maxOrder, safeOrder);
+    }, 0) + 1;
+    const hasDuplicateName = wowDungeonTierItems.some((item) => (
+      item.id !== wowDungeonTierForm.id
+      && (item.name || "").trim().toLowerCase() === normalizedName.toLowerCase()
+    ));
+
+    if (!normalizedName) {
+      showToast("던전 이름을 입력해주세요.", "error");
+      return;
+    }
+
+    if (hasDuplicateName) {
+      showToast("같은 이름의 던전 카드가 이미 등록되어 있습니다.", "error");
+      return;
+    }
+
+    if (!normalizedImageUrl) {
+      showToast("대표 이미지 URL을 입력해주세요.", "error");
+      return;
+    }
+
+    if (!/^https?:\/\//i.test(normalizedImageUrl)) {
+      showToast("대표 이미지 URL은 http 또는 https로 시작해야 합니다.", "error");
+      return;
+    }
+
+    const invalidVideoUrl = trimmedVideoUrls.find((url) => url && !/^https?:\/\//i.test(url));
+    if (invalidVideoUrl) {
+      showToast("영상 URL은 비워두거나 http 또는 https로 시작해야 합니다.", "error");
+      return;
+    }
+
+    const payload = {
+      name: normalizedName,
+      imageUrl: normalizedImageUrl,
+      expansionType: normalizedExpansionType,
+      videoUrls: normalizedVideoUrls,
+      videoUrl: normalizedVideoUrls[0] || "",
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      setIsWowDungeonTierSaving(true);
+
+      if (wowDungeonTierForm.id) {
+        await updateDoc(
+          doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, wowDungeonTierForm.id),
+          payload
+        );
+        showToast("던전 카드를 수정했습니다.");
+      } else {
+        await addDoc(collection(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION), {
+          ...payload,
+          displayOrder: nextDisplayOrder,
+          createdAt: new Date().toISOString(),
+        });
+        showToast("던전 카드를 등록했습니다.");
+      }
+
+      await updateLastModifiedTime();
+      resetWowDungeonTierForm();
+    } catch (error) {
+      console.error(error);
+      showToast("던전 카드를 저장하지 못했습니다.", "error");
+    } finally {
+      setIsWowDungeonTierSaving(false);
+    }
+  };
+
+  const handleMoveWowDungeonTierItemOrder = async (itemId, direction) => {
+    if (!user || !itemId) return;
+
+    const currentIndex = wowDungeonTierItems.findIndex((item) => item.id === itemId);
+    if (currentIndex === -1) return;
+
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= wowDungeonTierItems.length) return;
+
+    const reorderedItems = [...wowDungeonTierItems];
+    const [movedItem] = reorderedItems.splice(currentIndex, 1);
+    reorderedItems.splice(targetIndex, 0, movedItem);
+
+    try {
+      const batch = writeBatch(db);
+      const timestamp = new Date().toISOString();
+
+      reorderedItems.forEach((item, index) => {
+        batch.update(
+          doc(db, "artifacts", appId, "public", "data", WOW_DUNGEON_TIER_COLLECTION, item.id),
+          {
+            displayOrder: index + 1,
+            updatedAt: timestamp,
+          }
+        );
+      });
+
+      await batch.commit();
+      await updateLastModifiedTime();
+      showToast("던전 보관함 카드 순서를 변경했습니다.");
+    } catch (error) {
+      console.error(error);
+      showToast("던전 보관함 카드 순서를 변경하지 못했습니다.", "error");
+    }
+  };
+
+  const clearWowDungeonTierDragState = () => {
+    setWowDungeonTierDragItemId(null);
+    setWowDungeonTierDropTarget(null);
+  };
+
+  const moveWowDungeonTierItem = (itemId, nextTierId = null, options = {}) => {
+    if (!itemId) return;
+
+    setWowDungeonTierPlacements((prev) => {
+      const next = moveWowDungeonTierItemBetweenTiers(prev, itemId, nextTierId, options);
+      return areWowDungeonTierPlacementsEqual(prev, next) ? prev : next;
+    });
+  };
+
+  const handleSelectWowDungeonTierItem = (itemId) => {
+    if (!itemId) return;
+    setWowDungeonTierSelectedItemId((prev) => prev === itemId ? null : itemId);
+  };
+
+  const handleOpenWowDungeonTierDetail = (itemId, initialVideoIndex = 0) => {
+    if (!itemId) return;
+    const targetItem = wowDungeonTierItemMap[itemId];
+    const videoUrls = normalizeWowDungeonVideoUrls(targetItem?.videoUrls, targetItem?.videoUrl);
+    setWowDungeonTierSelectedItemId(itemId);
+
+    if (videoUrls.length === 0) {
+      showToast("이 던전에는 재생할 영상이 아직 없습니다.", "error");
+      return;
+    }
+
+    const safeVideoIndex = Math.min(Math.max(initialVideoIndex, 0), videoUrls.length - 1);
+    setWowDungeonTierDetailItemId(itemId);
+    setWowDungeonTierDetailVideoIndex(safeVideoIndex);
+  };
+
+  const handleCloseWowDungeonTierDetail = () => {
+    setWowDungeonTierDetailItemId(null);
+    setWowDungeonTierDetailVideoIndex(0);
+  };
+
+  const handleMoveWowDungeonTierDetailVideo = (direction) => {
+    if (!wowDungeonTierDetailVideoUrls.length) return;
+    setWowDungeonTierDetailVideoIndex((prev) => {
+      const nextIndex = direction === "prev" ? prev - 1 : prev + 1;
+      return Math.min(Math.max(nextIndex, 0), wowDungeonTierDetailVideoUrls.length - 1);
+    });
+  };
+
+  const handleClearSelectedWowDungeonTierItem = () => {
+    setWowDungeonTierSelectedItemId(null);
+  };
+
+  const handleWowDungeonTierDragStart = (event, itemId) => {
+    if (!itemId) {
+      event.preventDefault();
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", itemId);
+    setWowDungeonTierDragItemId(itemId);
+    setWowDungeonTierSelectedItemId(itemId);
+  };
+
+  const handleWowDungeonTierDragEnd = () => {
+    clearWowDungeonTierDragState();
+  };
+
+  const handleWowDungeonTierDropZoneDragOver = (event, zoneId) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    if (wowDungeonTierDropTarget !== zoneId) {
+      setWowDungeonTierDropTarget(zoneId);
+    }
+  };
+
+  const handleWowDungeonTierDropZoneDrop = (event, nextTierId = null) => {
+    event.preventDefault();
+    const itemId = event.dataTransfer.getData("text/plain") || wowDungeonTierDragItemId;
+    if (itemId) {
+      moveWowDungeonTierItem(itemId, nextTierId);
+      setWowDungeonTierSelectedItemId(itemId);
+    }
+    clearWowDungeonTierDragState();
+  };
+
+  const getWowDungeonTierCardDropTargetKey = (tierId, itemId, insertAfter = false) => (
+    `tier:${tierId}:item:${itemId}:${insertAfter ? "after" : "before"}`
+  );
+
+  const getWowDungeonTierCardInsertAfter = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    return (event.clientX - bounds.left) >= bounds.width / 2;
+  };
+
+  const handleWowDungeonTierCardDragOver = (event, tierId, targetItemId) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = "move";
+
+    const insertAfter = getWowDungeonTierCardInsertAfter(event);
+    const zoneId = getWowDungeonTierCardDropTargetKey(tierId, targetItemId, insertAfter);
+
+    if (wowDungeonTierDropTarget !== zoneId) {
+      setWowDungeonTierDropTarget(zoneId);
+    }
+  };
+
+  const handleWowDungeonTierCardDrop = (event, tierId, targetItemId) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const itemId = event.dataTransfer.getData("text/plain") || wowDungeonTierDragItemId;
+    const insertAfter = getWowDungeonTierCardInsertAfter(event);
+
+    if (itemId && itemId !== targetItemId) {
+      moveWowDungeonTierItem(itemId, tierId, { targetItemId, insertAfter });
+      setWowDungeonTierSelectedItemId(itemId);
+    }
+
+    clearWowDungeonTierDragState();
+  };
+
   const getWowRaidRankings = (raid, categoryId) => {
     if (!raid) return [];
     const statsMap = raid.stats?.[categoryId] || {};
@@ -4450,6 +6096,26 @@ export default function App() {
   };
 
   const renderWowRaidView = () => {
+    const getWowRaidGroupBadgeClasses = (groupNumber) => {
+      const normalizedGroup = `${groupNumber || ''}`;
+      if (isLightTheme) {
+        if (normalizedGroup === '1') return "bg-amber-500 text-white border-amber-500";
+        if (normalizedGroup === '2') return "bg-slate-400 text-white border-slate-400";
+        return "bg-slate-700 text-white border-slate-700";
+      }
+      return "border-amber-300/45 bg-black/50 backdrop-blur-sm text-amber-100";
+    };
+
+    const getWowRaidFilterButtonClasses = (isActive) => (
+      isActive
+        ? (isLightTheme
+          ? "bg-white text-slate-900 border-slate-200 shadow-sm"
+          : wowTheme.raidTabActive)
+        : (isLightTheme
+          ? "bg-transparent text-slate-500 border-transparent hover:bg-white hover:text-slate-900 hover:border-slate-200"
+          : wowTheme.raidTabInactive)
+    );
+
     if (selectedWowRaid) {
       const currentDetailTab = wowRaidDetailTab || 'participants';
       const currentStatMeta = WOW_RAID_STAT_FIELDS.find((field) => field.id === currentDetailTab) || null;
@@ -4458,49 +6124,49 @@ export default function App() {
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <button onClick={() => { setSelectedWowRaidId(null); setWowRaidDetailTab('participants'); }} className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white font-bold hover:bg-gray-700 transition">
+            <button onClick={() => { setSelectedWowRaidId(null); setWowRaidDetailTab('participants'); }} className={wowTheme.backButton}>
               <ArrowLeft className="w-4 h-4 mr-2" /> WOW레이드 목록으로 돌아가기
             </button>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <Shield className="w-4 h-4 text-violet-300" /> WOW레이드 상세 리포트
+            <div className={`flex items-center gap-2 text-sm ${wowTheme.mutedText}`}>
+              <Shield className={`w-4 h-4 ${isLightTheme ? "text-violet-600" : "text-violet-300"}`} /> WOW레이드 상세 리포트
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-violet-900/35 via-indigo-900/35 to-slate-900 rounded-2xl border border-violet-500/20 overflow-hidden shadow-xl">
+          <div className={wowTheme.raidDetailHero}>
             <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr]">
-              <div className="h-full min-h-[240px] bg-gray-900/60 border-b lg:border-b-0 lg:border-r border-white/5">
+              <div className={wowTheme.raidDetailImagePanel}>
                 {selectedWowRaid.imageUrl ? (
                   <img src={selectedWowRaid.imageUrl} alt={selectedWowRaid.raidName} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full min-h-[240px] flex items-center justify-center bg-gradient-to-br from-violet-900/30 to-slate-900 text-violet-200/70 font-black text-2xl">WOW RAID</div>
+                  <div className={`w-full h-full min-h-[240px] flex items-center justify-center font-black text-2xl ${isLightTheme ? "bg-gradient-to-br from-violet-100 to-slate-100 text-violet-500" : "bg-gradient-to-br from-violet-900/30 to-slate-900 text-violet-200/70"}`}>WOW RAID</div>
                 )}
               </div>
               <div className="p-6 lg:p-8 flex flex-col justify-between gap-5">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-3">
-                    <span className="px-2.5 py-1 rounded-md border border-violet-400/30 bg-violet-500/10 text-violet-200 text-xs font-black">{selectedWowRaid.isCleared ? '토벌 완료' : '진행 기록'}</span>
-                    {selectedWowRaid.raidGroupNumber && <span className="px-2.5 py-1 rounded-md border border-amber-400/40 bg-amber-500/15 text-amber-100 text-xs font-black">{selectedWowRaid.raidGroupNumber}군</span>}
-                    {selectedWowRaid.raidDate && <span className="px-2.5 py-1 rounded-md border border-gray-600 bg-gray-900/70 text-gray-200 text-xs font-black">{selectedWowRaid.raidDate}</span>}
+                    <span className={`px-2.5 py-1 rounded-md border text-xs font-black ${isLightTheme ? "border-violet-200 bg-violet-50 text-violet-700" : "border-violet-400/30 bg-violet-500/10 text-violet-200"}`}>{selectedWowRaid.isCleared ? '토벌 완료' : '진행 기록'}</span>
+                    {selectedWowRaid.raidGroupNumber && <span className={`px-2.5 py-1 rounded-md border text-xs font-black shadow-sm ${getWowRaidGroupBadgeClasses(selectedWowRaid.raidGroupNumber)}`}>{selectedWowRaid.raidGroupNumber}군</span>}
+                    {selectedWowRaid.raidDate && <span className={`px-2.5 py-1 rounded-md border text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-600" : "border-gray-600 bg-gray-900/70 text-gray-200"}`}>{selectedWowRaid.raidDate}</span>}
                   </div>
-                  <h2 className="text-3xl font-black text-white mb-2 break-keep">{selectedWowRaid.raidName}</h2>
-                  <p className="text-gray-300 break-keep">{selectedWowRaid.note || '레이드의 기록과 통계를 한눈에 확인할 수 있습니다.'}</p>
+                  <h2 className={`text-3xl font-black mb-2 break-keep ${wowTheme.heading}`}>{selectedWowRaid.raidName}</h2>
+                  <p className={`break-keep ${wowTheme.bodyText}`}>{selectedWowRaid.note || '레이드의 기록과 통계를 한눈에 확인할 수 있습니다.'}</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">진행 날짜</div>
-                    <div className="text-lg font-black text-white">{selectedWowRaid.raidDate || '-'}</div>
+                  <div className={wowTheme.raidStatCard}>
+                    <div className={`text-xs font-black mb-1 ${wowTheme.mutedText}`}>진행 날짜</div>
+                    <div className={`text-lg font-black ${wowTheme.heading}`}>{selectedWowRaid.raidDate || '-'}</div>
                   </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">토벌시간</div>
-                    <div className="text-lg font-black text-cyan-200">{selectedWowRaid.clearTime || '-'}</div>
+                  <div className={wowTheme.raidStatCard}>
+                    <div className={`text-xs font-black mb-1 ${wowTheme.mutedText}`}>토벌시간</div>
+                    <div className={`text-lg font-black ${isLightTheme ? "text-blue-600" : "text-cyan-200"}`}>{selectedWowRaid.clearTime || '-'}</div>
                   </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">참가 인원</div>
-                    <div className="text-lg font-black text-amber-200">{selectedWowRaid.participants.length}명</div>
+                  <div className={wowTheme.raidStatCard}>
+                    <div className={`text-xs font-black mb-1 ${wowTheme.mutedText}`}>참가 인원</div>
+                    <div className={`text-lg font-black ${isLightTheme ? "text-amber-700" : "text-amber-200"}`}>{selectedWowRaid.participants.length}명</div>
                   </div>
-                  <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
-                    <div className="text-xs font-black text-gray-400 mb-1">군 구분</div>
-                    <div className="text-lg font-black text-violet-200">{selectedWowRaid.raidGroupNumber ? `${selectedWowRaid.raidGroupNumber}군` : '-'}</div>
+                  <div className={wowTheme.raidStatCard}>
+                    <div className={`text-xs font-black mb-1 ${wowTheme.mutedText}`}>군 구분</div>
+                    <div className={`text-lg font-black ${isLightTheme ? "text-violet-700" : "text-violet-200"}`}>{selectedWowRaid.raidGroupNumber ? `${selectedWowRaid.raidGroupNumber}군` : '-'}</div>
                   </div>
                 </div>
               </div>
@@ -4511,7 +6177,7 @@ export default function App() {
             {WOW_RAID_DETAIL_TABS.map((tab) => {
               const isActive = wowRaidDetailTab === tab.id;
               return (
-                <button key={tab.id} onClick={() => setWowRaidDetailTab(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-black border transition ${isActive ? 'bg-violet-600 text-white border-violet-400 shadow-[0_0_0_1px_rgba(196,181,253,0.18)]' : 'bg-gray-800 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white'}`}>
+                <button key={tab.id} onClick={() => setWowRaidDetailTab(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-black border transition ${isActive ? wowTheme.raidTabActive : wowTheme.raidTabInactive}`}>
                   {tab.label}
                 </button>
               );
@@ -4521,20 +6187,20 @@ export default function App() {
           {wowRaidDetailTab === 'participants' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {selectedWowRaid.participants.map((participant) => (
-                <div key={participant.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4 shadow-lg">
+                <div key={participant.id} className={wowTheme.raidParticipantCard}>
                   <div className="flex items-center gap-3">
-                    <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover bg-gray-900 border border-gray-600" />
+                    <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className={`w-14 h-14 rounded-full object-cover ${isLightTheme ? "bg-slate-100 border border-slate-200" : "bg-gray-900 border border-gray-600"}`} />
                     <div className="min-w-0">
-                      <div className="font-black text-white truncate">{participant.streamerName}</div>
-                      <div className="text-sm text-blue-300 truncate">{participant.wowNickname}</div>
-                      <div className="text-xs text-gray-400">Lv.{participant.level}</div>
+                      <div className={`font-black truncate ${wowTheme.heading}`}>{participant.streamerName}</div>
+                      <div className={`text-sm truncate ${isLightTheme ? "text-blue-600" : "text-blue-300"}`}>{participant.wowNickname}</div>
+                      <div className={`text-xs ${wowTheme.mutedText}`}>Lv.{participant.level}</div>
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-1.5 items-center">
-                    <span style={getJobBadgeStyle(participant.jobClass)} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap">{participant.jobClass}</span>
-                    {participant.mainSpec && <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{participant.mainSpec}</span>}
+                    <span style={getJobBadgeStyle(participant.jobClass, isLightTheme)} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap">{participant.jobClass}</span>
+                    {participant.mainSpec && <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${wowSpecTagClass}`}>{participant.mainSpec}</span>}
                     {normalizePreferredPositions(participant.preferredPositions).map((positionId) => (
-                      <span key={positionId} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
+                      <span key={positionId} className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId, isLightTheme)}`}>{getWowPositionShortLabel(positionId)}</span>
                     ))}
                   </div>
                 </div>
@@ -4544,26 +6210,26 @@ export default function App() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {podium.length > 0 ? podium.map((participant, index) => (
-                  <div key={participant.id} className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl border border-gray-700 p-5 shadow-lg">
-                    <div className="text-xs font-black text-gray-400 mb-2">TOP {index + 1}</div>
+                  <div key={participant.id} className={wowTheme.raidRankingCard}>
+                    <div className={`text-xs font-black mb-2 ${wowTheme.mutedText}`}>TOP {index + 1}</div>
                     <div className="flex items-center gap-3">
-                      <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-14 h-14 rounded-full object-cover border border-gray-600 bg-gray-900" />
+                      <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className={`w-14 h-14 rounded-full object-cover ${isLightTheme ? "border border-slate-200 bg-slate-100" : "border border-gray-600 bg-gray-900"}`} />
                       <div className="min-w-0">
-                        <div className="font-black text-white truncate">{participant.displayName || participant.streamerName}</div>
-                        <div className="text-sm text-blue-300 truncate">{participant.wowNickname}</div>
-                        <div className="text-lg font-black text-amber-300">{renderWowRaidValue(participant.value)}</div>
+                        <div className={`font-black truncate ${wowTheme.heading}`}>{participant.displayName || participant.streamerName}</div>
+                        <div className={`text-sm truncate ${isLightTheme ? "text-blue-600" : "text-blue-300"}`}>{participant.wowNickname}</div>
+                        <div className={`text-lg font-black ${isLightTheme ? "text-amber-600" : "text-amber-300"}`}>{renderWowRaidValue(participant.value)}</div>
                       </div>
                     </div>
                   </div>
                 )) : (
-                  <div className="md:col-span-3 bg-gray-800 rounded-xl border border-gray-700 p-6 text-center text-gray-400">아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</div>
+                  <div className={`md:col-span-3 rounded-xl border p-6 text-center ${isLightTheme ? "bg-white border-slate-200 text-slate-500 shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "bg-gray-800 border border-gray-700 text-gray-400"}`}>아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</div>
                 )}
               </div>
 
-              <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg">
+              <div className={wowTheme.raidTableShell}>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-[17px]">
-                    <thead className="bg-gray-900/90 text-gray-300">
+                    <thead className={wowTheme.raidTableHead}>
                       <tr>
                         <th className="px-4 py-3 text-left text-[17px] font-black">순위</th>
                         <th className="px-4 py-3 text-left text-[17px] font-black">참가자</th>
@@ -4575,16 +6241,16 @@ export default function App() {
                     </thead>
                     <tbody>
                       {rankings.length > 0 ? rankings.map((participant, index) => (
-                        <tr key={participant.id} className="border-t border-gray-700/80 hover:bg-gray-700/20">
-                          <td className="px-4 py-3 font-black text-gray-300 text-[17px]">{index + 1}</td>
-                          <td className="px-4 py-3 font-bold text-white text-[17px]">{participant.streamerName}</td>
-                          <td className="px-4 py-3 text-blue-300 text-[17px]">{participant.wowNickname}</td>
-                          <td className="px-4 py-3"><span style={getJobBadgeStyle(participant.jobClass)} className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap">{participant.jobClass}</span></td>
-                          <td className="px-4 py-3">{participant.mainSpec ? <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{participant.mainSpec}</span> : <span className="text-gray-500">-</span>}</td>
-                          <td className="px-4 py-3 text-right font-black text-amber-200 text-[21px]">{renderWowRaidValue(participant.value)}</td>
+                        <tr key={participant.id} className={wowTheme.raidTableRow}>
+                          <td className={`px-4 py-3 font-black text-[17px] ${isLightTheme ? "text-slate-500" : "text-gray-300"}`}>{index + 1}</td>
+                          <td className={`px-4 py-3 font-bold text-[17px] ${wowTheme.heading}`}>{participant.streamerName}</td>
+                          <td className={`px-4 py-3 text-[17px] ${isLightTheme ? "text-blue-600" : "text-blue-300"}`}>{participant.wowNickname}</td>
+                          <td className="px-4 py-3"><span style={getJobBadgeStyle(participant.jobClass, isLightTheme)} className="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap">{participant.jobClass}</span></td>
+                          <td className="px-4 py-3">{participant.mainSpec ? <span title={getWowSpecTagTitle(participant.jobClass, participant.mainSpec, participant.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-black border whitespace-nowrap ${wowSpecTagClass}`}>{participant.mainSpec}</span> : <span className={wowTheme.faintText}>-</span>}</td>
+                          <td className={`px-4 py-3 text-right font-black text-[21px] ${isLightTheme ? "text-amber-600" : "text-amber-200"}`}>{renderWowRaidValue(participant.value)}</td>
                         </tr>
                       )) : (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-[17px]">아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</td></tr>
+                        <tr><td colSpan={6} className={`px-4 py-8 text-center text-[17px] ${wowTheme.mutedText}`}>아직 입력된 {currentStatMeta?.label || '통계'} 데이터가 없습니다.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -4598,11 +6264,11 @@ export default function App() {
 
     return (
       <div className="space-y-6">
-        <div className="bg-gradient-to-r from-violet-900/35 via-indigo-900/35 to-slate-900 rounded-2xl p-8 border border-violet-500/20 shadow-xl">
-          <h2 className="text-3xl font-black text-white mb-2 flex items-center"><Layers className="w-8 h-8 mr-3 text-violet-300" /> WOW레이드</h2>
-          <p className="text-gray-300 text-lg break-keep">진행되었던 WOW 레이드의 참가 인원과 통계를 카드형 리포트로 확인할 수 있습니다.</p>
+        <div className={`${wowTheme.raidDetailHero} p-8`}>
+          <h2 className={`text-3xl font-black mb-2 flex items-center ${wowTheme.heading}`}><Layers className={`w-8 h-8 mr-3 ${isLightTheme ? "text-violet-600" : "text-violet-300"}`} /> WOW레이드</h2>
+          <p className={`text-lg break-keep ${wowTheme.bodyText}`}>진행되었던 WOW 레이드의 참가 인원과 통계를 카드형 리포트로 확인할 수 있습니다.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={`flex flex-wrap items-center gap-2 ${isLightTheme ? "rounded-2xl border border-slate-200 bg-slate-50/80 p-1 shadow-sm w-fit" : ""}`}>
           {[
             { id: 'all', label: '전체' },
             { id: '1', label: '1군' },
@@ -4615,7 +6281,7 @@ export default function App() {
                 key={option.id}
                 type="button"
                 onClick={() => setWowRaidGroupFilter(option.id)}
-                className={`px-4 py-2 rounded-lg border text-sm font-black transition-all ${active ? 'bg-violet-600/25 border-violet-400/50 text-white shadow-[0_0_0_1px_rgba(167,139,250,0.2)]' : 'bg-gray-800/70 border-gray-700 text-gray-300 hover:border-violet-400/30 hover:text-white'}`}
+                className={`px-4 py-2 rounded-lg border text-sm font-black transition-all ${getWowRaidFilterButtonClasses(active)}`}
               >
                 {option.label}
               </button>
@@ -4625,31 +6291,592 @@ export default function App() {
         {filteredWowRaidPublishedList.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
             {filteredWowRaidPublishedList.map((raid) => (
-              <button key={raid.id} onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); }} className="text-left bg-gray-800 rounded-2xl border border-gray-700 overflow-hidden shadow-lg hover:border-violet-400/40 hover:-translate-y-0.5 transition-all">
-                <div className="relative h-40 bg-gray-900/60 overflow-hidden">
+              <button key={raid.id} onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); }} className={`text-left rounded-2xl overflow-hidden transition-all duration-300 ${isLightTheme ? "bg-white border border-slate-200 shadow-sm hover:border-violet-300 hover:-translate-y-1 hover:shadow-md" : "bg-gray-800 border border-gray-700 shadow-lg hover:border-violet-400/40 hover:-translate-y-0.5"}`}>
+                <div className={`relative h-40 overflow-hidden ${isLightTheme ? "bg-slate-100" : "bg-gray-900/60"}`}>
                   {raid.raidGroupNumber && (
-                    <span className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md border border-amber-300/45 bg-black/50 backdrop-blur-sm text-amber-100 text-xs font-black shadow-lg">
+                    <span className={`absolute top-3 right-3 z-10 px-2.5 py-1 rounded-md border text-xs font-black shadow-lg ${getWowRaidGroupBadgeClasses(raid.raidGroupNumber)}`}>
                       {raid.raidGroupNumber}군
                     </span>
                   )}
                   {raid.imageUrl ? (
                     <img src={raid.imageUrl} alt={raid.raidName} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-900/25 to-slate-900 text-violet-200/70 font-black text-2xl">WOW RAID</div>
+                    <div className={`w-full h-full flex items-center justify-center font-black text-2xl ${isLightTheme ? "bg-gradient-to-br from-violet-100 to-slate-100 text-violet-500" : "bg-gradient-to-br from-violet-900/25 to-slate-900 text-violet-200/70"}`}>WOW RAID</div>
                   )}
                 </div>
                 <div className="p-4">
-                  <div className="text-lg font-black text-white mb-2 break-keep">{raid.raidName}</div>
-                  <div className="text-sm text-gray-300 mb-1">{raid.raidDate || '-'}</div>
-                  <div className="text-sm text-cyan-300 font-black">토벌시간 {raid.clearTime || '-'}</div>
-                  {raid.note && <div className="mt-2 text-xs text-gray-400 break-keep leading-relaxed">{raid.note}</div>}
+                  <div className={`text-lg font-black mb-2 break-keep ${wowTheme.heading}`}>{raid.raidName}</div>
+                  <div className={`text-sm mb-1 ${wowTheme.mutedText}`}>{raid.raidDate || '-'}</div>
+                  <div className={`text-sm font-black ${isLightTheme ? "text-blue-600" : "text-cyan-300"}`}>토벌시간 {raid.clearTime || '-'}</div>
+                  {raid.note && <div className={`mt-2 text-xs break-keep leading-relaxed ${wowTheme.mutedText}`}>{raid.note}</div>}
                 </div>
               </button>
             ))}
           </div>
         ) : (
-          <div className="bg-gray-800 rounded-2xl border border-gray-700 p-10 text-center text-gray-400">선택한 군에 해당하는 WOW 레이드 기록이 없습니다.</div>
+          <div className={wowTheme.emptyPanel}>선택한 군에 해당하는 WOW 레이드 기록이 없습니다.</div>
         )}
+      </div>
+    );
+  };
+
+  const renderDungeonTierGameView = () => {
+    const originalCount = wowDungeonTierItems.filter((item) => item.expansionType === "original").length;
+    const tbcCount = wowDungeonTierItems.filter((item) => item.expansionType === "tbc").length;
+    const tierBoardMeta = {
+      S: {
+        lightBoxClass: "border-red-200 bg-red-50",
+        darkBoxClass: "border-gray-900 bg-red-500",
+        lightIdTextClass: "text-red-700",
+        darkIdTextClass: "text-white",
+      },
+      A: {
+        lightBoxClass: "border-orange-100 bg-orange-50/70",
+        darkBoxClass: "border-gray-900 bg-orange-400",
+        lightIdTextClass: "text-orange-600",
+        darkIdTextClass: "text-white",
+      },
+      B: {
+        lightBoxClass: "border-amber-200 bg-amber-50",
+        darkBoxClass: "border-gray-900 bg-yellow-500",
+        lightIdTextClass: "text-amber-700",
+        darkIdTextClass: "text-white",
+      },
+      C: {
+        lightBoxClass: "border-emerald-200 bg-emerald-50",
+        darkBoxClass: "border-gray-900 bg-green-500",
+        lightIdTextClass: "text-emerald-700",
+        darkIdTextClass: "text-white",
+      },
+      D: {
+        lightBoxClass: "border-blue-200 bg-blue-50",
+        darkBoxClass: "border-gray-900 bg-blue-500",
+        lightIdTextClass: "text-blue-700",
+        darkIdTextClass: "text-white",
+      },
+      F: {
+        lightBoxClass: "border-slate-200 bg-slate-100",
+        darkBoxClass: "border-gray-900 bg-slate-600",
+        lightIdTextClass: "text-slate-700",
+        darkIdTextClass: "text-white",
+      },
+    };
+    const renderDungeonCard = (item, { currentTierId = null, compact = false } = {}) => {
+      const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
+      const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+      const isSelected = wowDungeonTierSelectedItemId === item.id;
+      const isDragging = wowDungeonTierDragItemId === item.id;
+      const itemVideoUrls = normalizeWowDungeonVideoUrls(item.videoUrls, item.videoUrl);
+      const videoCount = itemVideoUrls.length;
+      const hasVideos = videoCount > 0;
+      const beforeDropTargetKey = currentTierId ? getWowDungeonTierCardDropTargetKey(currentTierId, item.id, false) : "";
+      const afterDropTargetKey = currentTierId ? getWowDungeonTierCardDropTargetKey(currentTierId, item.id, true) : "";
+      const isDropBeforeActive = wowDungeonTierDropTarget === beforeDropTargetKey;
+      const isDropAfterActive = wowDungeonTierDropTarget === afterDropTargetKey;
+
+      if (compact) {
+        return (
+          <div
+            key={`${currentTierId || "stash"}-${item.id}`}
+            role="button"
+            tabIndex={0}
+            draggable
+            title={`${item.name} · ${expansionMeta.label} · 클릭 선택 · 더블클릭 영상 재생`}
+            onClick={() => handleSelectWowDungeonTierItem(item.id)}
+            onDoubleClick={() => handleOpenWowDungeonTierDetail(item.id)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              if (!currentTierId) return;
+              setWowDungeonTierSelectedItemId(item.id);
+              moveWowDungeonTierItem(item.id, null);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleSelectWowDungeonTierItem(item.id);
+              }
+            }}
+            onDragOver={currentTierId ? (event) => handleWowDungeonTierCardDragOver(event, currentTierId, item.id) : undefined}
+            onDrop={currentTierId ? (event) => handleWowDungeonTierCardDrop(event, currentTierId, item.id) : undefined}
+            onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
+            onDragEnd={handleWowDungeonTierDragEnd}
+            className="group relative flex w-[132px] md:w-[152px] flex-col items-center cursor-grab active:cursor-grabbing"
+          >
+            <span
+              className={`pointer-events-none absolute inset-y-1 left-[-8px] z-20 w-[4px] rounded-full transition-opacity ${
+                isDropBeforeActive
+                  ? (isLightTheme ? "bg-indigo-500 opacity-100" : "bg-indigo-300 opacity-100")
+                  : "opacity-0"
+              }`}
+            />
+            <span
+              className={`pointer-events-none absolute inset-y-1 right-[-8px] z-20 w-[4px] rounded-full transition-opacity ${
+                isDropAfterActive
+                  ? (isLightTheme ? "bg-indigo-500 opacity-100" : "bg-indigo-300 opacity-100")
+                  : "opacity-0"
+              }`}
+            />
+            <div
+              className={`relative w-full aspect-[12/9] rounded-xl border-2 flex items-center justify-center overflow-hidden shadow-lg transition-transform transform ${
+                isSelected
+                  ? (isLightTheme
+                    ? "bg-slate-100 border-indigo-400 ring-2 ring-indigo-500 ring-offset-2 ring-offset-white"
+                    : "bg-gray-700 border-indigo-300 ring-2 ring-indigo-300/70 ring-offset-2 ring-offset-gray-800")
+                  : (isLightTheme
+                    ? "bg-slate-100 border-slate-200 group-hover:border-emerald-300"
+                    : "bg-gray-700 border-gray-600 group-hover:border-green-400")
+              } ${isDragging ? "scale-95 opacity-60" : "group-hover:scale-[1.03]"}`}
+            >
+              {item.imageUrl ? (
+                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className={`w-full h-full flex items-center justify-center text-xs font-black ${expansionTheme.metaClass}`}>
+                  DUN
+                </div>
+              )}
+              <span className={`absolute left-1.5 top-1.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+                {expansionMeta.shortLabel}
+              </span>
+            </div>
+            <span className={`mt-2.5 text-xs leading-[1.15rem] font-medium px-2 py-0.5 rounded text-center break-keep w-full max-w-full transition-colors ${isLightTheme ? "text-slate-900 bg-slate-100 group-hover:text-emerald-700" : "text-white bg-gray-900/80 group-hover:text-green-400"}`}>
+              {item.name}
+            </span>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          key={`${currentTierId || "stash"}-${item.id}`}
+          role="button"
+          tabIndex={0}
+          draggable
+          onClick={() => handleSelectWowDungeonTierItem(item.id)}
+          onDoubleClick={() => handleOpenWowDungeonTierDetail(item.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleSelectWowDungeonTierItem(item.id);
+            }
+          }}
+          onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
+          onDragEnd={handleWowDungeonTierDragEnd}
+          className={`group rounded-3xl border overflow-hidden transition-all duration-300 cursor-grab active:cursor-grabbing ${
+            isSelected
+              ? (isLightTheme
+                ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-white shadow-[0_18px_36px_rgba(79,70,229,0.18)]"
+                : "ring-2 ring-indigo-300/70 ring-offset-2 ring-offset-gray-950 shadow-[0_0_28px_rgba(129,140,248,0.18)]")
+              : ""
+          } ${
+            isDragging ? "scale-[0.98] opacity-60" : "hover:-translate-y-1"
+          } ${expansionTheme.cardClass}`}
+        >
+          <div className={`relative aspect-[4/3] border-b overflow-hidden ${expansionTheme.frameClass}`}>
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center text-lg font-black ${expansionTheme.metaClass}`}>
+                DUNGEON
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/60 via-black/20 to-transparent">
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+                {expansionMeta.shortLabel}
+              </span>
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold backdrop-blur-sm ${isLightTheme ? "border-white/80 bg-white/90 text-slate-700" : "border-white/15 bg-black/40 text-gray-100"}`}>
+                {currentTierId ? `${currentTierId} 티어` : "보관함"}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-xs font-semibold ${expansionTheme.subtleClass}`}>{expansionMeta.label}</span>
+              <span className={`text-[11px] font-bold ${expansionTheme.metaClass}`}>{hasVideos ? `영상 ${videoCount}개` : "이미지 카드"}</span>
+            </div>
+            <h4 className={`mt-3 text-base font-black break-keep ${expansionTheme.titleClass}`}>{item.name}</h4>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className={`text-xs ${expansionTheme.subtleClass}`}>{currentTierId ? "배치된 카드" : "보관함 대기 카드"}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleSelectWowDungeonTierItem(item.id);
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${isSelected ? (isLightTheme ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-indigo-400/40 bg-indigo-500/15 text-indigo-100") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")}`}
+                >
+                  <CheckSquare className="w-3 h-3" />
+                  {isSelected ? "선택됨" : "선택"}
+                </button>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleOpenWowDungeonTierDetail(item.id);
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${hasVideos ? expansionTheme.buttonClass : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800")}`}
+                >
+                  <Tv className="w-3 h-3" />
+                  {hasVideos ? "재생" : "영상 없음"}
+                </button>
+                {currentTierId ? (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveWowDungeonTierItem(item.id, null);
+                    }}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-600 bg-gray-900/80 text-gray-100 hover:bg-gray-800"}`}
+                  >
+                    <ArrowLeft className="w-3 h-3" />
+                    보관함
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const renderDungeonStashCard = (item) => {
+      const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
+      const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+      const isSelected = wowDungeonTierSelectedItemId === item.id;
+      const isDragging = wowDungeonTierDragItemId === item.id;
+
+      return (
+        <div
+          key={`stash-mini-${item.id}`}
+          role="button"
+          tabIndex={0}
+          draggable
+          title={`${item.name} · ${expansionMeta.label}`}
+          onClick={() => handleSelectWowDungeonTierItem(item.id)}
+          onDoubleClick={() => handleOpenWowDungeonTierDetail(item.id)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              handleSelectWowDungeonTierItem(item.id);
+            }
+          }}
+          onDragStart={(event) => handleWowDungeonTierDragStart(event, item.id)}
+          onDragEnd={handleWowDungeonTierDragEnd}
+          className={`group rounded-2xl border p-2.5 cursor-grab active:cursor-grabbing transition-all ${
+            isSelected
+              ? (isLightTheme
+                ? "border-indigo-300 bg-indigo-50/70 ring-2 ring-indigo-400/70"
+                : "border-indigo-300/60 bg-indigo-500/10 ring-2 ring-indigo-300/60")
+              : (isLightTheme
+                ? "border-slate-200 bg-white hover:border-slate-300"
+                : "border-gray-700 bg-gray-900/80 hover:border-gray-500")
+          } ${isDragging ? "scale-95 opacity-60" : "hover:-translate-y-0.5"}`}
+        >
+          <div className={`relative aspect-square overflow-hidden rounded-xl border ${isLightTheme ? "border-slate-200 bg-slate-100" : "border-gray-700 bg-gray-800"}`}>
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center text-[11px] font-black ${expansionTheme.metaClass}`}>
+                DUN
+              </div>
+            )}
+            <span className={`absolute left-1.5 top-1.5 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-black backdrop-blur-sm ${expansionTheme.badgeClass}`}>
+              {expansionMeta.shortLabel}
+            </span>
+          </div>
+          <div className={`mt-2 text-[11px] leading-4 font-bold text-center break-keep ${publicTheme.heading}`}>
+            {item.name}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-8">
+        <div className={publicTheme.heroTier}>
+          <div className="absolute -right-6 -top-6 opacity-10 pointer-events-none">
+            <Trophy className="w-28 h-28 text-amber-300" />
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-start gap-3">
+              <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${isLightTheme ? "border-amber-200 bg-white shadow-[0_12px_24px_rgba(217,119,6,0.08)]" : "border-amber-400/30 bg-amber-500/12 shadow-[0_0_18px_rgba(251,191,36,0.12)]"}`}>
+                <Trophy className={`h-5 w-5 ${isLightTheme ? "text-amber-600" : "text-amber-300"}`} />
+              </div>
+              <div className="min-w-0">
+                <h2 className={`text-3xl md:text-4xl font-black tracking-tight ${publicTheme.heading}`}>던전 티어게임</h2>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,8fr)_minmax(280px,2fr)] gap-5 items-start">
+          <div className={`${publicTheme.surfaceCard} p-6`}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className={`text-xl font-black ${publicTheme.heading}`}>던전 티어표</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleClearSelectedWowDungeonTierItem}
+                  disabled={!wowDungeonTierSelectedItem}
+                  className={`px-3 py-2 rounded-xl border text-sm font-bold transition ${
+                    wowDungeonTierSelectedItem
+                      ? (isLightTheme
+                        ? "border-rose-200 bg-white text-rose-700 hover:bg-rose-50"
+                        : "border-rose-400/30 bg-rose-500/10 text-rose-200 hover:bg-rose-500/18")
+                      : (isLightTheme
+                        ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed"
+                        : "border-gray-700 bg-gray-900/80 text-gray-500 cursor-not-allowed")
+                  }`}
+                >
+                  선택 초기화
+                </button>
+              </div>
+            </div>
+
+            <div className={`mt-6 rounded-xl border overflow-hidden ${isLightTheme ? "bg-slate-100 border-slate-200 shadow-[0_18px_42px_rgba(15,23,42,0.08)]" : "bg-gray-900 border-gray-700"}`}>
+              <div className={`flex flex-col ${isLightTheme ? "divide-y divide-slate-200" : "divide-y divide-gray-700"}`}>
+              {WOW_DUNGEON_TIER_LEVELS.map((tier) => {
+                const tierMeta = tierBoardMeta[tier.id];
+                const tierCards = wowDungeonTierCardsByTier[tier.id] || [];
+                const isDropActive = wowDungeonTierDropTarget === `tier:${tier.id}` || wowDungeonTierDropTarget?.startsWith(`tier:${tier.id}:item:`);
+                const sidebarClass = isLightTheme ? tierMeta.lightBoxClass : tierMeta.darkBoxClass;
+                const idTextClass = isLightTheme ? tierMeta.lightIdTextClass : tierMeta.darkIdTextClass;
+
+                return (
+                  <div key={tier.id} className={`relative flex min-h-[168px] flex-col overflow-hidden md:flex-row ${isLightTheme ? "bg-white" : "bg-gray-800"}`}>
+                    <div className={`md:w-32 w-full flex-shrink-0 flex flex-col items-center justify-center p-4 border-b md:border-b-0 md:border-r shadow-inner relative z-10 overflow-hidden ${sidebarClass}`}>
+                      <span className={`text-2xl font-extrabold relative z-10 ${idTextClass}`}>{tier.id}</span>
+                    </div>
+
+                    <div
+                      onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, `tier:${tier.id}`)}
+                      onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, tier.id)}
+                      className={`flex-1 p-5 md:p-6 flex flex-wrap content-start gap-5 items-start transition ${isLightTheme ? "bg-white" : "bg-gray-800/80"} ${isDropActive ? (isLightTheme ? "ring-2 ring-indigo-400 ring-inset bg-indigo-50/70" : "ring-2 ring-indigo-300/60 ring-inset bg-indigo-500/10") : ""}`}
+                    >
+                      {tierCards.length > 0 ? tierCards.map((item) => renderDungeonCard(item, { currentTierId: tier.id, compact: true })) : (
+                        <span className={`text-sm italic p-2 ${publicTheme.emptyState}`}>해당 티어에 배치된 던전 카드 없음</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              </div>
+            </div>
+          </div>
+
+          <div className={`${publicTheme.surfaceCard} self-start p-5 flex flex-col xl:sticky xl:top-24 xl:h-[calc(100vh-7rem)]`}>
+            <div className="flex flex-col gap-3">
+              <div>
+                <h3 className={`text-lg font-black ${publicTheme.heading}`}>던전 보관함</h3>
+                <p className={`mt-2 text-xs leading-5 break-keep ${publicTheme.mutedText}`}>
+                  더블클릭으로 해당 던전의 첫 번째 영상 재생
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"}`}>
+                  오리지널 {originalCount}
+                </span>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-rose-200 bg-rose-50 text-rose-700" : "border-red-400/30 bg-red-500/10 text-red-200"}`}>
+                  불성 {tbcCount}
+                </span>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-700" : "border-gray-700 bg-gray-900/70 text-gray-100"}`}>
+                  {wowDungeonTierStashItems.length}장
+                </span>
+              </div>
+            </div>
+
+            <div
+              onDragOver={(event) => handleWowDungeonTierDropZoneDragOver(event, "stash")}
+              onDrop={(event) => handleWowDungeonTierDropZoneDrop(event, null)}
+              className={`mt-5 flex-1 min-h-0 rounded-2xl border-2 border-dashed p-3 transition ${wowDungeonTierDropTarget === "stash" ? (isLightTheme ? "border-indigo-400 bg-indigo-50/80 shadow-[0_18px_36px_rgba(79,70,229,0.12)]" : "border-indigo-300/60 bg-indigo-500/12 shadow-[0_0_26px_rgba(99,102,241,0.18)]") : (isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40")}`}
+            >
+              {wowDungeonTierStashItems.length > 0 ? (
+                <div className="h-full min-h-0 overflow-y-auto pr-1 custom-scrollbar">
+                  <div className="grid grid-cols-2 gap-3">
+                    {wowDungeonTierStashItems.map((item) => renderDungeonStashCard(item))}
+                  </div>
+                </div>
+              ) : (
+                <div className={`rounded-2xl border px-4 py-8 text-center text-sm ${isLightTheme ? "border-white/80 bg-white/80 text-slate-600" : "border-white/10 bg-black/20 text-gray-300"}`}>
+                  현재 보관함이 비어 있습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {wowDungeonTierItems.length === 0 ? (
+          <div className={`${publicTheme.surfaceCard} p-10 text-center`}>
+            <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border ${isLightTheme ? "border-slate-200 bg-white" : "border-gray-700 bg-gray-900/60"}`}>
+              <Layers className={`h-7 w-7 ${isLightTheme ? "text-slate-700" : "text-gray-200"}`} />
+            </div>
+            <h3 className={`text-xl font-black ${publicTheme.heading}`}>아직 등록된 던전이 없습니다.</h3>
+            <p className={`mt-3 text-sm leading-6 break-keep ${publicTheme.mutedText}`}>
+              관리자 WOW 설정에서 던전 이름, 이미지, 종류를 등록하면 이 화면에 바로 반영됩니다.
+            </p>
+          </div>
+        ) : null}
+
+        {wowDungeonTierDetailItem ? (() => {
+          const detailExpansionMeta = getWowDungeonExpansionMeta(wowDungeonTierDetailItem.expansionType);
+          const detailExpansionTheme = getWowDungeonExpansionTheme(wowDungeonTierDetailItem.expansionType, isLightTheme);
+          const detailLocationLabel = wowDungeonTierDetailTierId ? `${wowDungeonTierDetailTierId} 티어` : "보관함";
+          const currentVideoNumber = wowDungeonTierDetailVideoIndex + 1;
+          const totalVideoCount = wowDungeonTierDetailVideoUrls.length;
+          const canGoPrevVideo = wowDungeonTierDetailVideoIndex > 0;
+          const canGoNextVideo = wowDungeonTierDetailVideoIndex < totalVideoCount - 1;
+          const videoFallbackMessage = wowDungeonTierDetailVideoEmbedConfig.fallbackMessage
+            || "임베드가 보이지 않거나 재생이 제한되면 오른쪽 위 새 창 열기를 사용해주세요.";
+
+          return (
+            <div
+              className={`fixed inset-0 z-[170] flex items-center justify-center px-3 py-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/55" : "bg-black/85"}`}
+              onClick={handleCloseWowDungeonTierDetail}
+            >
+              <div
+                className={`w-full max-w-6xl overflow-hidden rounded-[30px] border ${isLightTheme ? "bg-white border-slate-200 shadow-[0_32px_90px_rgba(15,23,42,0.22)]" : "bg-gray-950 border-gray-700 shadow-2xl"}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className={`flex flex-col gap-4 border-b px-4 py-4 sm:px-6 ${isLightTheme ? "border-slate-200 bg-slate-50/95" : "border-gray-800 bg-gray-950/95"}`}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className={`text-xs font-black uppercase tracking-[0.24em] ${detailExpansionTheme.metaClass}`}>Dungeon Player</p>
+                      <h3 className={`mt-2 text-2xl font-black break-keep ${publicTheme.heading}`}>{wowDungeonTierDetailItem.name}</h3>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${detailExpansionTheme.badgeClass}`}>
+                          {detailExpansionMeta.label}
+                        </span>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700" : "border-gray-700 bg-gray-900 text-gray-100"}`}>
+                          현재 위치: {detailLocationLabel}
+                        </span>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700" : "border-gray-700 bg-gray-900 text-gray-100"}`}>
+                          {currentVideoNumber} / {totalVideoCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={wowDungeonTierDetailActiveVideoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`inline-flex items-center rounded-xl border px-3 py-2 text-sm font-bold transition ${detailExpansionTheme.buttonClass}`}
+                      >
+                        <Globe className="mr-2 h-4 w-4" />
+                        새 창 열기
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => copyTextToClipboard(wowDungeonTierDetailActiveVideoUrl, "현재 영상 링크를 복사했습니다.")}
+                        className={`inline-flex items-center rounded-xl border px-3 py-2 text-sm font-bold transition ${isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800"}`}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        링크 복사
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCloseWowDungeonTierDetail}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-full border transition ${isLightTheme ? "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900" : "border-gray-700 bg-gray-900 text-gray-400 hover:bg-gray-800 hover:text-white"}`}
+                        aria-label="플레이어 닫기"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 sm:p-5">
+                  <div className={`relative overflow-hidden rounded-[28px] border ${isLightTheme ? "border-slate-200 bg-slate-100" : "border-gray-800 bg-black"}`}>
+                    <div className="aspect-[16/9] w-full bg-black">
+                      {wowDungeonTierDetailVideoEmbedConfig.kind === "native" ? (
+                        <video
+                          key={`${wowDungeonTierDetailItem.id}-${wowDungeonTierDetailVideoIndex}`}
+                          src={wowDungeonTierDetailActiveVideoUrl}
+                          controls
+                          autoPlay
+                          playsInline
+                          className="h-full w-full"
+                        />
+                      ) : wowDungeonTierDetailVideoEmbedConfig.canEmbed ? (
+                        <iframe
+                          key={`${wowDungeonTierDetailItem.id}-${wowDungeonTierDetailVideoIndex}`}
+                          src={wowDungeonTierDetailVideoEmbedConfig.embedUrl}
+                          title={`${wowDungeonTierDetailItem.name} 영상 ${currentVideoNumber}`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                          className="h-full w-full"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-6 text-center">
+                          <Tv className={`h-10 w-10 ${detailExpansionTheme.metaClass}`} />
+                          <div>
+                            <p className={`text-lg font-black ${publicTheme.heading}`}>이 영상은 화면 안에서 바로 재생되지 않습니다.</p>
+                            <p className={`mt-2 text-sm leading-6 ${publicTheme.mutedText}`}>{videoFallbackMessage}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleMoveWowDungeonTierDetailVideo("prev")}
+                      disabled={!canGoPrevVideo}
+                      className={`absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border backdrop-blur-sm transition sm:left-4 sm:h-12 sm:w-12 ${canGoPrevVideo ? (isLightTheme ? "border-slate-200 bg-white/95 text-slate-800 shadow-[0_12px_24px_rgba(15,23,42,0.14)] hover:bg-white" : "border-white/10 bg-black/65 text-white hover:bg-black/80") : (isLightTheme ? "border-slate-200 bg-white/70 text-slate-300 cursor-not-allowed" : "border-white/10 bg-black/40 text-white/30 cursor-not-allowed")}`}
+                      aria-label="이전 영상"
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveWowDungeonTierDetailVideo("next")}
+                      disabled={!canGoNextVideo}
+                      className={`absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border backdrop-blur-sm transition sm:right-4 sm:h-12 sm:w-12 ${canGoNextVideo ? (isLightTheme ? "border-slate-200 bg-white/95 text-slate-800 shadow-[0_12px_24px_rgba(15,23,42,0.14)] hover:bg-white" : "border-white/10 bg-black/65 text-white hover:bg-black/80") : (isLightTheme ? "border-slate-200 bg-white/70 text-slate-300 cursor-not-allowed" : "border-white/10 bg-black/40 text-white/30 cursor-not-allowed")}`}
+                      aria-label="다음 영상"
+                    >
+                      <ArrowLeft className="h-5 w-5 rotate-180" />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className={`text-xs font-black uppercase tracking-[0.22em] ${detailExpansionTheme.metaClass}`}>
+                          {wowDungeonTierDetailVideoEmbedConfig.sourceLabel}
+                        </p>
+                        {wowDungeonTierDetailVideoEmbedConfig.openInNewTabRecommended ? (
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-black ${isLightTheme ? "border-amber-200 bg-amber-50 text-amber-700" : "border-amber-400/30 bg-amber-500/10 text-amber-200"}`}>
+                            새 창 권장
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className={`mt-2 text-sm font-bold break-all ${publicTheme.heading}`}>
+                        {wowDungeonTierDetailActiveVideoUrl}
+                      </p>
+                      <p className={`mt-2 text-xs leading-5 ${publicTheme.mutedText}`}>
+                        {videoFallbackMessage}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectWowDungeonTierItem(wowDungeonTierDetailItem.id)}
+                        className={`rounded-xl border px-3 py-2 text-sm font-bold transition ${wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? (isLightTheme ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-indigo-400/40 bg-indigo-500/15 text-indigo-100") : (isLightTheme ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50" : "border-gray-700 bg-gray-900 text-gray-100 hover:bg-gray-800")}`}
+                      >
+                        {wowDungeonTierSelectedItemId === wowDungeonTierDetailItem.id ? "현재 선택된 카드" : "이 카드 선택"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })() : null}
+
       </div>
     );
   };
@@ -4675,86 +6902,86 @@ export default function App() {
 
     return (
       <div className="space-y-8">
-        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 rounded-2xl p-8 shadow-xl border border-blue-500/30 relative overflow-hidden">
+        <div className={wowTheme.hero}>
           <div className="absolute top-0 right-0 opacity-10 transform translate-x-1/4 -translate-y-1/4 pointer-events-none">
-            <Shield className="w-64 h-64 text-blue-300" />
+            <Shield className={`w-64 h-64 ${isLightTheme ? "text-blue-500" : "text-blue-300"}`} />
           </div>
           <div className="relative z-10">
-            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-purple-300 mb-3 flex items-center drop-shadow-md">
-              <Shield className="w-8 h-8 mr-3 text-blue-400" /> 월드 오브 워크래프트 x 버츄얼 종겜 리그
+            <h2 className={wowTheme.heroTitle}>
+              <Shield className={`w-8 h-8 mr-3 ${isLightTheme ? "text-blue-600" : "text-blue-400"}`} /> 월드 오브 워크래프트 x 버츄얼 종겜 리그
             </h2>
-            <p className="text-blue-100 text-lg leading-relaxed max-w-2xl font-medium shadow-sm">
-              왁타버스 길드에 가입하여 피나는 노력 끝에 <strong className="text-yellow-400 font-black text-xl px-1">레벨 40</strong>을 달성한 자만이 
+            <p className={wowTheme.heroBody}>
+              왁타버스 길드에 가입하여 피나는 노력 끝에 <strong className={`font-black text-xl px-1 ${isLightTheme ? "text-amber-600" : "text-yellow-400"}`}>레벨 40</strong>을 달성한 자만이
               <br/>종겜 리그의 공식 참가권을 얻을 수 있습니다! 과연 누가 가장 먼저 합류할까요?
             </p>
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 shadow-lg p-6 relative overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-yellow-500"></div>
-          <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center">
+        <div className={wowTheme.noticeCard}>
+          <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${wowTheme.noticeBar}`}></div>
+          <h3 className={`text-xl font-bold mb-4 flex items-center ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>
             <Ticket className="w-6 h-6 mr-2" /> '종겜 리그 참가권'에 대한 정확한 안내
           </h3>
-          <div className="space-y-3 text-gray-300 text-lg leading-relaxed">
-            <p><strong className="text-white">✅ 확정 참가가 아닙니다:</strong> 40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가 권리'를 의미하지 않습니다.</p>
-            <p><strong className="text-white">✅ 핀볼 추첨 자격 획득:</strong> 왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className="text-blue-300 font-bold">"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className="text-white font-bold">해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
-            <div className="mt-5 pt-4 border-t border-gray-700">
-              <p className="text-base text-gray-400">단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 관리자가 되겠습니다. </p>
+          <div className={`space-y-3 text-lg leading-relaxed ${wowTheme.bodyText}`}>
+            <p><strong className={wowTheme.heading}>✅ 확정 참가가 아닙니다:</strong> 40레벨 달성 시 부여되는 뱃지는 버츄얼 종겜 리그의 '확정 참가 권리'를 의미하지 않습니다.</p>
+            <p><strong className={wowTheme.heading}>✅ 핀볼 추첨 자격 획득:</strong> 왁굳님의 '와우 로드맵 2.0' 내용에 따라, 추후 종겜 리그에서 <strong className={isLightTheme ? "text-blue-700 font-bold" : "text-blue-300 font-bold"}>"와튜버 한 자리 보장"</strong> 룰이 적용되어 참가자를 뽑을 때 <strong className={`${wowTheme.heading} font-bold`}>해당 핀볼(룰렛) 추첨 명단에 들어갈 수 있는 자격</strong>을 의미합니다.</p>
+            <div className={`mt-5 pt-4 border-t ${isLightTheme ? "border-slate-200" : "border-gray-700"}`}>
+              <p className={`text-base ${wowTheme.mutedText}`}>단어 선택으로 인해 마치 '확정 참가'인 것처럼 오해를 불러일으킨 점, 팬 여러분께 깊은 사과의 말씀을 드립니다. 앞으로 더욱 정확하게 안내하는 관리자가 되겠습니다. </p>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
+          <div className={wowTheme.statCard}>
             <div>
-              <h3 className="text-lg font-bold text-white mb-1 flex items-center">
-                <Ticket className="w-5 h-5 mr-2 text-yellow-400"/> 참가권 획득 진척도
+              <h3 className={`text-lg font-bold mb-1 flex items-center ${wowTheme.heading}`}>
+                <Ticket className={`w-5 h-5 mr-2 ${isLightTheme ? "text-amber-600" : "text-yellow-400"}`}/> 참가권 획득 진척도
               </h3>
-              <p className="text-sm text-gray-400 mb-4">레벨 40 이상 달성자 비율</p>
+              <p className={`text-sm mb-4 ${wowTheme.mutedText}`}>레벨 40 이상 달성자 비율</p>
             </div>
             <div>
               <div className="flex justify-between items-end mb-2">
-                <span className="text-3xl font-black text-yellow-400">{qualifiedCount}<span className="text-lg text-gray-500 font-bold"> / {totalWowMembers}명</span></span>
-                <span className="text-lg font-bold text-white">{qualifyPercent}%</span>
+                <span className={`text-3xl font-black ${isLightTheme ? "text-amber-600" : "text-yellow-400"}`}>{qualifiedCount}<span className={`text-lg font-bold ${wowTheme.faintText}`}> / {totalWowMembers}명</span></span>
+                <span className={`text-lg font-bold ${wowTheme.heading}`}>{qualifyPercent}%</span>
               </div>
-              <div className="w-full bg-gray-900 rounded-full h-4 border border-gray-700 overflow-hidden">
+              <div className={`w-full rounded-full h-4 overflow-hidden ${isLightTheme ? "bg-slate-100 border border-slate-200" : "bg-gray-900 border border-gray-700"}`}>
                 <div className="bg-gradient-to-r from-yellow-600 to-yellow-400 h-4 rounded-full transition-all duration-1000" style={{ width: `${qualifyPercent}%` }}></div>
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
+          <div className={wowTheme.statCard}>
             <div>
-              <h3 className="text-lg font-bold text-white mb-1 flex items-center">
+              <h3 className={`text-lg font-bold mb-1 flex items-center ${wowTheme.heading}`}>
                 <Swords className="w-5 h-5 mr-2 text-red-400"/> 길드 전투력 요약
               </h3>
-              <p className="text-sm text-gray-400 mb-4">평균 레벨 및 최상위 선발대</p>
+              <p className={`text-sm mb-4 ${wowTheme.mutedText}`}>평균 레벨 및 최상위 선발대</p>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-xs text-gray-500 font-bold mb-1">길드 평균 레벨</span>
-                <span className="text-3xl font-black text-white">Lv. {avgLevel}</span>
+                <span className={`text-xs font-bold mb-1 ${wowTheme.faintText}`}>길드 평균 레벨</span>
+                <span className={`text-3xl font-black ${wowTheme.heading}`}>Lv. {avgLevel}</span>
               </div>
               <div className="flex -space-x-3 overflow-hidden">
                 {top5Wow.map((m, i) => (
-                  <div key={i} className="relative z-10 inline-block h-12 w-12 rounded-full ring-2 ring-gray-800" title={`${m.streamerName} (Lv.${m.level})`}>
-                    <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} alt={m.streamerName} className="h-full w-full rounded-full object-cover bg-gray-900" />
-                    <div className="absolute -bottom-1 -right-1 bg-yellow-500 text-black text-[10px] font-black px-1.5 rounded-full border border-gray-800">{m.level}</div>
+                  <div key={i} className={`relative z-10 inline-block h-12 w-12 rounded-full ring-2 ${isLightTheme ? "ring-white" : "ring-gray-800"}`} title={`${m.streamerName} (Lv.${m.level})`}>
+                    <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} alt={m.streamerName} className={`h-full w-full rounded-full object-cover ${isLightTheme ? "bg-slate-100" : "bg-gray-900"}`} />
+                    <div className={`absolute -bottom-1 -right-1 text-[10px] font-black px-1.5 rounded-full ${isLightTheme ? "bg-amber-500 text-white border border-white" : "bg-yellow-500 text-black border border-gray-800"}`}>{m.level}</div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg flex flex-col justify-between">
+          <div className={wowTheme.statCard}>
             <div>
-              <h3 className="text-lg font-bold text-white mb-1 flex items-center">
-                <PieChart className="w-5 h-5 mr-2 text-blue-400"/> 직업 분포도
+              <h3 className={`text-lg font-bold mb-1 flex items-center ${wowTheme.heading}`}>
+                <PieChart className={`w-5 h-5 mr-2 ${isLightTheme ? "text-blue-600" : "text-blue-400"}`}/> 직업 분포도
               </h3>
-              <p className="text-sm text-gray-400 mb-4">길드 내 전체 직업 비율</p>
+              <p className={`text-sm mb-4 ${wowTheme.mutedText}`}>길드 내 전체 직업 비율</p>
             </div>
             <div>
-              <div className="flex h-4 rounded-full overflow-hidden mb-3 border border-gray-700 bg-gray-900">
+              <div className={`flex h-4 rounded-full overflow-hidden mb-3 ${isLightTheme ? "border border-slate-200 bg-slate-100" : "border border-gray-700 bg-gray-900"}`}>
                 {allClasses.map((cls, i) => {
                   const pct = totalWowMembers === 0 ? 0 : (cls[1] / totalWowMembers) * 100;
                   const bgColor = WOW_CLASS_COLORS[cls[0]] || fallbackColors[i % fallbackColors.length];
@@ -4765,9 +6992,9 @@ export default function App() {
                 {allClasses.map((cls, i) => {
                   const bgColor = WOW_CLASS_COLORS[cls[0]] || fallbackColors[i % fallbackColors.length];
                   return (
-                    <div key={i} className="flex items-center text-gray-300 font-medium">
-                      <span className="w-2.5 h-2.5 rounded-full mr-1.5 border border-gray-600/50" style={{ backgroundColor: bgColor }}></span>
-                      {cls[0]} <span className="text-gray-500 ml-1">({cls[1]})</span>
+                    <div key={i} className={`flex items-center font-medium ${wowTheme.bodyText}`}>
+                      <span className={`w-2.5 h-2.5 rounded-full mr-1.5 ${isLightTheme ? "border border-white" : "border border-gray-600/50"}`} style={{ backgroundColor: bgColor }}></span>
+                      {cls[0]} <span className={`ml-1 ${wowTheme.faintText}`}>({cls[1]})</span>
                     </div>
                   );
                 })}
@@ -4776,62 +7003,62 @@ export default function App() {
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8 transition-all duration-300">
+        <div className={wowTheme.faqCard}>
           <button
             onClick={() => setIsWowFaqOpen(!isWowFaqOpen)}
-            className="w-full p-5 flex items-center justify-between bg-gray-800 hover:bg-gray-700/80 transition-colors outline-none"
+            className={wowTheme.faqToggle}
           >
-            <div className="flex items-center text-blue-300 font-bold text-lg">
+            <div className={`flex items-center font-bold text-lg ${isLightTheme ? "text-blue-700" : "text-blue-300"}`}>
               <Activity className="w-5 h-5 mr-2" />
               🕒 캐릭터 레벨은 언제 업데이트되나요?
             </div>
             {isWowFaqOpen ? (
-              <ChevronUp className="w-5 h-5 text-gray-400" />
+              <ChevronUp className={`w-5 h-5 ${wowTheme.mutedText}`} />
             ) : (
-              <ChevronDown className="w-5 h-5 text-gray-400" />
+              <ChevronDown className={`w-5 h-5 ${wowTheme.mutedText}`} />
             )}
           </button>
 
           {isWowFaqOpen && (
-            <div className="p-6 pt-2 border-t border-gray-700/50 bg-gray-800/50 animate-in fade-in slide-in-from-top-2">
-              <div className="space-y-6 text-gray-300 leading-relaxed text-sm md:text-base">
+            <div className={wowTheme.faqExpandedPanel}>
+              <div className={wowTheme.faqExpandedContent}>
                 <div>
-                  <h4 className="font-bold text-white mb-2 flex items-center">
+                  <h4 className={`font-bold mb-2 flex items-center ${wowTheme.heading}`}>
                     💡 갱신 기준 시간
                   </h4>
-                  <p className="pl-6 text-gray-400">
-                    캐릭터들의 레벨 최신화 시점은 화면 좌측 최상단 바에 표시되는 <strong className="text-blue-300">최근 갱신 시각</strong>을 기준으로 합니다.
+                  <p className={`pl-6 ${wowTheme.mutedText}`}>
+                    캐릭터들의 레벨 최신화 시점은 화면 좌측 최상단 바에 표시되는 <strong className={isLightTheme ? "text-blue-700" : "text-blue-300"}>최근 갱신 시각</strong>을 기준으로 합니다.
                   </p>
                 </div>
                 
                 <div>
-                  <h4 className="font-bold text-white mb-2 flex items-center">
-                    🛠️ 업데이트 방식 <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded ml-2 font-medium">100% 수동 작업</span>
+                  <h4 className={`font-bold mb-2 flex items-center ${wowTheme.heading}`}>
+                    🛠️ 업데이트 방식 <span className={`text-xs px-2 py-0.5 rounded ml-2 font-medium ${isLightTheme ? "bg-slate-100 text-slate-600" : "bg-gray-700 text-gray-300"}`}>100% 수동 작업</span>
                   </h4>
-                  <p className="pl-6 text-gray-400 mb-2 break-keep">
+                  <p className={`pl-6 mb-2 break-keep ${wowTheme.mutedText}`}>
                     현재 레벨 갱신은 게임 시스템과의 자동 연동이 어려워, 부득이하게 아래와 같은 방법으로 관리자가 직접 수동으로 업데이트하고 있습니다.
                   </p>
-                  <ul className="pl-8 list-decimal text-gray-400 space-y-1.5 marker:font-bold marker:text-blue-400/50">
+                  <ul className={`pl-8 list-decimal space-y-1.5 marker:font-bold ${wowTheme.mutedText} ${isLightTheme ? "marker:text-blue-500/60" : "marker:text-blue-400/50"}`}>
                     <li>관리자가 직접 '월드 오브 워크래프트' 게임 내에 접속하여 길드창 확인</li>
                     <li>왁굳님 및 참가 스트리머분들의 생방송 화면을 실시간으로 모니터링하여 확인</li>
                   </ul>
                 </div>
 
                 <div>
-                  <h4 className="font-bold text-white mb-2 flex items-center">
+                  <h4 className={`font-bold mb-2 flex items-center ${wowTheme.heading}`}>
                     ⏱️ 업데이트 주기
                   </h4>
-                  <p className="pl-6 text-gray-400 break-keep">
-                    평소에는 관리자가 여유가 생길 때마다 틈틈이 갱신 작업을 진행하고 있습니다. 다만, 중요한 컨텐츠나 이벤트가 시작되기 직전에는 작업의 우선순위를 가장 높여 <strong className="text-white">최대한 실시간에 가깝게 반영</strong>하려 노력 중입니다.
+                  <p className={`pl-6 break-keep ${wowTheme.mutedText}`}>
+                    평소에는 관리자가 여유가 생길 때마다 틈틈이 갱신 작업을 진행하고 있습니다. 다만, 중요한 컨텐츠나 이벤트가 시작되기 직전에는 작업의 우선순위를 가장 높여 <strong className={wowTheme.heading}>최대한 실시간에 가깝게 반영</strong>하려 노력 중입니다.
                   </p>
                 </div>
 
-                <div className="bg-gray-900/60 p-5 rounded-lg border border-gray-700/50 mt-4 relative overflow-hidden">
+                <div className={wowTheme.faqNote}>
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-yellow-500"></div>
-                  <h4 className="font-bold text-yellow-400 mb-2 flex items-center text-lg">
+                  <h4 className={`font-bold mb-2 flex items-center text-lg ${isLightTheme ? "text-amber-700" : "text-yellow-400"}`}>
                     🙇‍♂️ 팬 여러분께 드리는 말씀
                   </h4>
-                  <p className="text-gray-300 text-base break-keep">
+                  <p className={`text-base break-keep ${wowTheme.bodyText}`}>
                     모든 분들의 레벨을 완벽한 실시간으로 반영하기에는 물리적인 어려움이 따르는 점, 팬 여러분들의 너른 양해를 부탁드립니다. 조금 느리더라도 확실하게, 늘 더 노력하는 관리자가 되겠습니다! 감사합니다.
                   </p>
                 </div>
@@ -4840,24 +7067,24 @@ export default function App() {
           )}
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg mt-8">
-          <div className="p-5 border-b border-gray-700 bg-gray-800/50 flex flex-col gap-4 relative">
+        <div className={wowTheme.panel}>
+          <div className={wowTheme.panelHeader}>
             
             {/* 상단: 제목, 버튼, 검색창 */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
               <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-                <h3 className="text-xl font-bold text-white flex items-center">
+                <h3 className={`text-xl font-bold flex items-center ${wowTheme.heading}`}>
                   <Users className="w-6 h-6 mr-2 text-blue-400" /> 왁타버스 길드 버튜버 명단
                 </h3>
                 <button
                   onClick={handleCopyWowApplicantList}
-                  className="bg-gray-700/35 text-emerald-300 hover:bg-emerald-600/15 hover:text-emerald-200 border border-transparent hover:border-emerald-500/25 px-3 py-1.5 rounded-lg text-sm font-semibold transition flex items-center whitespace-nowrap"
+                  className={wowTheme.actionCopyButton}
                 >
                   📋 버종리 신청 명단 복사하기
                 </button>
                 <button
                   onClick={() => navigateTo("raid")}
-                  className="relative overflow-hidden bg-gradient-to-r from-fuchsia-600 via-violet-600 to-indigo-600 text-white border border-fuchsia-300/25 hover:from-fuchsia-500 hover:via-violet-500 hover:to-indigo-500 px-3.5 py-1.5 rounded-lg text-sm font-black transition-all duration-200 flex items-center shadow-[0_0_28px_rgba(168,85,247,0.28)] hover:shadow-[0_0_36px_rgba(168,85,247,0.38)] whitespace-nowrap"
+                  className={wowTheme.actionRaidButton}
                 >
                   <span className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-white/5 opacity-90 transition"></span>
                   <span className="relative flex items-center">
@@ -4869,16 +7096,16 @@ export default function App() {
                   href="https://wowak-3edc9.web.app/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-cyan-600/5 text-cyan-300 border border-cyan-500/45 hover:bg-cyan-500/20 hover:border-cyan-300 hover:text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center whitespace-nowrap"
+                  className={wowTheme.actionExternalLink}
                 >
                   <Link2 className="w-4 h-4 mr-1.5" />
                   템 세팅 보러가기
                 </a>
               </div>
               
-              <div className="relative flex items-center w-full md:w-auto bg-gray-900 rounded-lg border border-gray-600 p-1 shadow-inner z-20 mt-2 md:mt-0">
+              <div className={wowTheme.searchShell}>
                 <div className="flex items-center px-2.5">
-                  <Search className="w-4 h-4 text-gray-400" />
+                  <Search className={`w-4 h-4 ${wowTheme.mutedText}`} />
                 </div>
                 <input
                   type="text"
@@ -4888,46 +7115,46 @@ export default function App() {
                   onBlur={() => setTimeout(() => setShowWowSearchDropdown(false), 200)}
                   onKeyDown={(e) => { if(e.key === 'Enter') handleWowSearchNext(); }}
                   placeholder="스트리머, 직업, 특성 찾기..."
-                  className="w-full md:w-48 bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1.5"
+                  className={wowTheme.searchInput}
                 />
                 {wowSearchResults.length > 0 && wowSearchInput && (
-                  <span className="text-[10px] text-gray-500 px-2 font-bold whitespace-nowrap select-none">
+                  <span className={`text-[10px] px-2 font-bold whitespace-nowrap select-none ${wowTheme.faintText}`}>
                     {currentWowSearchIndex + 1}/{wowSearchResults.length}
                   </span>
                 )}
-                <div className="flex border-l border-gray-700 pl-1 ml-1 select-none">
-                   <button onClick={handleWowSearchPrev} className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition">
+                <div className={`flex pl-1 ml-1 select-none ${isLightTheme ? "border-l border-slate-200" : "border-l border-gray-700"}`}>
+                   <button onClick={handleWowSearchPrev} className={`p-1 rounded transition ${isLightTheme ? "text-slate-400 hover:text-blue-600 hover:bg-slate-100" : "text-gray-400 hover:text-blue-400 hover:bg-gray-800"}`}>
                      <ChevronUp className="w-4 h-4" />
                    </button>
-                   <button onClick={handleWowSearchNext} className="p-1 text-gray-400 hover:text-blue-400 hover:bg-gray-800 rounded transition">
+                   <button onClick={handleWowSearchNext} className={`p-1 rounded transition ${isLightTheme ? "text-slate-400 hover:text-blue-600 hover:bg-slate-100" : "text-gray-400 hover:text-blue-400 hover:bg-gray-800"}`}>
                      <ChevronDown className="w-4 h-4" />
                    </button>
                 </div>
 
                 {showWowSearchDropdown && wowSearchResults.length > 0 && (
-                  <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl overflow-hidden custom-scrollbar max-h-60 z-50">
+                  <div className={wowTheme.dropdown}>
                     {wowSearchResults.map((m) => (
                       <div
                         key={m.id}
                         onClick={() => handleWowSearchSelect(m)}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700/50 last:border-0 transition"
+                        className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b last:border-0 transition ${isLightTheme ? "hover:bg-slate-50 border-slate-200" : "hover:bg-gray-700 border-gray-700/50"}`}
                       >
-                        <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} className="w-8 h-8 rounded-full object-cover bg-gray-900 border border-gray-600" alt="avatar"/>
+                        <img src={getWowAvatarSrc(m)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${m.streamerName}`; }} className={`w-8 h-8 rounded-full object-cover ${isLightTheme ? "bg-slate-100 border border-slate-200" : "bg-gray-900 border border-gray-600"}`} alt="avatar"/>
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-white leading-tight">{m.streamerName}</span>
+                          <span className={`text-sm font-bold leading-tight ${wowTheme.heading}`}>{m.streamerName}</span>
                           <div className="flex items-center mt-0.5">
-                            <span className="text-xs font-bold" style={{ color: WOW_CLASS_COLORS[m.jobClass] || "#94a3b8" }}>{m.jobClass}</span>
-                            <span className="text-gray-500 mx-1 text-[10px]">|</span> 
-                            <span className="text-xs text-blue-400">{m.wowNickname}</span>
+                            <span className="text-xs font-bold" style={getJobBadgeStyle(m.jobClass, isLightTheme)}>{m.jobClass}</span>
+                            <span className={`mx-1 text-[10px] ${wowTheme.faintText}`}>|</span>
+                            <span className={`text-xs ${isLightTheme ? "text-blue-600" : "text-blue-400"}`}>{m.wowNickname}</span>
                           </div>
                         </div>
-                        <span className="ml-auto text-xs font-black text-yellow-500">Lv.{m.level}</span>
+                        <span className={`ml-auto text-xs font-black ${isLightTheme ? "text-amber-600" : "text-yellow-500"}`}>Lv.{m.level}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {showWowSearchDropdown && wowSearchInput && wowSearchResults.length === 0 && (
-                   <div className="absolute top-full right-0 mt-2 w-full md:w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-2xl p-4 text-center text-sm text-gray-400 z-50">
+                   <div className={`${wowTheme.dropdown} p-4 text-center text-sm ${wowTheme.mutedText}`}>
                      검색 결과가 없습니다.
                    </div>
                 )}
@@ -4942,8 +7169,10 @@ export default function App() {
 
                 const isSelected = selectedJobFilter === job;
                 const baseStyle = job === "전체"
-                  ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
-                  : getJobBadgeStyle(job);
+                  ? (isLightTheme
+                    ? { color: '#475569', backgroundColor: 'rgba(248, 250, 252, 1)', borderColor: 'rgba(203, 213, 225, 1)' }
+                    : { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' })
+                  : getJobBadgeStyle(job, isLightTheme);
 
                 return (
                   <button
@@ -4951,19 +7180,21 @@ export default function App() {
                     onClick={() => handleJobFilterClick(job)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border transition-all whitespace-nowrap flex-shrink-0 active:scale-95 ${
                       isSelected
-                        ? 'ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.2)] transform scale-105'
+                        ? isLightTheme
+                          ? 'ring-2 ring-slate-900/10 shadow-[0_16px_32px_rgba(15,23,42,0.12)] transform scale-105'
+                          : 'ring-2 ring-white shadow-[0_0_12px_rgba(255,255,255,0.2)] transform scale-105'
                         : 'opacity-60 hover:opacity-100 hover:scale-105'
                     }`}
                     style={{
                       ...baseStyle,
                       backgroundColor: isSelected ? baseStyle.color : baseStyle.backgroundColor,
-                      color: isSelected ? '#000' : baseStyle.color,
+                      color: isSelected ? (isLightTheme ? '#ffffff' : '#000') : baseStyle.color,
                       borderColor: isSelected ? 'transparent' : baseStyle.borderColor,
                     }}
                   >
                     {job}
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${
-                      isSelected ? 'bg-black/30 text-white' : 'bg-gray-900 text-gray-300'
+                      isSelected ? (isLightTheme ? 'bg-white/20 text-white' : 'bg-black/30 text-white') : (isLightTheme ? 'bg-slate-100 text-slate-600' : 'bg-gray-900 text-gray-300')
                     }`}>
                       {count}
                     </span>
@@ -4973,15 +7204,15 @@ export default function App() {
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
-              <div className="text-xs font-black text-gray-400">특성</div>
+              <div className={`text-xs font-black ${wowTheme.mutedText}`}>특성</div>
               {selectedJobFilter === "전체" ? (
-                <div className="text-xs text-gray-500">직업을 선택하면 해당 직업의 특성 필터가 열립니다.</div>
+                <div className={`text-xs ${wowTheme.faintText}`}>직업을 선택하면 해당 직업의 특성 필터가 열립니다.</div>
               ) : (
                 <div className="flex flex-wrap gap-2 items-center">
                   <button
                     type="button"
                     onClick={() => handleWowSpecFilterToggle("전체")}
-                    className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${selectedWowSpecFilters.includes("전체") ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${selectedWowSpecFilters.includes("전체") ? wowSpecTagClass : wowTheme.filterInactive}`}
                   >
                     전체
                   </button>
@@ -4992,7 +7223,7 @@ export default function App() {
                         key={spec}
                         type="button"
                         onClick={() => handleWowSpecFilterToggle(spec)}
-                        className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                        className={`px-3 py-1.5 rounded-md text-sm font-black border transition whitespace-nowrap ${isSelected ? wowSpecTagClass : wowTheme.filterInactive}`}
                       >
                         {spec}
                       </button>
@@ -5003,7 +7234,7 @@ export default function App() {
             </div>
 
             <div className="flex flex-col gap-2 pt-1">
-              <div className="text-xs font-black text-gray-400">선호 포지션</div>
+              <div className={`text-xs font-black ${wowTheme.mutedText}`}>선호 포지션</div>
               <div className="flex overflow-x-auto gap-2 custom-scrollbar w-full items-center" style={{ scrollbarWidth: 'thin' }}>
                 {wowPositionStats.orderedIds.map((positionId) => {
                   const meta = getWowPositionMeta(positionId);
@@ -5013,10 +7244,10 @@ export default function App() {
                     <button
                       key={positionId}
                       onClick={() => handleWowPositionFilterToggle(positionId)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap flex-shrink-0 ${getWowPositionFilterButtonClasses(positionId, isSelected)}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap flex-shrink-0 ${getWowPositionFilterButtonClasses(positionId, isSelected, isLightTheme)}`}
                     >
                       {meta?.label}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${getWowPositionCountClasses(positionId, isSelected)}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-black ${getWowPositionCountClasses(positionId, isSelected, isLightTheme)}`}>
                         {count}
                       </span>
                     </button>
@@ -5026,16 +7257,16 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
-              <div className="text-xs font-black text-gray-400">신청 상태</div>
+              <div className={`text-xs font-black ${wowTheme.mutedText}`}>신청 상태</div>
               <button
                 onClick={() => setShowWowRaidApplicantsOnly((prev) => !prev)}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap ${showWowRaidApplicantsOnly ? "bg-cyan-500/15 text-cyan-200 border-cyan-400/60 shadow-[0_0_12px_rgba(34,211,238,0.12)]" : "bg-gray-900 text-gray-300 border-gray-700 hover:border-gray-500 hover:text-white"}`}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-black border transition whitespace-nowrap ${showWowRaidApplicantsOnly ? wowTheme.filterActive : wowTheme.filterInactive}`}
               >
-                <Shield className={`w-4 h-4 ${showWowRaidApplicantsOnly ? "text-cyan-300" : "text-gray-400"}`} />
+                <Shield className={`w-4 h-4 ${showWowRaidApplicantsOnly ? (isLightTheme ? "text-cyan-600" : "text-cyan-300") : (isLightTheme ? "text-slate-400" : "text-gray-400")}`} />
                 레이드 신청자만 보기
               </button>
               {showWowRaidApplicantsOnly && (
-                <span className="text-xs font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-400/30 rounded-full px-2.5 py-1 whitespace-nowrap">
+                <span className={`text-xs font-bold rounded-full px-2.5 py-1 whitespace-nowrap ${isLightTheme ? "text-cyan-700 bg-cyan-50 border border-cyan-200" : "text-cyan-300 bg-cyan-500/10 border border-cyan-400/30"}`}>
                   레이드 신청자만 보는 중
                 </span>
               )}
@@ -5044,22 +7275,22 @@ export default function App() {
           
           <div className="overflow-x-auto min-h-[300px]">
             <table className="w-full text-base text-left">
-              <thead className="text-sm text-gray-400 bg-gray-900 uppercase">
+              <thead className={wowTheme.tableHead}>
                 <tr>
                   <th scope="col" className="px-6 py-5 rounded-tl-lg text-center">번호</th>
                   <th scope="col" className="px-6 py-5">프로필</th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('streamerName')}>
+                  <th scope="col" className={`px-6 py-5 ${wowTheme.tableHeadHover}`} onClick={() => requestWowSort('streamerName')}>
                     <div className="flex items-center">스트리머명 <WowSortIcon columnKey="streamerName" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('wowNickname')}>
+                  <th scope="col" className={`px-6 py-5 ${wowTheme.tableHeadHover}`} onClick={() => requestWowSort('wowNickname')}>
                     <div className="flex items-center">와우 닉네임 <WowSortIcon columnKey="wowNickname" /></div>
                   </th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition" onClick={() => requestWowSort('jobClass')}>
+                  <th scope="col" className={`px-6 py-5 ${wowTheme.tableHeadHover}`} onClick={() => requestWowSort('jobClass')}>
                     <div className="flex items-center">직업 <WowSortIcon columnKey="jobClass" /></div>
                   </th>
                   <th scope="col" className="px-6 py-5 text-center">특성</th>
                   <th scope="col" className="px-6 py-5 text-center">선호 포지션</th>
-                  <th scope="col" className="px-6 py-5 cursor-pointer group select-none hover:bg-gray-800 transition rounded-tr-lg" onClick={() => requestWowSort('level')}>
+                  <th scope="col" className={`px-6 py-5 rounded-tr-lg ${wowTheme.tableHeadHover}`} onClick={() => requestWowSort('level')}>
                     <div className="flex items-center justify-end">현재 레벨 <WowSortIcon columnKey="level" /></div>
                   </th>
                 </tr>
@@ -5067,7 +7298,9 @@ export default function App() {
               <tbody>
                 {sortedWowRoster.length > 0 ? (
                   sortedWowRoster.map((member, idx) => {
-                    const isQualified = member.level >= 40;     
+                    const isQualified = member.level >= 40;
+                    const hasWowPartnerStatus = isWowPartnerMember(member);
+                    const wowPartnerLabel = getWowPartnerDisplayLabel(member);
 
                     return (
                       <tr 
@@ -5075,39 +7308,39 @@ export default function App() {
                         key={member.id} 
                         className={`border-b transition-all duration-500 ${
                           highlightedWowMemberId === member.id 
-                            ? 'bg-purple-800/40 border-purple-500 shadow-[inset_0_0_15px_rgba(168,85,247,0.3)]' 
+                            ? wowTheme.highlightedRow
                             : isQualified 
-                              ? 'bg-yellow-900/10 hover:bg-yellow-900/20 border-gray-700' 
-                              : 'hover:bg-gray-700/50 border-gray-700'
+                              ? wowTheme.qualifiedRow
+                              : wowTheme.defaultRow
                         }`}
                       >
-                        <td className="px-6 py-5 text-center font-bold text-gray-400 text-lg">
+                        <td className={`px-6 py-5 text-center font-bold text-lg ${wowTheme.mutedText} ${isQualified && isLightTheme ? "border-l-4 border-amber-400" : ""}`}>
                           {idx + 1}
                         </td>
                         <td className="px-6 py-5">
                           <div className="group relative flex flex-col items-center justify-center w-fit mx-auto md:mx-0 cursor-help z-10">
                             <div className="relative w-12 h-12 flex-shrink-0">
-                              {member.isWowPartner ? (
+                              {hasWowPartnerStatus ? (
                                 <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2.5px] shadow-[0_0_15px_rgba(250,204,21,0.5)]">
-                                  <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
+                                  <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-full h-full rounded-full object-cover border-[1.5px] ${isLightTheme ? "border-white bg-white" : "border-gray-900 bg-gray-900"}`} />
                                 </div>
                               ) : (
-                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-full h-full rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : 'border-gray-600'}`} />
+                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-full h-full rounded-full object-cover border-2 ${isQualified ? 'border-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.4)]' : isLightTheme ? 'border-slate-200 bg-white' : 'border-gray-600'}`} />
                               )}
-                              {member.isWowPartner && (
+                              {hasWowPartnerStatus && (
                                 <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-1 shadow-xl border border-yellow-500/50 z-10">
                                   <Crown className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400 drop-shadow-[0_0_3px_rgba(250,204,21,0.8)]" />
                                 </div>
                               )}
                             </div>
 
-                            {member.isWowPartner && (
+                            {hasWowPartnerStatus && (
                               <span className="mt-1.5 text-[11px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest drop-shadow-md select-none whitespace-nowrap">
-                                와트너
+                                {wowPartnerLabel}
                               </span>
                             )}
 
-                            {member.isWowPartner && (
+                            {hasWowPartnerStatus && (
                               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-max max-w-[220px] opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none z-[100] transform translate-y-2 group-hover:translate-y-0">
                                 <div className="bg-gradient-to-b from-gray-900 to-black border border-yellow-500/40 rounded-xl p-3.5 shadow-[0_10px_30px_rgba(250,204,21,0.3)] flex flex-col items-center text-center relative overflow-hidden">
                                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-yellow-500/10 via-transparent to-transparent opacity-50"></div>
@@ -5122,29 +7355,29 @@ export default function App() {
 
                           </div>
                         </td>
-                        <td className={`px-6 py-5 font-bold text-lg ${isQualified ? 'text-yellow-100' : 'text-white'}`}>
+                        <td className={`px-6 py-5 font-bold text-lg ${isQualified ? (isLightTheme ? 'text-slate-900' : 'text-yellow-100') : wowTheme.heading}`}>
                           <div className="flex flex-col items-start gap-1">
                             <span>{member.streamerName}</span>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {isQualified && member.isApplied && (
-                                <span className="bg-green-900/60 text-green-400 border border-green-500/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap ${isLightTheme ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-green-900/60 text-green-400 border border-green-500/30"}`}>
                                   ✅ 버종리 신청 완료
                                 </span>
                               )}
                               {member.isRaidApplied && (
-                                <span className="bg-cyan-900/60 text-cyan-300 border border-cyan-400/30 text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap">
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded flex items-center whitespace-nowrap ${isLightTheme ? "bg-cyan-50 text-cyan-700 border border-cyan-200" : "bg-cyan-900/60 text-cyan-300 border border-cyan-400/30"}`}>
                                   ⚔️ 줄구룹 신청완료
                                 </span>
                               )}                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-5 text-blue-300 font-medium text-lg">
+                        <td className={`px-6 py-5 font-medium text-lg ${isLightTheme ? "text-blue-600" : "text-blue-300"}`}>
                           {member.wowNickname}
                         </td>
                         <td className="px-6 py-5">
                           <span 
-                            style={getJobBadgeStyle(member.jobClass)} 
-                            className="px-3 py-1.5 rounded-md text-sm font-bold border whitespace-nowrap inline-block"
+                            style={getJobBadgeStyle(member.jobClass, isLightTheme)}
+                            className="px-3 py-1.5 rounded-md text-sm font-black border whitespace-nowrap inline-block shadow-sm"
                           >
                             {member.jobClass}
                           </span>
@@ -5152,35 +7385,35 @@ export default function App() {
                         <td className="px-6 py-5 text-center">
                           {member.mainSpec ? (
                             <div className="flex items-center justify-center gap-1.5">
-                              <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span>
-                              {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > 1 && <span className={`inline-flex items-center px-1.5 py-1 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - 1}</span>}
+                              <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-black border whitespace-nowrap shadow-sm ${wowSpecTagClass}`}>{member.mainSpec}</span>
+                              {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > 1 && <span className={`inline-flex items-center px-1.5 py-1 rounded-md text-[10px] font-black border whitespace-nowrap shadow-sm ${wowSpecExtraTagClass}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - 1}</span>}
                             </div>
-                          ) : <span className="text-sm text-gray-500">-</span>}
+                          ) : <span className={`text-sm ${wowTheme.faintText}`}>-</span>}
                         </td>
                         <td className="px-6 py-5 text-center">
                           <div className="flex flex-wrap gap-1.5 justify-center">
                             {normalizePreferredPositions(member.preferredPositions).length > 0 ? normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                              <span key={positionId} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[15px] font-black border whitespace-nowrap leading-none ${getWowPositionTagClasses(positionId)}`}>
+                              <span key={positionId} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[15px] font-black border whitespace-nowrap leading-none shadow-sm ${getWowPositionTagClasses(positionId, isLightTheme)}`}>
                                 {getWowPositionShortLabel(positionId)}
                               </span>
                             )) : (
-                              <span className="text-sm text-gray-500">-</span>
+                              <span className={`text-sm ${wowTheme.faintText}`}>-</span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-5 text-right">
                           <div className="flex items-center justify-end">
-                            <span className={`font-black text-2xl mr-3 ${isQualified ? 'text-yellow-400' : 'text-gray-300'}`}>
+                            <span className={`font-black text-2xl mr-3 ${isQualified ? (isLightTheme ? 'text-amber-600' : 'text-yellow-400') : (isLightTheme ? 'text-slate-600' : 'text-gray-300')}`}>
                               Lv. {member.level}
                             </span>
                             <div className="flex flex-col gap-1.5 items-end">
                               {isQualified && (
-                                <span className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black text-[11px] font-bold px-2 py-1 rounded shadow-md flex items-center">
+                                <span className={`text-[11px] font-bold px-2 py-1 rounded shadow-md flex items-center ${isLightTheme ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-white" : "bg-gradient-to-r from-yellow-600 to-yellow-500 text-black"}`}>
                                   <Ticket className="w-3 h-3 mr-1" /> 참가권 획득!
                                 </span>
                               )}
                               {!isQualified && (
-                                <span className="text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded border border-gray-700">
+                                <span className={`text-xs px-3 py-1.5 rounded border ${isLightTheme ? "text-slate-500 bg-white border-slate-200" : "text-gray-500 bg-gray-800 border border-gray-700"}`}>
                                   40까지 {40 - member.level}렙 남음
                                 </span>
                               )}
@@ -5192,8 +7425,8 @@ export default function App() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan="8" className="px-6 py-16 text-center text-gray-500 flex-col items-center">
-                      <Shield className="w-12 h-12 text-gray-700 mx-auto mb-3" />
+                    <td colSpan="8" className={`px-6 py-16 text-center flex-col items-center ${wowTheme.faintText}`}>
+                      <Shield className={`w-12 h-12 mx-auto mb-3 ${isLightTheme ? "text-slate-300" : "text-gray-700"}`} />
                       선택한 필터 조건에 해당하는 길드원이 없습니다.
                     </td>
                   </tr>
@@ -5262,10 +7495,36 @@ export default function App() {
 
     return (
       <div className="space-y-5">
+        {isLightTheme && (
+          <style>{`
+            .raid-light-surface h1.text-white,
+            .raid-light-surface h2.text-white,
+            .raid-light-surface h3.text-white,
+            .raid-light-surface h4.text-white,
+            .raid-light-surface div.text-white,
+            .raid-light-surface span.text-white,
+            .raid-light-surface p.text-white { color: #0f172a; }
+            .raid-light-surface .text-gray-400 { color: #64748b; }
+            .raid-light-surface .text-gray-500 { color: #94a3b8; }
+            .raid-light-surface .text-gray-300 { color: #475569; }
+            .raid-light-surface .border-gray-700 { border-color: #e2e8f0; }
+            .raid-light-surface .border-gray-600 { border-color: #cbd5e1; }
+            .raid-light-surface .bg-gray-800,
+            .raid-light-surface [class*="bg-gray-800/90"],
+            .raid-light-surface [class*="bg-gray-800/40"] { background-color: #ffffff; }
+            .raid-light-surface .bg-gray-900,
+            .raid-light-surface [class*="bg-gray-900/60"],
+            .raid-light-surface [class*="bg-gray-900/70"],
+            .raid-light-surface [class*="bg-gray-900/80"] { background-color: #f8fafc; }
+            .raid-light-surface .hover\\:bg-gray-700:hover { background-color: #e2e8f0; }
+            .raid-light-surface .hover\\:bg-gray-800:hover,
+            .raid-light-surface .hover\\:bg-gray-900:hover { background-color: #f8fafc; }
+          `}</style>
+        )}
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <button
             onClick={() => navigateTo("wow")}
-            className="inline-flex items-center px-4 py-2 rounded-xl border border-gray-700 bg-gray-800/80 text-gray-200 hover:text-white hover:border-blue-500/50 hover:bg-gray-800 transition w-fit"
+            className={raidTheme.backButton}
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> WOW 명단으로 돌아가기
           </button>
@@ -5273,13 +7532,13 @@ export default function App() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={handleCopyRaidLink}
-              className="inline-flex items-center px-3.5 py-2 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200 hover:bg-fuchsia-500/20 transition"
+              className={raidTheme.pinkButton}
             >
               <Link2 className="w-4 h-4 mr-2" /> #raid 링크 복사
             </button>
             <button
               onClick={handleCopyRaidSummary}
-              className="inline-flex items-center px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 transition"
+              className={raidTheme.blueButton}
             >
               <Copy className="w-4 h-4 mr-2" /> 편성표 복사
             </button>
@@ -5288,58 +7547,58 @@ export default function App() {
               disabled={isRaidCapturing}
               className={`inline-flex items-center px-3.5 py-2 rounded-xl border transition ${
                 isRaidCapturing
-                  ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100 cursor-wait'
-                  : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20'
+                  ? raidTheme.screenshotBusy
+                  : raidTheme.screenshotIdle
               }`}
             >
               {isRaidCapturing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Camera className="w-4 h-4 mr-2" />} 스크린샷 저장
             </button>
             <button
               onClick={handleResetRaid}
-              className="inline-flex items-center px-3.5 py-2 rounded-xl border border-gray-700 bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 transition"
+              className={raidTheme.resetButton}
             >
               <RefreshCw className="w-4 h-4 mr-2" /> 초기화
             </button>
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl border border-fuchsia-500/20 bg-gradient-to-r from-[#1b1331] via-[#141a33] to-[#10203a] p-6 shadow-[0_20px_60px_rgba(76,29,149,0.18)]">
+        <div className={raidTheme.hero}>
           <div className="absolute -top-12 -right-10 w-44 h-44 rounded-full bg-fuchsia-500/10 blur-3xl"></div>
           <div className="absolute -bottom-12 left-16 w-40 h-40 rounded-full bg-blue-500/10 blur-3xl"></div>
 
           <div className="relative z-10 flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-3xl pt-0.5">
-              <h2 className="text-3xl md:text-4xl font-black text-white flex items-center leading-none">
+              <h2 className={`text-3xl md:text-4xl font-black flex items-center leading-none ${isLightTheme ? "text-slate-900" : "text-white"}`}>
                 <span className="mr-3 text-3xl md:text-4xl">⚔️</span> 레이드 구성하기
               </h2>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 min-w-full xl:min-w-[460px] self-start">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs text-gray-400 mb-1">현재 레이드</div>
-                <div className="text-2xl font-black text-white">{raidConfig.label}</div>
+              <div className={raidTheme.heroMetricCard}>
+                <div className={`text-xs mb-1 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>현재 레이드</div>
+                <div className={`text-2xl font-black ${isLightTheme ? "text-slate-900" : "text-white"}`}>{raidConfig.label}</div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs text-gray-400 mb-1">편성 인원</div>
-                <div className="text-2xl font-black text-white">{assignedCount}<span className="text-sm text-gray-400"> / {totalRaidSlots}</span></div>
+              <div className={raidTheme.heroMetricCard}>
+                <div className={`text-xs mb-1 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>편성 인원</div>
+                <div className={`text-2xl font-black ${isLightTheme ? "text-slate-900" : "text-white"}`}>{assignedCount}<span className={`text-sm ${isLightTheme ? "text-slate-400" : "text-gray-400"}`}> / {totalRaidSlots}</span></div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs text-gray-400 mb-1">남은 자리</div>
-                <div className="text-2xl font-black text-fuchsia-300">{remainingCount}</div>
+              <div className={raidTheme.heroMetricCard}>
+                <div className={`text-xs mb-1 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>남은 자리</div>
+                <div className={`text-2xl font-black ${isLightTheme ? "text-fuchsia-700" : "text-fuchsia-300"}`}>{remainingCount}</div>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="text-xs text-gray-400 mb-1">고정 파티원</div>
-                <div className="text-lg font-black text-white truncate">{currentFixedRaidMember.streamerName}</div>
+              <div className={raidTheme.heroMetricCard}>
+                <div className={`text-xs mb-1 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>고정 파티원</div>
+                <div className={`text-lg font-black truncate ${isLightTheme ? "text-slate-900" : "text-white"}`}>{currentFixedRaidMember.streamerName}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-700 bg-gray-900/60 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className={raidTheme.panel}>
+          <div className={raidTheme.panelHeader}>
             <div>
-              <div className="text-sm font-black text-white">레이드 종류 선택</div>
-              <div className="text-xs text-gray-400 mt-1">규모를 바꾸면 가능한 파티 수가 즉시 바뀌고, 기존 배치는 앞쪽부터 최대한 유지됩니다.</div>
+              <div className={`text-sm font-black ${isLightTheme ? "text-slate-900" : "text-white"}`}>레이드 종류 선택</div>
+              <div className={`text-xs mt-1 ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>규모를 바꾸면 가능한 파티 수가 즉시 바뀌고, 기존 배치는 앞쪽부터 최대한 유지됩니다.</div>
             </div>
             <div className="flex flex-wrap gap-2">
               {RAID_TYPE_OPTIONS.map((option) => {
@@ -5350,8 +7609,8 @@ export default function App() {
                     onClick={() => setRaidType(option.id)}
                     className={`px-4 py-2 rounded-xl border text-sm font-black transition ${
                       isSelected
-                        ? "border-fuchsia-400 bg-fuchsia-500/20 text-fuchsia-100 shadow-[0_0_18px_rgba(168,85,247,0.18)]"
-                        : "border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500"
+                        ? raidTheme.optionActive
+                        : raidTheme.optionInactive
                     }`}
                   >
                     {option.label} 레이드
@@ -5365,37 +7624,37 @@ export default function App() {
         <div className={`grid ${raidLayoutGridClass} gap-5 items-start`}>
           {isRaidWaitingRoomCollapsed ? (
             <div className="xl:sticky xl:top-24">
-              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-visible">
+              <div className={raidTheme.panel}>
                 <div className="p-3 flex flex-col items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setIsRaidWaitingRoomCollapsed(false)}
-                    className="w-full rounded-xl border border-gray-700 bg-gray-900/80 text-gray-200 hover:text-white hover:border-fuchsia-500/40 hover:bg-gray-900 transition px-2 py-3 flex flex-col items-center gap-1.5"
+                    className={raidTheme.miniPanelButton}
                   >
                     <Menu className="w-5 h-5" />
                     <span className="text-[11px] font-black leading-tight text-center">대기실 열기</span>
                   </button>
-                  <div className="w-full rounded-xl border border-gray-700 bg-gray-900/60 px-2 py-2 text-center">
-                    <div className="text-[10px] text-gray-500">대기 인원</div>
-                    <div className="text-base font-black text-white">{raidAvailableMembers.length}</div>
+                  <div className={raidTheme.miniPanelCount}>
+                    <div className={`text-[10px] ${isLightTheme ? "text-slate-500" : "text-gray-500"}`}>대기 인원</div>
+                    <div className={`text-base font-black ${isLightTheme ? "text-slate-900" : "text-white"}`}>{raidAvailableMembers.length}</div>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
             <div className="space-y-5 xl:sticky xl:top-24">
-              <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-                <div className="p-4 border-b border-gray-700 bg-gray-900/60 flex items-start justify-between gap-3">
+              <div className={raidTheme.panel}>
+                <div className={`p-4 flex items-start justify-between gap-3 ${raidTheme.panelHeader}`}>
                   <div>
-                    <h3 className="text-lg font-black text-white flex items-center">
-                      <Users className="w-5 h-5 mr-2 text-fuchsia-300" /> 대기실 명단
+                    <h3 className={`text-lg font-black flex items-center ${isLightTheme ? "text-slate-900" : "text-white"}`}>
+                      <Users className={`w-5 h-5 mr-2 ${isLightTheme ? "text-fuchsia-600" : "text-fuchsia-300"}`} /> 대기실 명단
                     </h3>
-                    <p className="mt-1.5 text-xs text-gray-400">참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
+                    <p className={`mt-1.5 text-xs ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>참가자를 끌어다가 오른쪽 슬롯에 배치해보세요.</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsRaidWaitingRoomCollapsed(true)}
-                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-700 bg-gray-800 text-xs font-black text-gray-300 hover:text-white hover:border-fuchsia-500/40 hover:bg-gray-700 transition"
+                    className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-black transition ${raidTheme.optionInactive}`}
                   >
                     <Menu className="w-4 h-4" /> 접기
                   </button>
@@ -5403,22 +7662,22 @@ export default function App() {
 
                 <div className="p-4 space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="relative flex items-center flex-1 bg-gray-900 rounded-xl border border-gray-700 px-1.5 py-1 shadow-inner">
+                    <div className={raidTheme.searchShell}>
                       <div className="flex items-center px-2.5">
-                        <Search className="w-4 h-4 text-gray-400" />
+                        <Search className={`w-4 h-4 ${isLightTheme ? "text-slate-400" : "text-gray-400"}`} />
                       </div>
                       <input
                         type="text"
                         value={raidSearchInput}
                         onChange={(e) => setRaidSearchInput(e.target.value)}
                         placeholder="스트리머, 닉네임, 직업 검색"
-                        className="w-full bg-transparent text-sm text-white focus:outline-none placeholder-gray-500 py-1"
+                        className={raidTheme.searchInput}
                       />
                     </div>
                     <button
                       type="button"
                       onClick={() => setIsRaidFilterPanelCollapsed((prev) => !prev)}
-                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition ${isRaidFilterPanelCollapsed ? 'border-fuchsia-400/40 bg-fuchsia-500/12 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                      className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-black transition ${isRaidFilterPanelCollapsed ? raidTheme.filterToggleActive : raidTheme.filterToggleInactive}`}
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />
                       {isRaidFilterPanelCollapsed ? '설정 펼치기' : '설정 접기'}
@@ -5434,7 +7693,7 @@ export default function App() {
                       const isSelected = raidSelectedJobFilters.includes(job);
                       const baseStyle = job === "전체"
                         ? { color: '#e2e8f0', backgroundColor: 'rgba(51, 65, 85, 0.4)', borderColor: 'rgba(71, 85, 105, 0.6)' }
-                        : getJobBadgeStyle(job);
+                        : getJobBadgeStyle(job, isLightTheme);
 
                       return (
                         <button
@@ -5465,11 +7724,11 @@ export default function App() {
                         type="button"
                         onClick={() => setIsRaidLevelFilterOpen((prev) => !prev)}
                         className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-black transition ${
-                          isRaidLevelFilterOpen ? 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-100' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                          isRaidLevelFilterOpen ? raidTheme.levelFilterToggleActive : raidTheme.levelFilterToggleInactive
                         }`}
                       >
                         <Filter className="w-3.5 h-3.5" /> 레벨
-                        <span className="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px] text-gray-100">{raidLevelSummaryLabel}</span>
+                        <span className={raidTheme.levelFilterSummary}>{raidLevelSummaryLabel}</span>
                         {isRaidLevelFilterOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                       </button>
                     </div>
@@ -5485,8 +7744,8 @@ export default function App() {
                               onClick={() => handleRaidLevelFilterToggle(option.id)}
                               className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${
                                 isSelected
-                                  ? 'border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.14)]'
-                                  : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'
+                                  ? raidTheme.levelFilterOptionActive
+                                  : raidTheme.levelFilterOptionInactive
                               }`}
                             >
                               {option.label}
@@ -5506,7 +7765,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => handleRaidSpecFilterToggle("전체")}
-                          className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${raidSelectedSpecFilters.includes("전체") ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                          className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${raidSelectedSpecFilters.includes("전체") ? wowSpecTagClass : (isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500')}`}
                         >
                           전체
                         </button>
@@ -5517,7 +7776,7 @@ export default function App() {
                               key={spec}
                               type="button"
                               onClick={() => handleRaidSpecFilterToggle(spec)}
-                              className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                              className={`px-3 py-1 rounded-md border text-xs font-black transition whitespace-nowrap ${isSelected ? wowSpecTagClass : (isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500')}`}
                             >
                               {spec}
                             </button>
@@ -5540,11 +7799,11 @@ export default function App() {
                             type="button"
                             onClick={() => handleRaidPositionFilterToggle(positionId)}
                             className={`px-3 py-1 rounded-full border text-xs font-black transition whitespace-nowrap ${
-                              getWowPositionFilterButtonClasses(positionId, isSelected)
+                              getWowPositionFilterButtonClasses(positionId, isSelected, isLightTheme)
                             }`}
                           >
                             {meta?.label}
-                            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${getWowPositionCountClasses(positionId, isSelected)}`}>
+                            <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-black ${getWowPositionCountClasses(positionId, isSelected, isLightTheme)}`}>
                               {count}
                             </span>
                           </button>
@@ -5584,16 +7843,16 @@ export default function App() {
                                   <span className="text-[11px] font-black text-gray-300 whitespace-nowrap">Lv. {member.level}</span>
                                 </div>
                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                  <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                                  <span style={getJobBadgeStyle(member.jobClass, isLightTheme)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
                                     {member.jobClass}
                                   </span>
                                   {member.mainSpec && (
-                                    <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>
+                                    <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold border whitespace-nowrap ${wowSpecTagClass}`}>
                                       {member.mainSpec}
                                     </span>
                                   )}
                                   {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                                    <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>
+                                    <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId, isLightTheme)}`}>
                                       {getWowPositionShortLabel(positionId)}
                                     </span>
                                   ))}
@@ -5628,14 +7887,14 @@ export default function App() {
           )}
 
           <div className="space-y-5" ref={raidScreenshotRef} data-raid-screenshot-root="true">
-            <div className="rounded-2xl border border-gray-700 bg-gray-800/90 shadow-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-700 bg-gray-900/60">
+            <div className={raidTheme.panel}>
+              <div className={`px-4 py-3 border-b ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/60"}`}>
                 <div className="flex flex-col gap-2.5">
                   <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-lg font-black text-white flex items-center">
-                          <Shield className="w-5 h-5 mr-2 text-blue-300" /> {raidConfig.label} 레이드 파티 구성
+                        <h3 className={`text-lg font-black flex items-center ${isLightTheme ? "text-slate-900" : "text-white"}`}>
+                          <Shield className={`w-5 h-5 mr-2 ${isLightTheme ? "text-blue-600" : "text-blue-300"}`} /> {raidConfig.label} 레이드 파티 구성
                         </h3>
                         <div className="relative" data-raid-floating-layer="true">
                           <button
@@ -5723,7 +7982,7 @@ export default function App() {
                                         <div className="text-[11px] text-gray-400">{member.jobClass} · Lv.{member.level}</div>
                                         <div className="flex flex-wrap gap-1 mt-1">
                                           {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
+                                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId, isLightTheme)}`}>{getWowPositionShortLabel(positionId)}</span>
                                           ))}
                                         </div>
                                       </div>
@@ -5742,7 +8001,7 @@ export default function App() {
 
                     <div className="flex flex-wrap gap-2 justify-start xl:justify-end xl:max-w-[45%] xl:pt-0.5">
                       {Object.entries(assignedClassStats).length > 0 ? Object.entries(assignedClassStats).sort((a, b) => b[1] - a[1]).map(([job, count]) => (
-                        <span key={job} style={getJobBadgeStyle(job)} className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border">
+                        <span key={job} style={getJobBadgeStyle(job, isLightTheme)} className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-black border">
                           {job} <span className="ml-1 opacity-80">{count}</span>
                         </span>
                       )) : (
@@ -5759,7 +8018,7 @@ export default function App() {
                       {WOW_POSITION_OPTIONS.filter((option) => option.id !== '전체').map((option) => {
                         const countLabel = option.id === 'heal' ? option.label : option.shortLabel;
                         return (
-                          <span key={option.id} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-black border ${getWowPositionTagClasses(option.id)}`}>
+                          <span key={option.id} className={`inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-black border ${getWowPositionTagClasses(option.id, isLightTheme)}`}>
                             {countLabel} <span className="ml-1">{raidAssignedPositionStats[option.id] || 0}</span>
                           </span>
                         );
@@ -5847,7 +8106,7 @@ export default function App() {
                                     <div className="min-w-0 flex-1">
                                       <div className={`${raidSlotNameClass} font-black text-white truncate`}>{member.streamerName}</div>
                                       <div className={`flex items-center gap-1.5 mt-1 flex-wrap ${raidSlotInfoClass}`}>
-                                        <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                                        <span style={getJobBadgeStyle(member.jobClass, isLightTheme)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
                                           {member.jobClass}
                                         </span>
                                       </div>
@@ -5884,7 +8143,7 @@ export default function App() {
                                               : `배정 포지션: ${assignedPositionLabel}`}
                                             className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 transition ${
                                               displayPositionId
-                                                ? `${getWowPositionTagClasses(displayPositionId)} hover:brightness-110`
+                                                ? `${getWowPositionTagClasses(displayPositionId, isLightTheme)} hover:brightness-110`
                                                 : 'border-gray-700 bg-gray-900 text-gray-200 hover:text-white hover:border-white/50'
                                             }`}
                                           >
@@ -5924,8 +8183,8 @@ export default function App() {
                                                       }}
                                                       className={`w-full flex items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
                                                         isActive
-                                                          ? getWowPositionMenuOptionClasses(option.id, true)
-                                                          : getWowPositionMenuOptionClasses(option.id, false)
+                                                          ? getWowPositionMenuOptionClasses(option.id, true, isLightTheme)
+                                                          : getWowPositionMenuOptionClasses(option.id, false, isLightTheme)
                                                       }`}
                                                     >
                                                       <span>{option.label}</span>
@@ -6036,16 +8295,16 @@ export default function App() {
   const renderAdminView = () => {
     if (!isAdminAuth)
       return (
-        <div className="max-w-md mx-auto mt-10 bg-gray-800 rounded-xl p-8 text-center shadow-xl border border-gray-700">
-          <Lock className="w-12 h-12 text-green-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-6">관리자 로그인</h2>
+        <div className={adminTheme.loginCard}>
+          <Lock className={`w-12 h-12 mx-auto mb-4 ${isLightTheme ? "text-emerald-600" : "text-green-400"}`} />
+          <h2 className={adminTheme.loginTitle}>관리자 로그인</h2>
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <input
               type="text"
               value={adminNicknameInput}
               onChange={(e) => setAdminNicknameInput(e.target.value)}
               placeholder="관리자 닉네임을 입력하세요 (예: 스태프A)"
-              className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-center border border-gray-600 focus:border-green-500 outline-none"
+              className={adminTheme.loginInput}
               required
             />
             <input
@@ -6053,10 +8312,10 @@ export default function App() {
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               placeholder="비밀번호를 입력해주세요"
-              className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 text-center border border-gray-600 focus:border-green-500 outline-none"
+              className={adminTheme.loginInput}
               required
             />
-            <button type="submit" disabled={isAdminLoggingIn} className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg transition flex items-center justify-center shadow-lg">
+            <button type="submit" disabled={isAdminLoggingIn} className={adminTheme.loginButton}>
               {isAdminLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : "안전하게 접속하기"}
             </button>
           </form>
@@ -6222,7 +8481,7 @@ export default function App() {
         setGameName("");
         setHasFunding(false);
         setTotalFunding("");
-        setIndividualResults([{ playerName: "", rank: 1, scoreChange: 100, fundingRatio: "", fundingAmount: "" }, { playerName: "", rank: 2, scoreChange: 50, fundingRatio: "", fundingAmount: "" }]);
+        setIndividualResults(createDefaultIndividualMatchResults());
         setTeamResults(createDefaultTeamMatchResults());
         await updateLastModifiedTime(); 
         showToast(publishNow ? "경기 기록이 공개되었습니다." : "경기 기록이 임시 저장되었습니다.");
@@ -6235,45 +8494,112 @@ export default function App() {
     };
 
     return (
-      <div className="max-w-3xl mx-auto space-y-8">
+      <div className={adminTheme.shell}>
+        {isLightTheme && (
+          <style>{`
+            .admin-light-surface h1.text-white,
+            .admin-light-surface h2.text-white,
+            .admin-light-surface h3.text-white,
+            .admin-light-surface h4.text-white,
+            .admin-light-surface p.text-white,
+            .admin-light-surface span.text-white,
+            .admin-light-surface div.text-white,
+            .admin-light-surface label.text-white,
+            .admin-light-surface strong.text-white { color: #0f172a; }
+            .admin-light-surface p.text-gray-200,
+            .admin-light-surface span.text-gray-200,
+            .admin-light-surface div.text-gray-200,
+            .admin-light-surface label.text-gray-200,
+            .admin-light-surface strong.text-gray-200 { color: #334155; }
+            .admin-light-surface p.text-gray-400,
+            .admin-light-surface span.text-gray-400,
+            .admin-light-surface div.text-gray-400,
+            .admin-light-surface label.text-gray-400 { color: #64748b; }
+            .admin-light-surface p.text-gray-500,
+            .admin-light-surface span.text-gray-500,
+            .admin-light-surface div.text-gray-500,
+            .admin-light-surface label.text-gray-500 { color: #94a3b8; }
+            .admin-light-surface p.text-gray-300,
+            .admin-light-surface span.text-gray-300,
+            .admin-light-surface div.text-gray-300,
+            .admin-light-surface label.text-gray-300 { color: #475569; }
+            .admin-light-surface .border-gray-700 { border-color: #e2e8f0; }
+            .admin-light-surface .border-gray-600 { border-color: #cbd5e1; }
+            .admin-light-surface .border-gray-500 { border-color: #cbd5e1; }
+            .admin-light-surface .bg-gray-900 { background-color: #f8fafc; }
+            .admin-light-surface .bg-gray-800 { background-color: #ffffff; }
+            .admin-light-surface .bg-gray-700 { background-color: #e2e8f0; }
+            .admin-light-surface .bg-gray-700.text-white { color: #334155; }
+            .admin-light-surface .bg-gray-700.text-gray-200 { color: #334155; }
+            .admin-light-surface .bg-gray-700.text-gray-400 { color: #94a3b8; }
+            .admin-light-surface .text-violet-200 { color: #6d28d9; }
+            .admin-light-surface .text-blue-400 { color: #1d4ed8; }
+            .admin-light-surface .text-red-400 { color: #be123c; }
+            .admin-light-surface .text-indigo-300 { color: #4338ca; }
+            .admin-light-surface .text-indigo-400 { color: #4f46e5; }
+            .admin-light-surface .text-green-300 { color: #15803d; }
+            .admin-light-surface .text-green-400 { color: #15803d; }
+            .admin-light-surface .text-emerald-200 { color: #047857; }
+            .admin-light-surface .text-amber-100 { color: #b45309; }
+            .admin-light-surface .text-yellow-300 { color: #b45309; }
+            .admin-light-surface [class*="bg-violet-500/10"] { background-color: #f5f3ff; }
+            .admin-light-surface [class*="border-violet-400/30"] { border-color: #ddd6fe; }
+            .admin-light-surface [class*="bg-blue-900/40"] { background-color: #eff6ff; }
+            .admin-light-surface [class*="bg-red-900/40"] { background-color: #fff1f2; }
+            .admin-light-surface [class*="bg-green-900/30"] { background-color: #ecfdf5; }
+            .admin-light-surface [class*="border-green-700/50"] { border-color: #86efac; }
+            .admin-light-surface [class*="bg-yellow-900/30"] { background-color: #fffbeb; }
+            .admin-light-surface [class*="border-yellow-700/50"] { border-color: #fde68a; }
+            .admin-light-surface [class*="bg-indigo-900/30"] { background-color: #eef2ff; }
+            .admin-light-surface [class*="border-indigo-700/50"] { border-color: #c7d2fe; }
+            .admin-light-surface [class*="border-indigo-800/50"] { border-color: #c7d2fe; }
+            .admin-light-surface [class*="bg-emerald-500/15"] { background-color: #ecfdf5; }
+            .admin-light-surface [class*="border-emerald-400/30"] { border-color: #a7f3d0; }
+            .admin-light-surface [class*="bg-amber-500/15"] { background-color: #fffbeb; }
+            .admin-light-surface [class*="border-amber-400/30"] { border-color: #fde68a; }
+            .admin-light-surface .hover\\:bg-gray-600:hover { background-color: #cbd5e1; }
+            .admin-light-surface .hover\\:bg-gray-700:hover { background-color: #e2e8f0; }
+            .admin-light-surface [class*="hover:bg-violet-500/20"]:hover { background-color: #ede9fe; }
+          `}</style>
+        )}
         
         {/* 상단 관리자 접속 현황 */}
-        <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className={adminTheme.activityCard}>
           <div>
-            <h3 className="text-sm font-bold text-gray-400 mb-2 flex items-center">
-              <Activity className="w-4 h-4 mr-1.5 text-green-400" /> 현재 활동 중인 관리자 ({activeAdmins.length}명)
+            <h3 className={`text-sm font-bold mb-2 flex items-center ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>
+              <Activity className={`w-4 h-4 mr-1.5 ${isLightTheme ? "text-emerald-600" : "text-green-400"}`} /> 현재 활동 중인 관리자 ({activeAdmins.length}명)
             </h3>
             <div className="flex flex-wrap gap-2">
               {activeAdmins.map(admin => (
-                <span key={admin.id} className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${admin.name === currentAdminName ? 'bg-green-900/50 text-green-400 border border-green-500/50' : 'bg-gray-700 text-gray-300'}`}>
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-400 mr-2 shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse"></span>
+                <span key={admin.id} className={`flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${admin.name === currentAdminName ? (isLightTheme ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-green-900/50 text-green-400 border border-green-500/50') : (isLightTheme ? 'bg-slate-50 text-slate-600 border border-slate-200' : 'bg-gray-700 text-gray-300')}`}>
+                  <span className={`w-2.5 h-2.5 rounded-full mr-2 animate-pulse ${isLightTheme ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]" : "bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.8)]"}`}></span>
                   {admin.name} {admin.name === currentAdminName && <span className="ml-1 opacity-60 text-xs">(나)</span>}
                 </span>
               ))}
             </div>
           </div>
-          <button onClick={handleAdminLogout} className="text-sm font-bold flex items-center text-red-400 hover:text-white bg-red-900/30 hover:bg-red-600 px-4 py-2 rounded-lg transition shrink-0 border border-red-800/50">
+          <button onClick={handleAdminLogout} className={`text-sm font-bold flex items-center px-4 py-2 rounded-lg transition shrink-0 border ${isLightTheme ? "text-rose-700 hover:text-rose-800 bg-white hover:bg-rose-50 border-rose-200 shadow-sm" : "text-red-400 hover:text-white bg-red-900/30 hover:bg-red-600 border-red-800/50"}`}>
             <Unlock className="w-4 h-4 mr-1.5" /> 로그아웃
           </button>
         </div>
 
         {/* ★ 관리자 탭 분리 메뉴 ★ */}
-        <div className="flex gap-2 bg-gray-900 p-1.5 rounded-xl border border-gray-700">
+        <div className={adminTheme.tabBar}>
           <button 
             onClick={() => setAdminInnerTab("league")} 
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "league" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "league" ? adminTheme.tabActive : adminTheme.tabInactive}`}
           >
             <Swords className="w-4 h-4 mr-2" /> 버종리 설정
           </button>
           <button 
             onClick={() => setAdminInnerTab("wow")} 
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "wow" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "wow" ? adminTheme.tabActive : adminTheme.tabInactive}`}
           >
             <Shield className="w-4 h-4 mr-2" /> 와우 설정
           </button>
           <button 
             onClick={() => setAdminInnerTab("etc")} 
-            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "etc" ? "bg-gray-700 text-white shadow-md border border-gray-600" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
+            className={`flex-1 py-3 text-sm font-bold rounded-lg flex justify-center items-center transition-all ${adminInnerTab === "etc" ? adminTheme.tabActive : adminTheme.tabInactive}`}
           >
             <Layers className="w-4 h-4 mr-2" /> 기타 설정 (공지 등)
           </button>
@@ -6284,7 +8610,7 @@ export default function App() {
             ========================================================= */}
         {adminInnerTab === "league" && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-white flex items-center">
                   <PlusCircle className="w-6 h-6 mr-2 text-green-400" /> 새 경기 결과 등록
@@ -6337,38 +8663,45 @@ export default function App() {
 
                 {matchMode === "individual" && (
                   <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3">
-                    <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 입력합니다.</p>
-                    {individualResults.map((r, idx) => (
-                      <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
-                        <div className="flex gap-2">
-                          <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                          <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                          <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                          <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults(individualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
-                        </div>
-                        {hasFunding && (
-                          <div className="flex gap-2 items-center sm:pl-[72px]">
-                            <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                            <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                              const val = e.target.value;
-                              const n = [...individualResults];
-                              n[idx].fundingRatio = val;
-                              n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
-                              setIndividualResults(n);
-                            }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                            <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                              const n = [...individualResults];
-                              n[idx].fundingAmount = e.target.value;
-                              n[idx].fundingRatio = "";
-                              setIndividualResults(n);
-                            }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                            <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold text-gray-500">개인별 순위와 점수를 입력합니다.</p>
+                      <span className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-300">{individualResults.length}명 등록칸</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      {individualResults.map((r, idx) => (
+                        <div key={idx} className="flex min-w-0 flex-col gap-2 bg-gray-800/40 p-3 rounded-lg border border-gray-700/50">
+                          <div className="flex items-center justify-between gap-2">
+                            <input type="number" value={r.rank} onChange={(e) => { const n = [...individualResults]; n[idx].rank = Number(e.target.value); setIndividualResults(n); }} className="w-14 bg-gray-800 text-white text-center rounded border border-gray-600 py-2 font-bold" />
+                            <button type="button" onClick={() => { if (individualResults.length > 1) setIndividualResults((prev) => prev.filter((_, i) => i !== idx)); }} className="shrink-0 p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => setIndividualResults([...individualResults, { playerName: "", rank: individualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                          <input type="text" value={r.playerName} onChange={(e) => { const n = [...individualResults]; n[idx].playerName = e.target.value; setIndividualResults(n); }} placeholder="참가자 이름" className="w-full min-w-0 bg-gray-800 text-white px-3 py-2 rounded border border-gray-600" />
+                          <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...individualResults]; n[idx].scoreChange = Number(e.target.value); setIndividualResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white text-center px-3 py-2 rounded border border-gray-600" />
+                          {hasFunding && (
+                            <div className="grid grid-cols-2 gap-2 rounded-lg border border-gray-700/50 bg-gray-900/35 p-2">
+                              <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
+                                const val = e.target.value;
+                                const n = [...individualResults];
+                                n[idx].fundingRatio = val;
+                                n[idx].fundingAmount = val && totalFunding ? Math.floor((Number(totalFunding) * Number(val)) / 100) : "";
+                                setIndividualResults(n);
+                              }} className="w-full bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
+                              <input type="number" placeholder="별풍선" value={r.fundingAmount || ""} onChange={(e) => {
+                                const n = [...individualResults];
+                                n[idx].fundingAmount = e.target.value;
+                                n[idx].fundingRatio = "";
+                                setIndividualResults(n);
+                              }} className="w-full bg-gray-800 text-yellow-400 px-2 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                      <button type="button" onClick={() => setIndividualResults((prev) => appendIndividualMatchResults(prev, 1))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+1명</button>
+                      <button type="button" onClick={() => setIndividualResults((prev) => appendIndividualMatchResults(prev, 4))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+4명</button>
+                      <button type="button" onClick={() => setIndividualResults((prev) => appendIndividualMatchResults(prev, 20))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+20명</button>
+                      <button type="button" onClick={() => setIndividualResults((prev) => fillIndividualMatchResultsToCount(prev, 100))} className="py-2 text-green-300 border border-dashed border-green-700 rounded hover:text-white hover:border-green-400 hover:bg-green-900/20 transition">100명까지 채우기</button>
+                    </div>
                   </div>
                 )}
 
@@ -6491,7 +8824,7 @@ export default function App() {
                               key={spec}
                               type="button"
                               onClick={() => handleSelectFixedRaidMemberMainSpec(spec)}
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${isActive ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${isActive ? wowSpecTagClass : (isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500')}`}
                             >
                               {spec}
                             </button>
@@ -6515,8 +8848,8 @@ export default function App() {
                           onClick={() => handleToggleFixedRaidMemberPreferredPosition(option.id)}
                           className={`px-3 py-1 rounded-full text-xs font-black border transition ${
                             isSelected
-                              ? getWowPositionFilterButtonClasses(option.id, true)
-                              : getWowPositionFilterButtonClasses(option.id, false)
+                              ? getWowPositionFilterButtonClasses(option.id, true, isLightTheme)
+                              : getWowPositionFilterButtonClasses(option.id, false, isLightTheme)
                           }`}
                         >
                           {option.shortLabel}
@@ -6535,7 +8868,7 @@ export default function App() {
 
               <div className="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar">
                 {sortedFixedRaidMembers.length > 0 ? sortedFixedRaidMembers.map((member) => (
-                  <div key={member.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                  <div key={member.id} className={`flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-3 rounded-lg ${isLightTheme ? "bg-slate-50 border border-slate-200" : "bg-gray-900 border border-gray-700"}`}>
                     <div className="flex items-center gap-3 min-w-0">
                       <img
                         src={getWowAvatarSrc(member)}
@@ -6551,10 +8884,10 @@ export default function App() {
                         <p className="text-xs text-gray-400 truncate">{member.jobClass} · Lv.{member.level}</p>
                         <div className="flex flex-wrap gap-1 mt-1 items-center">
                           {member.mainSpec && (
-                            <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span>
+                            <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${wowSpecTagClass}`}>{member.mainSpec}</span>
                           )}
                           {normalizePreferredPositions(member.preferredPositions).map((positionId) => (
-                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId)}`}>{getWowPositionShortLabel(positionId)}</span>
+                            <span key={positionId} className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${getWowPositionTagClasses(positionId, isLightTheme)}`}>{getWowPositionShortLabel(positionId)}</span>
                           ))}
                         </div>
                       </div>
@@ -6618,7 +8951,7 @@ export default function App() {
                               key={spec}
                               type="button"
                               onClick={() => handleSelectWowMainSpecLocal(spec)}
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${isActive ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-black border transition ${isActive ? wowSpecTagClass : (isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500')}`}
                             >
                               {spec}
                             </button>
@@ -6675,27 +9008,35 @@ export default function App() {
                     if (wowAdminSortOption === 'nameAsc') return a.streamerName.localeCompare(b.streamerName);
                     return 0;
                   })
-                  .map(member => (
+                  .map(member => {
+                    const wowPartnerGeneration = normalizeWowPartnerGeneration(member.wowPartnerGeneration);
+                    const hasWowPartnerStatus = isWowPartnerMember(member);
+                    const wowPartnerLabel = getWowPartnerDisplayLabel(member);
+                    const wowPartnerInputValue = Object.prototype.hasOwnProperty.call(wowPartnerGenerationInputs, member.id)
+                      ? wowPartnerGenerationInputs[member.id]
+                      : (wowPartnerGeneration ? String(wowPartnerGeneration) : "");
+
+                    return (
                   <div key={member.id} className="flex justify-between items-center bg-gray-800 border border-gray-700 p-3 rounded-lg hover:border-blue-500/50 transition">
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col items-center justify-center gap-0.5 w-fit">
                         <div className="relative w-10 h-10 flex-shrink-0">
-                          {member.isWowPartner ? (
+                          {hasWowPartnerStatus ? (
                             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 p-[2px] shadow-[0_0_10px_rgba(250,204,21,0.4)]">
                               <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full object-cover border-[1.5px] border-gray-900 bg-gray-900" />
                             </div>
                           ) : (
                             <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt="avatar" className="w-full h-full rounded-full bg-gray-900 object-cover border border-gray-600" />
                           )}
-                          {member.isWowPartner && (
+                          {hasWowPartnerStatus && (
                             <div className="absolute -bottom-1 -right-1 bg-gradient-to-b from-gray-800 to-gray-900 rounded-full p-0.5 shadow-lg border border-yellow-500/50 z-10">
                               <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                             </div>
                           )}
                         </div>
-                        {member.isWowPartner && (
+                        {hasWowPartnerStatus && (
                           <span className="text-[9px] font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-500 tracking-widest select-none whitespace-nowrap">
-                            와트너
+                            {wowPartnerLabel}
                           </span>
                         )}
                       </div>
@@ -6703,33 +9044,48 @@ export default function App() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-white">{member.streamerName}</span>
-                          <span style={getJobBadgeStyle(member.jobClass)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
+                          <span style={getJobBadgeStyle(member.jobClass, isLightTheme)} className="text-[10px] px-1.5 py-0.5 rounded font-bold border whitespace-nowrap">
                             {member.jobClass}
                           </span>
                         </div>
                         <div className="text-xs text-blue-400">{member.wowNickname}</div>
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          {member.mainSpec ? <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_TAG_CLASS}`}>{member.mainSpec}</span> : <span className="text-[10px] text-gray-500">특성 미설정</span>}
+                          {member.mainSpec ? <span title={getWowSpecTagTitle(member.jobClass, member.mainSpec, member.availableSpecs)} className={`inline-flex items-center px-1.75 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${wowSpecTagClass}`}>{member.mainSpec}</span> : <span className="text-[10px] text-gray-500">특성 미설정</span>}
                           {normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length > (member.mainSpec ? 1 : 0) && (
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${WOW_SPEC_EXTRA_TAG_CLASS}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - (member.mainSpec ? 1 : 0)}</span>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black border whitespace-nowrap ${wowSpecExtraTagClass}`}>+{normalizeAvailableSpecs(member.jobClass, member.availableSpecs).length - (member.mainSpec ? 1 : 0)}</span>
                           )}
                         </div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <div className="flex flex-col items-end gap-2 mr-2 min-w-[240px]">
+                      <div className="flex flex-col items-end gap-2 mr-2 min-w-[320px]">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5 w-full">
+                          <span className="text-[10px] font-black text-yellow-400 whitespace-nowrap">와트너 대수</span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={wowPartnerInputValue}
+                            onChange={(e) => handleWowPartnerGenerationInputChange(member.id, e.target.value)}
+                            placeholder="숫자"
+                            className="w-16 bg-gray-900 border border-gray-600 text-white rounded px-2 py-1 text-xs text-center font-black focus:border-yellow-400 outline-none"
+                          />
+                          <span className="text-[10px] font-black text-gray-500 whitespace-nowrap">대</span>
+                          <button
+                            onClick={() => handleSaveWowPartnerGeneration(member.id)}
+                            className="px-3 py-1.5 rounded text-[11px] font-bold transition flex items-center justify-center border bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800"
+                          >
+                            저장
+                          </button>
+                          <button
+                            onClick={() => handleClearWowPartnerGeneration(member.id)}
+                            className="px-3 py-1.5 rounded text-[11px] font-bold transition flex items-center justify-center border bg-gray-700 text-gray-300 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white"
+                          >
+                            해제
+                          </button>
+                        </div>
                         <div className="grid grid-cols-2 gap-2 w-full">
-                        <button
-                          onClick={() => handleToggleWowPartner(member.id, member.isWowPartner)}
-                          className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center justify-center border ${
-                            member.isWowPartner 
-                              ? 'bg-yellow-900/50 text-yellow-400 border-yellow-500/50 hover:bg-yellow-800' 
-                              : 'bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600 hover:text-white'
-                          }`}
-                        >
-                          {member.isWowPartner ? '👑 와트너 해제' : '🎬 와트너 임명'}
-                        </button>
                         <button
                           onClick={() => handleToggleWowApply(member.id, member.isApplied)}
                           disabled={Number(member.level) < 40}
@@ -6766,7 +9122,7 @@ export default function App() {
                                 type="button"
                                 onClick={() => handleToggleWowPreferredPosition(member.id, option.id, member.preferredPositions)}
                                 className={`px-2.5 py-1 rounded-full text-[11px] font-black border transition ${
-                                  getWowPositionFilterButtonClasses(option.id, isSelected)
+                                  getWowPositionFilterButtonClasses(option.id, isSelected, isLightTheme)
                                 }`}
                               >
                                 {option.shortLabel}
@@ -6786,7 +9142,7 @@ export default function App() {
                                       key={spec}
                                       type="button"
                                       onClick={() => handleToggleWowAvailableSpec(member.id, spec, member.jobClass, member.availableSpecs, member.mainSpec)}
-                                      className={`px-2.5 py-1 rounded-md text-[10px] font-black border transition ${isSelected ? WOW_SPEC_TAG_CLASS : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500'}`}
+                                      className={`px-2.5 py-1 rounded-md text-[10px] font-black border transition ${isSelected ? wowSpecTagClass : (isLightTheme ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300" : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:text-white hover:border-gray-500')}`}
                                     >
                                       {spec}
                                     </button>
@@ -6825,7 +9181,7 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                ))}
+                )})}
                 {wowRoster.length === 0 && <p className="text-center text-gray-500 py-6">검색된 길드원이 없습니다.</p>}
               </div>
             </div>
@@ -6862,19 +9218,19 @@ export default function App() {
                 <textarea value={wowRaidForm.note} onChange={(e) => handleWowRaidFormFieldChange('note', e.target.value)} rows={3} placeholder="레이드 메모 또는 간단한 설명" className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-violet-500 outline-none resize-y" />
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4">
+                  <div className={`rounded-xl border p-4 ${isLightTheme ? "bg-white border-slate-200 shadow-sm" : "bg-gray-800/70 border-gray-700"}`}>
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-sm font-black text-white">WOW 길드원 참가자 선택</h3>
-                      <span className="text-xs text-gray-400">{wowRaidForm.rosterParticipantIds.length}명 선택</span>
+                      <h3 className={`text-sm font-black ${isLightTheme ? "text-slate-900" : "text-white"}`}>WOW 길드원 참가자 선택</h3>
+                      <span className={`text-xs ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>{wowRaidForm.rosterParticipantIds.length}명 선택</span>
                     </div>
                     <div className="relative mb-3">
-                      <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isLightTheme ? "text-slate-400" : "text-gray-400"}`} />
                       <input
                         type="text"
                         value={wowRaidRosterSearchInput}
                         onChange={(e) => setWowRaidRosterSearchInput(e.target.value)}
                         placeholder="참가자 검색 (이름, 닉네임, 직업, 특성)"
-                        className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-violet-500 outline-none"
+                        className={`w-full rounded-lg pl-9 pr-3 py-2 text-sm outline-none ${isLightTheme ? "bg-white border border-slate-300 text-slate-900 focus:border-violet-500 shadow-sm" : "bg-gray-900/80 border border-gray-600 text-white focus:border-violet-500"}`}
                       />
                     </div>
                     <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
@@ -6886,13 +9242,13 @@ export default function App() {
                               key={member.id}
                               type="button"
                               onClick={() => handleToggleWowRaidParticipant('wow_roster', member.id)}
-                              className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? 'border-violet-400/50 bg-violet-500/10 text-white' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white'}`}
+                              className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? (isLightTheme ? 'border-violet-200 bg-violet-50 text-slate-900' : 'border-violet-400/50 bg-violet-500/10 text-white') : (isLightTheme ? 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white')}`}
                             >
                               <div className="flex items-center gap-3">
-                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-9 h-9 rounded-full object-cover bg-gray-900 border border-gray-600 flex-shrink-0" />
+                                <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-9 h-9 rounded-full object-cover flex-shrink-0 ${isLightTheme ? "bg-slate-100 border border-slate-200" : "bg-gray-900 border border-gray-600"}`} />
                                 <div className="min-w-0">
                                   <div className="font-bold truncate">{member.streamerName}</div>
-                                  <div className="text-[11px] text-gray-400 truncate">{member.wowNickname} · {member.jobClass}</div>
+                                  <div className={`text-[11px] truncate ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>{member.wowNickname} · {member.jobClass}</div>
                                 </div>
                               </div>
                             </button>
@@ -6901,20 +9257,20 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4">
+                  <div className={`rounded-xl border p-4 ${isLightTheme ? "bg-white border-slate-200 shadow-sm" : "bg-gray-800/70 border-gray-700"}`}>
                     <div className="flex items-center justify-between gap-2 mb-3">
-                      <h3 className="text-sm font-black text-white">고정 길드원 포함</h3>
-                      <span className="text-xs text-gray-400">{wowRaidForm.fixedParticipantIds.length}명 선택</span>
+                      <h3 className={`text-sm font-black ${isLightTheme ? "text-slate-900" : "text-white"}`}>고정 길드원 포함</h3>
+                      <span className={`text-xs ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>{wowRaidForm.fixedParticipantIds.length}명 선택</span>
                     </div>
                     <div className="max-h-[260px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                       <div className="relative mb-3">
-                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isLightTheme ? "text-slate-400" : "text-gray-400"}`} />
                         <input
                           type="text"
                           value={wowRaidFixedSearchInput}
                           onChange={(e) => setWowRaidFixedSearchInput(e.target.value)}
                           placeholder="고정 길드원 검색 (이름, 닉네임, 직업, 특성)"
-                          className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-amber-500 outline-none"
+                          className={`w-full rounded-lg pl-9 pr-3 py-2 text-sm outline-none ${isLightTheme ? "bg-white border border-slate-300 text-slate-900 focus:border-amber-500 shadow-sm" : "bg-gray-900/80 border border-gray-600 text-white focus:border-amber-500"}`}
                         />
                       </div>
                       {filteredWowRaidFixedCandidates.length > 0 ? filteredWowRaidFixedCandidates.map((member) => {
@@ -6924,13 +9280,13 @@ export default function App() {
                             key={member.id}
                             type="button"
                             onClick={() => handleToggleWowRaidParticipant('fixed_member', member.id)}
-                            className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? 'border-amber-400/50 bg-amber-500/10 text-white' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white'}`}
+                            className={`w-full text-left rounded-lg border px-3 py-2 transition ${isSelected ? (isLightTheme ? 'border-amber-200 bg-amber-50 text-slate-900' : 'border-amber-400/50 bg-amber-500/10 text-white') : (isLightTheme ? 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:text-slate-900' : 'border-gray-700 bg-gray-900/70 text-gray-300 hover:border-gray-500 hover:text-white')}`}
                           >
                             <div className="flex items-center gap-3">
-                              <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className="w-9 h-9 rounded-full object-cover bg-gray-900 border border-gray-600 flex-shrink-0" />
+                              <img src={getWowAvatarSrc(member)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${member.streamerName}`; }} alt={member.streamerName} className={`w-9 h-9 rounded-full object-cover flex-shrink-0 ${isLightTheme ? "bg-slate-100 border border-slate-200" : "bg-gray-900 border border-gray-600"}`} />
                               <div className="min-w-0">
                                 <div className="font-bold truncate">{member.streamerName}</div>
-                                <div className="text-[11px] text-gray-400 truncate">{member.wowNickname || member.streamerName} · {member.jobClass}</div>
+                                <div className={`text-[11px] truncate ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>{member.wowNickname || member.streamerName} · {member.jobClass}</div>
                               </div>
                             </div>
                           </button>
@@ -6940,7 +9296,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-gray-800/70 rounded-xl border border-gray-700 p-4 space-y-4">
+                <div className={`rounded-xl border p-4 space-y-4 ${isLightTheme ? "bg-white border-slate-200 shadow-sm" : "bg-gray-800/70 border-gray-700"}`}>
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div>
                       <h3 className="text-sm font-black text-white">일반인 참가자 추가하기</h3>
@@ -6955,13 +9311,13 @@ export default function App() {
                     </button>
                   </div>
                   <div className="relative">
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${isLightTheme ? "text-slate-400" : "text-gray-400"}`} />
                     <input
                       type="text"
                       value={wowRaidGuestSearchInput}
                       onChange={(e) => setWowRaidGuestSearchInput(e.target.value)}
                       placeholder="일반 참가자 검색 (이름, 닉네임, 직업, 특성)"
-                      className="w-full bg-gray-900/80 border border-gray-600 text-white rounded-lg pl-9 pr-3 py-2 text-sm focus:border-emerald-500 outline-none"
+                      className={`w-full rounded-lg pl-9 pr-3 py-2 text-sm outline-none ${isLightTheme ? "bg-white border border-slate-300 text-slate-900 focus:border-emerald-500 shadow-sm" : "bg-gray-900/80 border border-gray-600 text-white focus:border-emerald-500"}`}
                     />
                   </div>
                   {filteredWowRaidGuestParticipants.length > 0 ? (
@@ -7101,8 +9457,8 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2">
-                  <button type="button" onClick={resetWowRaidForm} className="px-4 py-2 rounded-lg font-bold text-sm transition bg-gray-700 hover:bg-gray-600 text-white border border-gray-500">입력 초기화</button>
-                  <button type="button" onClick={handleSaveWowRaid} disabled={isWowRaidSaving} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWowRaidSaving ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-violet-600 hover:bg-violet-500 text-white'}`}>
+                  <button type="button" onClick={resetWowRaidForm} className={`px-4 py-2 rounded-lg font-bold text-sm transition border ${isLightTheme ? "bg-white text-slate-700 hover:bg-slate-50 border-slate-200 shadow-sm" : "bg-gray-700 hover:bg-gray-600 text-white border-gray-500"}`}>입력 초기화</button>
+                  <button type="button" onClick={handleSaveWowRaid} disabled={isWowRaidSaving} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWowRaidSaving ? (isLightTheme ? "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200" : 'bg-gray-700 text-gray-400 cursor-not-allowed') : (isLightTheme ? "bg-violet-600 hover:bg-violet-500 text-white shadow-[0_14px_30px_rgba(126,34,206,0.18)]" : 'bg-violet-600 hover:bg-violet-500 text-white')}`}>
                     {isWowRaidSaving ? '저장 중...' : wowRaidForm.id ? '레이드 수정 저장' : '레이드 생성'}
                   </button>
                 </div>
@@ -7110,24 +9466,24 @@ export default function App() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <h3 className="text-base font-black text-white">등록된 WOW 레이드 기록</h3>
-                  <span className="text-xs text-gray-400">총 {wowRaids.length}개</span>
+                  <h3 className={`text-base font-black ${adminTheme.heading}`}>등록된 WOW 레이드 기록</h3>
+                  <span className={`text-xs ${adminTheme.mutedText}`}>총 {wowRaids.length}개</span>
                 </div>
                 {wowRaids.length > 0 ? wowRaids.map((raid) => (
-                  <div key={raid.id} className="bg-gray-900 border border-gray-700 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div key={raid.id} className={`rounded-xl p-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 ${isLightTheme ? "bg-slate-50 border border-slate-200" : "bg-gray-900 border border-gray-700"}`}>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <p className="font-black text-white text-lg break-keep">{raid.raidName}</p>
+                        <p className={`font-black text-lg break-keep ${adminTheme.heading}`}>{raid.raidName}</p>
                         {raid.raidGroupNumber ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-100 border border-amber-400/30">{raid.raidGroupNumber}군</span> : null}
-                        {raid.isPublished ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-200 border border-emerald-400/30">공개중</span> : <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-gray-700 text-gray-200 border border-gray-600">비공개</span>}
+                        {raid.isPublished ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-200 border border-emerald-400/30">공개중</span> : <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${isLightTheme ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-gray-700 text-gray-200 border-gray-600"}`}>비공개</span>}
                       </div>
                       <p className="text-sm text-gray-400">{raid.raidDate || '-'} · 토벌시간 {raid.clearTime || '-'} · 참가자 {raid.participants.length}명</p>
                       {raid.note && <p className="text-xs text-gray-500 mt-1 break-keep">{raid.note}</p>}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <button type="button" onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); navigateTo('wowraid'); }} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-violet-500/10 text-violet-200 border-violet-400/30 hover:bg-violet-500/20">상세 보기</button>
-                      <button type="button" onClick={() => handleEditWowRaid(raid)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600">수정</button>
-                      <button type="button" onClick={() => handleDeleteWowRaid(raid.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold transition border bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white">삭제</button>
+                      <button type="button" onClick={() => { setSelectedWowRaidId(raid.id); setWowRaidDetailTab('participants'); navigateTo('wowraid'); }} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100" : "bg-violet-500/10 text-violet-200 border-violet-400/30 hover:bg-violet-500/20"}`}>상세 보기</button>
+                      <button type="button" onClick={() => handleEditWowRaid(raid)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm" : "bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600"}`}>수정</button>
+                      <button type="button" onClick={() => handleDeleteWowRaid(raid.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border ${isLightTheme ? "bg-white text-rose-700 border-rose-200 hover:bg-rose-50 hover:text-rose-800 shadow-sm" : "bg-gray-700 text-gray-200 border-gray-600 hover:bg-red-600 hover:border-red-500 hover:text-white"}`}>삭제</button>
                     </div>
                   </div>
                 )) : (
@@ -7137,8 +9493,287 @@ export default function App() {
             </div>
 
 
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
+              <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+                <div>
+                  <h2 className={`text-xl font-bold mb-2 flex items-center ${adminTheme.heading}`}>
+                    <Trophy className={`w-5 h-5 mr-2 ${isLightTheme ? "text-amber-600" : "text-amber-300"}`} /> 던전 티어게임 관리
+                  </h2>
+                  <p className={`text-sm leading-6 break-keep ${adminTheme.mutedText}`}>
+                    던전 티어게임 탭에서 사용할 카드를 등록합니다. 1차 작업에서는 던전 데이터 등록과 목록 관리를 먼저 완성하고, 다음 단계에서 드래그 배치형 티어 보드에 연결합니다.
+                  </p>
+                </div>
+                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${isLightTheme ? "border-slate-200 bg-slate-100 text-slate-700" : "border-gray-600 bg-gray-900 text-gray-200"}`}>
+                  총 {wowDungeonTierItems.length}개 등록
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] gap-6">
+                <div className={`rounded-2xl border p-4 space-y-4 ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900 border-gray-700"}`}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>던전 이름</label>
+                      <input
+                        type="text"
+                        value={wowDungeonTierForm.name}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("name", e.target.value)}
+                        placeholder="예: 화산 심장부"
+                        className={adminTheme.input}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>종류</label>
+                      <select
+                        value={wowDungeonTierForm.expansionType}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("expansionType", e.target.value)}
+                        className={adminTheme.input}
+                      >
+                        {WOW_DUNGEON_EXPANSION_OPTIONS.map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <label className={`block text-sm font-bold ${adminTheme.heading}`}>영상 URL 목록</label>
+                        <button
+                          type="button"
+                          onClick={handleAddWowDungeonTierVideoUrlField}
+                          className={adminTheme.ghostButton}
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          영상 추가
+                        </button>
+                      </div>
+                      <p className={`mb-3 text-xs ${adminTheme.mutedText}`}>
+                        입력한 순서대로 재생되고, 빈칸은 저장할 때 자동으로 제외됩니다.
+                      </p>
+                      <div className="space-y-2">
+                        {((Array.isArray(wowDungeonTierForm.videoUrls) && wowDungeonTierForm.videoUrls.length > 0)
+                          ? wowDungeonTierForm.videoUrls
+                          : createWowDungeonTierFormVideoUrls()
+                        ).map((videoUrl, index, videoUrls) => (
+                          <div key={`wow-dungeon-video-url-${index}`} className="flex items-center gap-2">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-xs font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-500" : "border-gray-700 bg-gray-900 text-gray-300"}`}>
+                              {index + 1}
+                            </div>
+                            <input
+                              type="text"
+                              value={videoUrl}
+                              onChange={(e) => handleWowDungeonTierVideoUrlChange(index, e.target.value)}
+                              placeholder="https://..."
+                              className={`${adminTheme.input} min-w-0 flex-1`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveWowDungeonTierVideoUrlField(index)}
+                              disabled={videoUrls.length <= 1}
+                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition ${
+                                isLightTheme
+                                  ? "border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 disabled:border-slate-100 disabled:bg-slate-50 disabled:text-slate-300"
+                                  : "border-gray-700 bg-gray-900 text-gray-300 hover:border-red-500 hover:bg-red-500/10 hover:text-red-200 disabled:border-gray-800 disabled:bg-gray-900 disabled:text-gray-600"
+                              }`}
+                              title="영상 URL 삭제"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className={`block text-sm font-bold mb-2 ${adminTheme.heading}`}>대표 이미지 URL</label>
+                      <input
+                        type="text"
+                        value={wowDungeonTierForm.imageUrl}
+                        onChange={(e) => handleWowDungeonTierFormFieldChange("imageUrl", e.target.value)}
+                        placeholder="https://..."
+                        className={adminTheme.input}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`rounded-2xl border overflow-hidden ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).cardClass}`}>
+                    <div className={`aspect-[16/9] border-b overflow-hidden ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).frameClass}`}>
+                      {wowDungeonTierForm.imageUrl ? (
+                        <img
+                          src={wowDungeonTierForm.imageUrl}
+                          alt={wowDungeonTierForm.name || "던전 미리보기"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className={`w-full h-full flex items-center justify-center text-xl font-black ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).metaClass}`}>
+                          DUNGEON PREVIEW
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).badgeClass}`}>
+                          {getWowDungeonExpansionMeta(wowDungeonTierForm.expansionType).label}
+                        </span>
+                        <span className={`text-xs font-semibold ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).subtleClass}`}>
+                          {wowDungeonTierFormNormalizedVideoUrls.length > 0 ? `영상 ${wowDungeonTierFormNormalizedVideoUrls.length}개` : "영상 링크 없음"}
+                        </span>
+                      </div>
+                      <div className={`mt-3 text-lg font-black break-keep ${getWowDungeonExpansionTheme(wowDungeonTierForm.expansionType, isLightTheme).titleClass}`}>
+                        {wowDungeonTierForm.name || "던전 이름 미리보기"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={resetWowDungeonTierForm}
+                      className={adminTheme.neutralButton}
+                    >
+                      입력 초기화
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveWowDungeonTierItem}
+                      disabled={isWowDungeonTierSaving}
+                      className={`px-4 py-2 rounded-lg font-bold text-sm transition ${
+                        isWowDungeonTierSaving
+                          ? (isLightTheme
+                            ? "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-200"
+                            : "bg-gray-700 text-gray-400 cursor-not-allowed")
+                          : (isLightTheme
+                            ? "bg-amber-600 hover:bg-amber-500 text-white shadow-[0_14px_30px_rgba(217,119,6,0.18)]"
+                            : "bg-amber-500 hover:bg-amber-400 text-black")
+                      }`}
+                    >
+                      {isWowDungeonTierSaving ? "저장 중..." : (wowDungeonTierForm.id ? "던전 카드 수정" : "던전 카드 등록")}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div className={`flex items-center justify-between gap-3 flex-wrap rounded-2xl border px-4 py-3 ${isLightTheme ? "border-slate-200 bg-slate-50" : "border-gray-700 bg-gray-900/40"}`}>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <h3 className={`text-base font-black ${adminTheme.heading}`}>등록된 던전 카드</h3>
+                      <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700 shadow-sm" : "border-gray-600 bg-gray-800 text-gray-100"}`}>
+                        총 {wowDungeonTierItems.length}장
+                      </span>
+                    </div>
+                    <span className={`text-xs font-medium ${adminTheme.mutedText}`}>위아래 버튼으로 보관함 노출 순서를 조정</span>
+                  </div>
+
+                  {wowDungeonTierItems.length > 0 ? wowDungeonTierItems.map((item, index) => {
+                    const expansionMeta = getWowDungeonExpansionMeta(item.expansionType);
+                    const expansionTheme = getWowDungeonExpansionTheme(item.expansionType, isLightTheme);
+                    const primaryVideoUrl = getWowDungeonTierPrimaryVideoUrl(item);
+                    const videoCount = Array.isArray(item.videoUrls) ? item.videoUrls.length : 0;
+                    const isFirstItem = index === 0;
+                    const isLastItem = index === wowDungeonTierItems.length - 1;
+                    const orderButtonClass = isLightTheme
+                      ? "flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300 disabled:bg-slate-50"
+                      : "flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800 text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:border-gray-700 disabled:text-gray-500 disabled:bg-gray-900";
+                    const compactActionButtonClass = isLightTheme
+                      ? "h-8 rounded-lg border bg-white px-3 text-xs font-bold transition shadow-sm"
+                      : "h-8 rounded-lg border px-3 text-xs font-bold transition";
+
+                    return (
+                      <div key={item.id} className={`rounded-2xl border p-2.5 grid grid-cols-[88px_minmax(0,1fr)] gap-3 items-center sm:grid-cols-[88px_minmax(0,1fr)_auto] ${expansionTheme.cardClass}`}>
+                        <div className={`h-16 rounded-xl overflow-hidden border flex-shrink-0 ${expansionTheme.frameClass}`}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className={`w-full h-full flex items-center justify-center text-[10px] font-black tracking-[0.18em] ${expansionTheme.metaClass}`}>
+                              NO IMAGE
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className={`min-w-0 truncate font-black text-base break-keep ${expansionTheme.titleClass}`}>{item.name}</p>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${isLightTheme ? "border-slate-200 bg-white text-slate-700" : "border-gray-600 bg-gray-900 text-gray-100"}`}>
+                              순서 {index + 1}
+                            </span>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-black ${expansionTheme.badgeClass}`}>
+                              {expansionMeta.label}
+                            </span>
+                            {videoCount > 0 ? (
+                              <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold ${expansionTheme.buttonClass}`}>
+                                <Tv className="w-3 h-3 mr-1" />
+                                영상 {videoCount}개
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <p className={`text-xs ${expansionTheme.subtleClass}`}>
+                              보관함 노출 순서 {index + 1}
+                            </p>
+                            {primaryVideoUrl ? (
+                              <a
+                                href={primaryVideoUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className={`inline-flex items-center gap-1 text-xs font-semibold ${expansionTheme.metaClass}`}
+                              >
+                                <Link2 className="w-3 h-3" />
+                                첫 영상 열기
+                              </a>
+                            ) : (
+                              <span className={`text-xs ${expansionTheme.subtleClass}`}>
+                                영상 없음
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="col-span-2 flex items-center justify-end gap-1.5 sm:col-span-1 sm:flex-nowrap">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveWowDungeonTierItemOrder(item.id, "up")}
+                            disabled={isFirstItem}
+                            className={`${orderButtonClass} h-8 w-8`}
+                            title="위로 이동"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveWowDungeonTierItemOrder(item.id, "down")}
+                            disabled={isLastItem}
+                            className={`${orderButtonClass} h-8 w-8`}
+                            title="아래로 이동"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEditWowDungeonTierItem(item)}
+                            className={`${compactActionButtonClass} ${isLightTheme ? "border-slate-200 text-slate-700 hover:bg-slate-50" : "border-gray-600 text-gray-200 hover:bg-gray-700"}`}
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteWowDungeonTierItem(item.id)}
+                            className={`${compactActionButtonClass} ${isLightTheme ? "border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800" : "border-gray-600 text-gray-200 hover:bg-red-600 hover:border-red-500 hover:text-white"}`}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }) : (
+                    <div className={`rounded-2xl border border-dashed p-8 text-center ${isLightTheme ? "border-slate-200 bg-slate-50 text-slate-500" : "border-gray-700 bg-gray-900/50 text-gray-400"}`}>
+                      아직 등록된 던전 카드가 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* ★ WOW 길드원 프로필 이미지 관리 ★ */}
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
                 <Camera className="w-5 h-5 mr-2 text-blue-400" /> WOW 길드원 프로필 이미지 관리
               </h2>
@@ -7148,7 +9783,7 @@ export default function App() {
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {[...wowRoster].sort((a,b) => a.streamerName.localeCompare(b.streamerName)).map(member => (
-                  <div key={member.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                  <div key={member.id} className={adminTheme.rowCard}>
                     <div className="flex items-center gap-3 w-32 flex-shrink-0">
                       <img 
                         src={getWowAvatarSrc(member)} 
@@ -7156,7 +9791,7 @@ export default function App() {
                         alt="avatar" 
                         className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
                       />
-                      <span className="font-bold text-white w-16 truncate" title={member.streamerName}>{member.streamerName}</span>
+                      <span className={`font-bold w-16 truncate ${adminTheme.heading}`} title={member.streamerName}>{member.streamerName}</span>
                     </div>
                     <div className="flex flex-1 gap-2">
                       <input
@@ -7164,7 +9799,7 @@ export default function App() {
                         placeholder="https://..."
                         value={wowImageInputs[member.id] !== undefined ? wowImageInputs[member.id] : (member.imageUrl || "")}
                         onChange={(e) => setWowImageInputs({...wowImageInputs, [member.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                        className={`flex-1 text-sm px-3 py-1.5 rounded border outline-none ${isLightTheme ? "bg-white text-slate-900 border-slate-300 focus:border-blue-500 shadow-sm" : "bg-gray-800 text-white border-gray-600 focus:border-blue-500"}`}
                       />
                       <button
                         onClick={() => handleUpdateWowImage(member.id, wowImageInputs[member.id])}
@@ -7182,7 +9817,7 @@ export default function App() {
 
         {adminInnerTab === "league" && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
                 <Camera className="w-5 h-5 mr-2 text-green-400" /> 종겜 리그 참가자 이미지 관리
               </h2>
@@ -7192,7 +9827,7 @@ export default function App() {
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
-                  <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                  <div key={player.id} className={adminTheme.rowCard}>
                     <div className="flex items-center gap-3 w-32 flex-shrink-0 relative group/player">
                       <img 
                         src={(imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")) || getAvatarSrc(player.name)} 
@@ -7201,7 +9836,7 @@ export default function App() {
                         className="w-10 h-10 rounded-full bg-gray-800 object-cover border border-gray-600 flex-shrink-0" 
                       />
                       <div className="flex flex-col">
-                        <span className="font-bold text-white truncate w-16" title={player.name}>{player.name}</span>
+                        <span className={`font-bold truncate w-16 ${adminTheme.heading}`} title={player.name}>{player.name}</span>
                         {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
                         {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
   {player._source !== "draft_players" && (
@@ -7217,7 +9852,7 @@ export default function App() {
                         placeholder="https://..."
                         value={imageInputs[player.id] !== undefined ? imageInputs[player.id] : (player.imageUrl || "")}
                         onChange={(e) => setImageInputs({...imageInputs, [player.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-green-500 outline-none"
+                        className={`flex-1 text-sm px-3 py-1.5 rounded border outline-none ${isLightTheme ? "bg-white text-slate-900 border-slate-300 focus:border-green-500 shadow-sm" : "bg-gray-800 text-white border-gray-600 focus:border-green-500"}`}
                       />
                       <button
                         onClick={() => handleUpdateLeagueParticipantImage(player, imageInputs[player.id])}
@@ -7232,7 +9867,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
               <h2 className="text-xl font-bold text-white mb-2 flex items-center">
                 <Tv className="w-5 h-5 mr-2 text-indigo-400" /> 종겜 리그 참가자 방송국 주소 관리
               </h2>
@@ -7242,9 +9877,9 @@ export default function App() {
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {[...combinedLeaguePlayers].sort((a,b) => a.name.localeCompare(b.name)).map(player => (
-                  <div key={player.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                  <div key={player.id} className={adminTheme.rowCard}>
                     <div className="flex flex-col justify-center w-28 flex-shrink-0">
-                      <span className="font-bold text-white truncate" title={player.name}>{player.name}</span>
+                      <span className={`font-bold truncate ${adminTheme.heading}`} title={player.name}>{player.name}</span>
                       {player._source === "draft_players" && <span className="text-[10px] text-yellow-300 mt-0.5">임시 저장</span>}
                       {/* ★ 관리자 강제 삭제 버튼 추가 ★ */}
 {player._source !== "draft_players" && (
@@ -7259,7 +9894,7 @@ export default function App() {
                         placeholder="https://..."
                         value={broadcastUrlInputs[player.id] !== undefined ? broadcastUrlInputs[player.id] : (player.broadcastUrl || "")}
                         onChange={(e) => setBroadcastUrlInputs({...broadcastUrlInputs, [player.id]: e.target.value})}
-                        className="flex-1 bg-gray-800 text-sm text-white px-3 py-1.5 rounded border border-gray-600 focus:border-indigo-500 outline-none"
+                        className={`flex-1 text-sm px-3 py-1.5 rounded border outline-none ${isLightTheme ? "bg-white text-slate-900 border-slate-300 focus:border-indigo-500 shadow-sm" : "bg-gray-800 text-white border-gray-600 focus:border-indigo-500"}`}
                       />
                       <button
                         onClick={() => handleUpdateLeagueParticipantBroadcastUrl(player, broadcastUrlInputs[player.id])}
@@ -7274,7 +9909,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center">
                 <Swords className="w-5 h-5 mr-2 text-red-400" /> 등록된 경기 관리 (수정 및 삭제)
               </h2>
@@ -7287,19 +9922,19 @@ export default function App() {
                   <p className="text-gray-500 text-center py-4">등록된 경기가 없습니다.</p>
                 ) : (
                   matches.map((match) => (
-                    <div key={match.id} className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded-lg">
+                    <div key={match.id} className={`flex justify-between items-center p-3 rounded-lg ${isLightTheme ? "bg-slate-50 border border-slate-200" : "bg-gray-900 border border-gray-700"}`}>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white">{match.gameName}</span>
-                        <span className="text-xs text-gray-400">{match.date}</span>
-                        <span className={`text-[11px] font-black px-2 py-1 rounded border ${match.isPublished !== false ? "bg-green-900/30 text-green-300 border-green-700/50" : "bg-yellow-900/30 text-yellow-300 border-yellow-700/50"}`}>
+                        <span className={`font-bold ${adminTheme.heading}`}>{match.gameName}</span>
+                        <span className={`text-xs ${adminTheme.mutedText}`}>{match.date}</span>
+                        <span className={`text-[11px] font-black px-2 py-1 rounded border ${match.isPublished !== false ? (isLightTheme ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-green-900/30 text-green-300 border-green-700/50") : (isLightTheme ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-yellow-900/30 text-yellow-300 border-yellow-700/50")}`}>
                           {match.isPublished !== false ? "공개" : "임시 저장"}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleOpenEditMatch(match)} className="flex items-center text-sm bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded transition">
+                        <button onClick={() => handleOpenEditMatch(match)} className={`flex items-center text-sm px-3 py-1.5 rounded transition border ${isLightTheme ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" : "bg-blue-900/40 text-blue-400 hover:bg-blue-600 hover:text-white border-transparent"}`}>
                           <Edit className="w-4 h-4 mr-1" /> 수정
                         </button>
-                        <button onClick={() => setMatchToDelete(match)} className="flex items-center text-sm bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded transition">
+                        <button onClick={() => setMatchToDelete(match)} className={`flex items-center text-sm px-3 py-1.5 rounded transition border ${isLightTheme ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100" : "bg-red-900/40 text-red-400 hover:bg-red-600 hover:text-white border-transparent"}`}>
                           <Trash2 className="w-4 h-4 mr-1" /> 삭제
                         </button>
                       </div>
@@ -7310,24 +9945,24 @@ export default function App() {
             </div>
 
             {/* ★ 유령 데이터 자동 청소기 구역 ★ */}
-            <div className="bg-purple-900/30 border border-purple-700/50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-purple-300 mb-2 flex items-center">
+            <div className={adminTheme.warningPanel}>
+              <h3 className={`text-lg font-bold mb-2 flex items-center ${isLightTheme ? "text-amber-700" : "text-purple-300"}`}>
                 <Search className="w-5 h-5 mr-2" /> 👻 유령 데이터(빈 껍데기) 자동 청소
               </h3>
-              <p className="text-sm text-gray-400 mb-4">
-                과거의 오류나 수정으로 인해 경기 기록은 없는데 티어표나 선수 명단에 이름만 남아있는 <strong className="text-white">유령 선수들을 한 번에 찾아내어 완전 삭제</strong>합니다.
+              <p className={`text-sm mb-4 ${isLightTheme ? "text-slate-600" : "text-gray-400"}`}>
+                과거의 오류나 수정으로 인해 경기 기록은 없는데 티어표나 선수 명단에 이름만 남아있는 <strong className={isLightTheme ? "text-slate-900" : "text-white"}>유령 선수들을 한 번에 찾아내어 완전 삭제</strong>합니다.
               </p>
-              <button type="button" onClick={handleCleanGhostData} disabled={isCleaningGhosts} className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
+              <button type="button" onClick={handleCleanGhostData} disabled={isCleaningGhosts} className={isLightTheme ? "w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg flex justify-center items-center shadow-[0_16px_32px_rgba(124,58,237,0.18)] transition" : "w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"}>
                 {isCleaningGhosts ? <Loader2 className="w-5 h-5 animate-spin" /> : "🔍 유령 데이터 찾아서 영구 삭제하기"}
               </button>
             </div>
 
-            <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-red-300 mb-2">🚨 데이터베이스 완벽 초기화</h3>
-              <p className="text-sm text-gray-400 mb-4">
-                기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className="text-white">0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
+            <div className={adminTheme.dangerPanel}>
+              <h3 className={`text-lg font-bold mb-2 ${isLightTheme ? "text-rose-700" : "text-red-300"}`}>🚨 데이터베이스 완벽 초기화</h3>
+              <p className={`text-sm mb-4 ${isLightTheme ? "text-slate-600" : "text-gray-400"}`}>
+                기존에 쌓인 테스트용 데이터를 싹 지우고, 참가자가 <strong className={isLightTheme ? "text-slate-900" : "text-white"}>0명인 완전 초기 상태</strong>로 리셋합니다. (실전 오픈용)
               </p>
-              <button onClick={() => setShowResetModal(true)} className="w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
+              <button onClick={() => setShowResetModal(true)} className={isLightTheme ? "w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-[0_16px_32px_rgba(220,38,38,0.18)] transition" : "w-full py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"}>
                 <RefreshCw className="w-4 h-4 mr-2" /> 모든 데이터 지우고 백지상태로 시작하기
               </button>
             </div>
@@ -7339,64 +9974,64 @@ export default function App() {
             ========================================================= */}
         {adminInnerTab === "etc" && (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
-              <h2 className="text-2xl font-bold text-white mb-2 flex items-center">
+            <div data-admin-surface="true" className={`${adminTheme.sectionCard} ${isLightTheme ? "admin-light-surface" : ""}`}>
+              <h2 className={`text-2xl font-bold mb-2 flex items-center ${adminTheme.heading}`}>
                 <Megaphone className="w-6 h-6 mr-2 text-indigo-400" /> 사이트 팝업(공지사항) 띄우기
               </h2>
-              <p className="text-sm text-gray-400 mb-6 break-keep">
+              <p className={`text-sm mb-6 break-keep ${adminTheme.mutedText}`}>
                 사이트 방문자들이 접속했을 때 가운데에 나타나는 팝업창을 작성합니다.<br/>
                 유저가 <strong className="text-white">[오늘 하루 보지 않기]</strong>를 누르더라도, 여기서 내용을 새로 수정하여 저장하면 다시 유저들에게 나타납니다!
               </p>
 
               <form onSubmit={handleSavePopup} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-300 ml-1">팝업 제목</label>
+                  <label className={`text-sm font-bold ml-1 ${adminTheme.bodyText}`}>팝업 제목</label>
                   <input
                     type="text"
                     value={popupTitleInput}
                     onChange={(e) => setPopupTitleInput(e.target.value)}
                     placeholder="예: 📢 왁타버스 새로운 내전 이벤트 안내!"
-                    className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-indigo-500 outline-none"
+                    className={adminTheme.input}
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-gray-300 ml-1">팝업 상세 내용</label>
+                  <label className={`text-sm font-bold ml-1 ${adminTheme.bodyText}`}>팝업 상세 내용</label>
                   <textarea
                     value={popupContentInput}
                     onChange={(e) => setPopupContentInput(e.target.value)}
                     placeholder="공지하실 내용을 입력해주세요. (엔터키를 치면 줄바꿈이 그대로 적용됩니다.)"
-                    className="w-full h-48 bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-600 focus:border-indigo-500 outline-none resize-none custom-scrollbar"
+                    className={adminTheme.textarea}
                     required
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button type="submit" className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition">
+                  <button type="submit" className={isLightTheme ? "flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex justify-center items-center shadow-[0_16px_32px_rgba(79,70,229,0.18)] transition" : "flex-[2] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg flex justify-center items-center shadow-lg transition"}>
                     <Megaphone className="w-5 h-5 mr-2" /> 새 내용으로 팝업 띄우기
                   </button>
-                  <button type="button" onClick={handleDeletePopup} className="flex-1 py-3 bg-red-900/40 hover:bg-red-600 text-red-400 hover:text-white font-bold rounded-lg flex justify-center items-center border border-red-800/50 transition">
+                  <button type="button" onClick={handleDeletePopup} className={`flex-1 py-3 font-bold rounded-lg flex justify-center items-center border transition ${isLightTheme ? "bg-white text-rose-700 hover:bg-rose-50 hover:text-rose-800 border-rose-200" : "bg-red-900/40 hover:bg-red-600 text-red-400 hover:text-white border-red-800/50"}`}>
                     <Trash2 className="w-5 h-5 mr-2" /> 팝업 내리기
                   </button>
                 </div>
               </form>
 
               {/* 팝업 미리보기 상태창 */}
-              <div className="mt-8 pt-6 border-t border-gray-700">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center">
+              <div className={`mt-8 pt-6 border-t ${adminTheme.sectionDivider}`}>
+                <h3 className={`text-lg font-bold mb-4 flex items-center ${adminTheme.heading}`}>
                   <Activity className="w-5 h-5 mr-2 text-gray-400" /> 현재 팝업 송출 상태
                 </h3>
                 {sitePopup && sitePopup.isActive ? (
-                  <div className="bg-gradient-to-b from-gray-900 to-gray-800 p-5 rounded-lg border border-indigo-500/30 shadow-inner">
+                  <div className={`p-5 rounded-lg border ${isLightTheme ? "bg-gradient-to-b from-white to-slate-50 border-indigo-200 shadow-[0_18px_40px_rgba(15,23,42,0.08)]" : "bg-gradient-to-b from-gray-900 to-gray-800 border-indigo-500/30 shadow-inner"}`}>
                     <div className="flex justify-between items-start mb-3">
                       <span className="bg-indigo-600 text-white text-[10px] px-2 py-1 rounded font-black tracking-wider">송출 중 (ON)</span>
                       <span className="text-xs text-gray-500">최종 수정: {new Date(sitePopup.updatedAt).toLocaleString()}</span>
                     </div>
-                    <h4 className="text-xl font-bold text-white mb-3">{sitePopup.title}</h4>
-                    <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">{sitePopup.content}</p>
+                    <h4 className={`text-xl font-bold mb-3 ${adminTheme.heading}`}>{sitePopup.title}</h4>
+                    <p className={`text-sm whitespace-pre-wrap leading-relaxed ${adminTheme.bodyText}`}>{sitePopup.content}</p>
                   </div>
                 ) : (
-                  <div className="bg-gray-900 p-5 rounded-lg border border-gray-700 flex flex-col items-center justify-center py-10">
-                    <CheckSquare className="w-10 h-10 text-gray-600 mb-3" />
+                  <div className={`p-5 rounded-lg border flex flex-col items-center justify-center py-10 ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900 border border-gray-700"}`}>
+                    <CheckSquare className={`w-10 h-10 mb-3 ${adminTheme.mutedText}`} />
                     <p className="text-gray-400 font-medium">현재 유저들에게 노출 중인 팝업이 없습니다.</p>
                   </div>
                 )}
@@ -7411,43 +10046,54 @@ export default function App() {
 
   if (isLoading && !activeTab)
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white">
+      <div
+        data-theme={theme}
+        className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+          theme === "light" ? "bg-slate-50 text-slate-900" : "bg-[#0f172a] text-white"
+        }`}
+      >
         <Loader2 className="w-8 h-8 animate-spin mr-2" /> 데이터 로딩 중...
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-[#0f172a] font-sans pb-20">
-      
+    <div
+      data-theme={theme}
+      className={`min-h-screen font-sans pb-20 transition-colors duration-300 ${
+        theme === "light" ? "bg-slate-50" : "bg-[#0f172a]"
+      }`}
+    >
+      <style>{globalThemeStyles}</style>
+
       {/* =========================================================
           ★ 유저 친화적인 사이트 공지사항(팝업) 모달 ★
           ========================================================= */}
       {showSitePopup && sitePopup && sitePopup.isActive && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-gray-800 rounded-2xl w-full max-w-md border border-gray-700 shadow-2xl overflow-hidden flex flex-col">
+        <div className={shellTheme.popupOverlay}>
+          <div className={shellTheme.popupPanel}>
             {/* 팝업 헤더 */}
-            <div className="flex justify-between items-center p-4 border-b border-gray-700 bg-gray-800/80">
-              <h3 className="text-lg font-black text-white flex items-center">
+            <div className={shellTheme.popupHeader}>
+              <h3 className={shellTheme.popupHeaderTitle}>
                 <Megaphone className="w-5 h-5 mr-2 text-indigo-400" /> 공지사항
               </h3>
               <button 
                 onClick={() => setShowSitePopup(false)} 
-                className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
+                className={shellTheme.popupCloseButton}
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
             
             {/* 팝업 내용 */}
-            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar bg-gray-900/50">
-              <h2 className="text-xl font-bold text-white mb-4 leading-tight">{sitePopup.title}</h2>
-              <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap break-keep">
+            <div className={shellTheme.popupBody}>
+              <h2 className={shellTheme.popupBodyTitle}>{sitePopup.title}</h2>
+              <p className={shellTheme.popupBodyText}>
                 {sitePopup.content}
               </p>
             </div>
             
             {/* 팝업 하단 (오늘 하루 보지 않기 + 닫기) */}
-            <div className="p-3 border-t border-gray-700 bg-gray-800 flex justify-between items-center">
+            <div className={shellTheme.popupFooter}>
               <label className="flex items-center gap-2 cursor-pointer group px-2">
                 <input 
                   type="checkbox" 
@@ -7458,15 +10104,15 @@ export default function App() {
                       setShowSitePopup(false);
                     }
                   }}
-                  className="w-4 h-4 accent-indigo-500 rounded bg-gray-700 border-gray-600 cursor-pointer" 
+                  className={shellTheme.popupCheckbox}
                 />
-                <span className="text-xs font-medium text-gray-400 group-hover:text-gray-200 select-none transition-colors">
+                <span className={shellTheme.popupFooterLabel}>
                   오늘 하루 보지 않기
                 </span>
               </label>
               <button 
                 onClick={() => setShowSitePopup(false)} 
-                className="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-lg transition-colors"
+                className={shellTheme.popupFooterButton}
               >
                 닫기
               </button>
@@ -7476,15 +10122,57 @@ export default function App() {
       )}
 
       {toast.show && (
-        <div className={`fixed bottom-6 right-6 z-[300] px-6 py-3 rounded-lg shadow-2xl text-white ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}>
+        <div className={`${shellTheme.toastBase} ${toast.type === "error" ? shellTheme.toastError : shellTheme.toastSuccess}`}>
           {toast.message}
         </div>
       )}
 
+      {isLightTheme && (matchToEdit || matchToDelete || showResetModal) && (
+        <style>{`
+          .admin-modal-surface h1.text-white,
+          .admin-modal-surface h2.text-white,
+          .admin-modal-surface h3.text-white,
+          .admin-modal-surface h4.text-white,
+          .admin-modal-surface p.text-white,
+          .admin-modal-surface span.text-white,
+          .admin-modal-surface input.text-white,
+          .admin-modal-surface textarea.text-white { color: #0f172a; }
+          .admin-modal-surface .bg-gray-700.text-white { color: #334155; }
+          .admin-modal-surface .bg-gray-700.text-gray-400 { color: #94a3b8; }
+          .admin-modal-surface .text-gray-200 { color: #334155; }
+          .admin-modal-surface .text-gray-500 { color: #94a3b8; }
+          .admin-modal-surface .text-gray-400 { color: #64748b; }
+          .admin-modal-surface .text-gray-300 { color: #475569; }
+          .admin-modal-surface .text-blue-300 { color: #1d4ed8; }
+          .admin-modal-surface .text-red-400 { color: #be123c; }
+          .admin-modal-surface .text-indigo-300 { color: #4338ca; }
+          .admin-modal-surface .text-indigo-400 { color: #4f46e5; }
+          .admin-modal-surface .text-yellow-400 { color: #b45309; }
+          .admin-modal-surface .border-gray-700 { border-color: #e2e8f0; }
+          .admin-modal-surface .border-gray-600 { border-color: #cbd5e1; }
+          .admin-modal-surface [class*="border-blue-700/40"] { border-color: #bfdbfe; }
+          .admin-modal-surface [class*="border-yellow-700/50"] { border-color: #fde68a; }
+          .admin-modal-surface [class*="border-indigo-700/50"] { border-color: #c7d2fe; }
+          .admin-modal-surface [class*="border-indigo-800/50"] { border-color: #c7d2fe; }
+          .admin-modal-surface .bg-gray-900,
+          .admin-modal-surface [class*="bg-gray-900"] { background-color: #f8fafc; }
+          .admin-modal-surface .bg-gray-800,
+          .admin-modal-surface [class*="bg-gray-800/40"],
+          .admin-modal-surface [class*="bg-gray-800/50"] { background-color: #ffffff; }
+          .admin-modal-surface .bg-gray-700 { background-color: #e2e8f0; }
+          .admin-modal-surface [class*="bg-blue-900/40"] { background-color: #eff6ff; }
+          .admin-modal-surface [class*="bg-red-900/40"] { background-color: #fff1f2; }
+          .admin-modal-surface [class*="bg-indigo-900/30"] { background-color: #eef2ff; }
+          .admin-modal-surface .hover\\:bg-gray-600:hover { background-color: #cbd5e1; }
+          .admin-modal-surface [class*="hover:bg-indigo-600"]:hover { background-color: #4f46e5; }
+          .admin-modal-surface .hover\\:text-gray-200:hover { color: #0f172a; }
+        `}</style>
+      )}
+
       {matchToEdit && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-4 py-10 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-3xl w-full border border-blue-500/50 shadow-2xl relative my-auto">
-            <button onClick={() => setMatchToEdit(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center px-4 py-10 backdrop-blur-sm overflow-y-auto ${isLightTheme ? "bg-slate-950/45" : "bg-black/80"}`}>
+          <div className={`admin-modal-surface rounded-xl p-6 max-w-3xl w-full relative my-auto ${isLightTheme ? "bg-white border border-slate-200 shadow-[0_28px_70px_rgba(15,23,42,0.18)]" : "bg-gray-800 border border-blue-500/50 shadow-2xl"}`}>
+            <button onClick={() => setMatchToEdit(null)} className={`absolute top-4 right-4 transition ${isLightTheme ? "text-slate-400 hover:text-slate-900" : "text-gray-500 hover:text-white"}`}><X className="w-6 h-6" /></button>
             <div className="flex items-center mb-6">
               <Edit className="w-6 h-6 mr-2 text-blue-400" />
               <h3 className="text-2xl font-bold text-white">경기 기록 수정</h3>
@@ -7546,38 +10234,45 @@ export default function App() {
 
               {editMatchMode === "individual" && (
                 <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 space-y-3 mt-4">
-                  <p className="text-xs font-bold text-gray-500 mb-2">개인별 순위와 점수를 수정합니다.</p>
-                  {editIndividualResults.map((r, idx) => (
-                    <div key={idx} className="flex flex-col gap-2 bg-gray-800/40 p-2.5 rounded-lg border border-gray-700/50">
-                      <div className="flex gap-2">
-                        <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="flex-1 bg-gray-800 text-white px-3 rounded border border-gray-600" />
-                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-24 bg-gray-800 text-white text-center rounded border border-gray-600" />
-                        <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults(editIndividualResults.filter((_, i) => i !== idx)); }} className="p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-5 h-5" /></button>
-                      </div>
-                      {editHasFunding && (
-                        <div className="flex gap-2 items-center sm:pl-[72px]">
-                          <span className="text-[10px] text-gray-500 font-bold whitespace-nowrap">💰 상금:</span>
-                          <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
-                            const val = e.target.value;
-                            const n = [...editIndividualResults];
-                            n[idx].fundingRatio = val;
-                            n[idx].fundingAmount = val && editTotalFunding ? Math.floor((Number(editTotalFunding) * Number(val)) / 100) : "";
-                            setEditIndividualResults(n);
-                          }} className="w-16 bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold">% ➔</span>
-                          <input type="number" placeholder="별풍선(직접수정 가능)" value={r.fundingAmount || ""} onChange={(e) => {
-                            const n = [...editIndividualResults];
-                            n[idx].fundingAmount = e.target.value;
-                            n[idx].fundingRatio = "";
-                            setEditIndividualResults(n);
-                          }} className="flex-1 bg-gray-800 text-yellow-400 px-3 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
-                          <span className="text-gray-500 text-xs font-bold mr-8">개</span>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-gray-500">개인별 순위와 점수를 수정합니다.</p>
+                    <span className="rounded-full border border-gray-700 bg-gray-800 px-2.5 py-1 text-xs font-bold text-gray-300">{editIndividualResults.length}명 등록칸</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {editIndividualResults.map((r, idx) => (
+                      <div key={idx} className="flex min-w-0 flex-col gap-2 bg-gray-800/40 p-3 rounded-lg border border-gray-700/50">
+                        <div className="flex items-center justify-between gap-2">
+                          <input type="number" value={r.rank} onChange={(e) => { const n = [...editIndividualResults]; n[idx].rank = Number(e.target.value); setEditIndividualResults(n); }} className="w-14 bg-gray-800 text-white text-center rounded border border-gray-600 py-2 font-bold" />
+                          <button type="button" onClick={() => { if (editIndividualResults.length > 1) setEditIndividualResults((prev) => prev.filter((_, i) => i !== idx)); }} className="shrink-0 p-2 text-gray-400 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" onClick={() => setEditIndividualResults([...editIndividualResults, { playerName: "", rank: editIndividualResults.length + 1, scoreChange: 0, fundingRatio: "", fundingAmount: "" }]) } className="w-full py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">참가자 추가</button>
+                        <input type="text" value={r.playerName} onChange={(e) => { const n = [...editIndividualResults]; n[idx].playerName = e.target.value; setEditIndividualResults(n); }} placeholder="참가자 이름" className="w-full min-w-0 bg-gray-800 text-white px-3 py-2 rounded border border-gray-600" />
+                        <input type="number" value={r.scoreChange} onChange={(e) => { const n = [...editIndividualResults]; n[idx].scoreChange = Number(e.target.value); setEditIndividualResults(n); }} placeholder="점수" className="w-full bg-gray-800 text-white text-center px-3 py-2 rounded border border-gray-600" />
+                        {editHasFunding && (
+                          <div className="grid grid-cols-2 gap-2 rounded-lg border border-gray-700/50 bg-gray-900/35 p-2">
+                            <input type="number" placeholder="비율(%)" value={r.fundingRatio || ""} onChange={(e) => {
+                              const val = e.target.value;
+                              const n = [...editIndividualResults];
+                              n[idx].fundingRatio = val;
+                              n[idx].fundingAmount = val && editTotalFunding ? Math.floor((Number(editTotalFunding) * Number(val)) / 100) : "";
+                              setEditIndividualResults(n);
+                            }} className="w-full bg-gray-800 text-white text-center rounded border border-gray-600 py-1.5 text-xs focus:border-yellow-500 outline-none" />
+                            <input type="number" placeholder="별풍선" value={r.fundingAmount || ""} onChange={(e) => {
+                              const n = [...editIndividualResults];
+                              n[idx].fundingAmount = e.target.value;
+                              n[idx].fundingRatio = "";
+                              setEditIndividualResults(n);
+                            }} className="w-full bg-gray-800 text-yellow-400 px-2 rounded border border-gray-600 py-1.5 text-xs font-bold focus:border-yellow-500 outline-none" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => appendIndividualMatchResults(prev, 1))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+1명</button>
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => appendIndividualMatchResults(prev, 4))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+4명</button>
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => appendIndividualMatchResults(prev, 20))} className="py-2 text-gray-400 border border-dashed border-gray-600 rounded hover:text-white hover:border-gray-400 transition">+20명</button>
+                    <button type="button" onClick={() => setEditIndividualResults((prev) => fillIndividualMatchResultsToCount(prev, 100))} className="py-2 text-green-300 border border-dashed border-green-700 rounded hover:text-white hover:border-green-400 hover:bg-green-900/20 transition">100명까지 채우기</button>
+                  </div>
                 </div>
               )}
 
@@ -7640,7 +10335,7 @@ export default function App() {
               )}
 
               <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setMatchToEdit(null)} className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium">
+                <button type="button" onClick={() => setMatchToEdit(null)} className={`flex-1 py-3 rounded-lg transition font-medium ${isLightTheme ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-sm" : "bg-gray-700 hover:bg-gray-600 text-white"}`}>
                   취소
                 </button>
                 <button type="submit" disabled={isEditingSubmit} className="flex-[2] py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex justify-center items-center transition shadow-lg">
@@ -7653,8 +10348,8 @@ export default function App() {
       )}
 
       {matchToDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center px-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/45" : "bg-black/80"}`}>
+          <div className={`admin-modal-surface rounded-xl p-6 max-w-sm w-full ${isLightTheme ? "bg-white border border-slate-200 shadow-[0_24px_60px_rgba(15,23,42,0.18)]" : "bg-gray-800 border border-gray-700 shadow-2xl"}`}>
             <div className="flex items-center text-red-400 mb-4">
               <AlertTriangle className="w-8 h-8 mr-2" />
               <h3 className="text-xl font-bold text-white">정말 삭제하시겠습니까?</h3>
@@ -7664,7 +10359,7 @@ export default function App() {
               이 경기로 얻거나 잃은 참가자들의 점수가 <br />모두 이전으로 되돌아갑니다. (복구 불가)
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setMatchToDelete(null)} disabled={isDeleting} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium">취소</button>
+              <button onClick={() => setMatchToDelete(null)} disabled={isDeleting} className={`flex-1 py-2.5 rounded-lg transition font-medium ${isLightTheme ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-sm" : "bg-gray-700 hover:bg-gray-600 text-white"}`}>취소</button>
               <button onClick={confirmDeleteMatch} disabled={isDeleting} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center">
                 {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : "삭제 및 복구"}
               </button>
@@ -7674,8 +10369,8 @@ export default function App() {
       )}
 
       {showResetModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="bg-gray-800 rounded-xl p-6 max-w-sm w-full border border-gray-700 shadow-2xl">
+        <div className={`fixed inset-0 z-[100] flex items-center justify-center px-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/45" : "bg-black/80"}`}>
+          <div className={`admin-modal-surface rounded-xl p-6 max-w-sm w-full ${isLightTheme ? "bg-white border border-slate-200 shadow-[0_24px_60px_rgba(15,23,42,0.18)]" : "bg-gray-800 border border-gray-700 shadow-2xl"}`}>
             <div className="flex items-center text-red-400 mb-4">
               <AlertTriangle className="w-8 h-8 mr-2" />
               <h3 className="text-xl font-bold text-white">정말 초기화하시겠습니까?</h3>
@@ -7685,7 +10380,7 @@ export default function App() {
               삭제 후 참가자가 아무도 없는 완전한<br />'백지 상태'로 즉시 전환됩니다. (복구 불가)
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowResetModal(false)} disabled={isResetting} className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition font-medium">취소</button>
+              <button onClick={() => setShowResetModal(false)} disabled={isResetting} className={`flex-1 py-2.5 rounded-lg transition font-medium ${isLightTheme ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-sm" : "bg-gray-700 hover:bg-gray-600 text-white"}`}>취소</button>
               <button onClick={handleResetDatabase} disabled={isResetting} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition flex justify-center items-center">
                 {isResetting ? <Loader2 className="w-5 h-5 animate-spin" /> : "초기화 및 실전 시작"}
               </button>
@@ -7709,15 +10404,15 @@ export default function App() {
           : `https://www.sooplive.co.kr/search/station?keyword=${encodeURIComponent(selectedPlayer)}`;
 
         return (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 px-4 py-4 backdrop-blur-sm" onClick={() => setSelectedPlayer(null)}>
-            <div className="bg-gray-800 rounded-2xl w-full max-w-md max-h-[calc(100vh-2rem)] border border-gray-700 shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="bg-gray-900 p-6 flex flex-col items-center relative border-b border-gray-700">
-                <button onClick={() => setSelectedPlayer(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition"><X className="w-6 h-6" /></button>
-                <div className="w-24 h-24 rounded-2xl bg-gray-700 border-4 border-green-500/50 overflow-hidden shadow-lg mb-4">
+          <div className={`fixed inset-0 z-[150] flex items-center justify-center px-4 py-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/45" : "bg-black/80"}`} onClick={() => setSelectedPlayer(null)}>
+            <div className={`rounded-2xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col ${isLightTheme ? "bg-white border border-slate-200 shadow-[0_28px_70px_rgba(15,23,42,0.18)]" : "bg-gray-800 border border-gray-700 shadow-2xl"}`} onClick={e => e.stopPropagation()}>
+              <div className={`p-6 flex flex-col items-center relative border-b ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900 border-gray-700"}`}>
+                <button onClick={() => setSelectedPlayer(null)} className={`absolute top-4 right-4 transition ${isLightTheme ? "text-slate-400 hover:text-slate-900" : "text-gray-500 hover:text-white"}`}><X className="w-6 h-6" /></button>
+                <div className={`w-24 h-24 rounded-2xl overflow-hidden mb-4 ${isLightTheme ? "bg-white border-2 border-slate-200 shadow-md" : "border-4 shadow-lg bg-gray-700 border-green-500/50"}`}>
                   <img src={getAvatarSrc(selectedPlayer)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`; }} alt={selectedPlayer} className="w-full h-full object-cover" />
                 </div>
-                <h3 className="text-2xl font-black text-white">{selectedPlayer}</h3>
-                <span className="text-green-400 font-bold mt-1 text-lg">{playerInfo.points} pt</span>
+                <h3 className={`text-2xl font-black ${publicTheme.heading}`}>{selectedPlayer}</h3>
+                <span className={`mt-2 inline-flex items-center justify-center px-3 py-1 rounded-full text-sm ${isLightTheme ? "bg-emerald-100 text-emerald-700 font-black shadow-sm" : "font-bold text-green-400 text-lg"}`}>{playerInfo.points} pt</span>
 
                 <div className="flex flex-col items-center mt-5 w-full gap-2">
                   <button
@@ -7725,17 +10420,17 @@ export default function App() {
                     disabled={cheeringPlayerId === playerInfo.id}
                     className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
                       cheeringPlayerId === playerInfo.id
-                        ? "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100" 
+                        ? (isLightTheme ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed hover:scale-100 active:scale-100" : "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100")
                         : hasVotedToday
-                          ? "bg-pink-500/10 border border-pink-500/50 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:bg-pink-500/20"
-                          : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]"
+                          ? (isLightTheme ? "bg-pink-50 border border-pink-200 text-pink-700 shadow-[0_12px_28px_rgba(219,39,119,0.10)] hover:bg-pink-100" : "bg-pink-500/10 border border-pink-500/50 text-pink-400 shadow-[0_0_15px_rgba(236,72,153,0.1)] hover:bg-pink-500/20")
+                          : (isLightTheme ? "bg-pink-600 hover:bg-pink-500 text-white shadow-[0_16px_32px_rgba(219,39,119,0.20)]" : "bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]")
                     }`}
                   >
                     {cheeringPlayerId === playerInfo.id ? (
-                      <><Loader2 className="w-5 h-5 mr-2 animate-spin text-gray-400" /> 처리 중...</>
+                      <><Loader2 className={`w-5 h-5 mr-2 animate-spin ${isLightTheme ? "text-slate-400" : "text-gray-400"}`} /> 처리 중...</>
                     ) : (
                       <>
-                        <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? "fill-pink-400 text-pink-400" : "fill-transparent text-white"}`} />
+                        <Heart className={`w-3.5 h-3.5 mr-1.5 ${hasVotedToday ? (isLightTheme ? "fill-pink-600 text-pink-600" : "fill-pink-400 text-pink-400") : "fill-transparent text-white"}`} />
                         {hasVotedToday ? "응원 완료!" : "응원하기"} {(playerInfo.hearts || 0).toLocaleString()}
                       </>
                     )}
@@ -7745,45 +10440,45 @@ export default function App() {
                     href={broadcastLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"
+                    className={isLightTheme ? "flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 font-bold text-base transition-all duration-300 transform hover:scale-105 w-full" : "flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"}
                   >
                     <Tv className="w-5 h-5 mr-2" /> 방송국 가기
                   </a>
 
-                  <p className="text-xs text-gray-500 mt-2 bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-center break-keep w-full">
-                    💡 스트리머 1명당 <strong className="text-gray-300">하루에 1번만</strong> 응원할 수 있습니다.<br/>(다시 누르면 취소됩니다)
+                  <p className={`text-xs mt-2 px-3 py-1.5 rounded-lg border text-center break-keep w-full ${isLightTheme ? "text-slate-500 bg-slate-50 border-slate-200" : "text-gray-500 bg-gray-800 border-gray-700"}`}>
+                    💡 스트리머 1명당 <strong className={isLightTheme ? "text-slate-700" : "text-gray-300"}>하루에 1번만</strong> 응원할 수 있습니다.<br/>(다시 누르면 취소됩니다)
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-3 divide-x divide-gray-700 bg-gray-800/50 border-b border-gray-700">
+              <div className={`mx-6 mt-5 mb-1 grid grid-cols-3 divide-x rounded-xl border overflow-hidden ${isLightTheme ? "divide-slate-200 bg-slate-50 border-slate-200" : "divide-gray-700 bg-gray-800/50 border-gray-700"}`}>
                 <div className="flex flex-col items-center py-4">
-                  <span className="text-xs text-gray-400 font-medium mb-1">총 참가</span>
-                  <span className="text-xl font-bold text-white">{stats.totalMatches}전</span>
+                  <span className={`text-xs font-medium mb-1 ${publicTheme.mutedText}`}>총 참가</span>
+                  <span className={`text-xl font-bold ${publicTheme.heading}`}>{stats.totalMatches}전</span>
                 </div>
                 <div className="flex flex-col items-center py-4">
-                  <span className="text-xs text-gray-400 font-medium mb-1">우승 확률(1위)</span>
-                  <span className="text-xl font-bold text-yellow-400">{stats.winRate}%</span>
+                  <span className={`text-xs font-medium mb-1 ${publicTheme.mutedText}`}>우승 확률(1위)</span>
+                  <span className={`text-xl font-bold ${isLightTheme ? "text-blue-600" : "text-yellow-400"}`}>{stats.winRate}%</span>
                 </div>
                 <div className="flex flex-col items-center py-4 px-2 text-center">
-                  <span className="text-xs text-gray-400 font-medium mb-1">주력 종목</span>
-                  <span className="text-sm font-bold text-indigo-300 leading-tight break-keep">{stats.mostPlayedGame}</span>
+                  <span className={`text-xs font-medium mb-1 ${publicTheme.mutedText}`}>주력 종목</span>
+                  <span className={`text-sm font-bold leading-tight break-keep ${isLightTheme ? "text-slate-900" : "text-indigo-300"}`}>{stats.mostPlayedGame}</span>
                 </div>
               </div>
               <div className="p-6 flex-1 min-h-0 flex flex-col">
-                <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center"><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 ({stats.recentMatches.length}경기)</h4>
+                <h4 className={`text-sm font-bold mb-3 flex items-center ${publicTheme.mutedText}`}><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 ({stats.recentMatches.length}경기)</h4>
                 {stats.recentMatches.length === 0 ? (
-                  <p className="text-center text-gray-500 py-6 text-sm">경기 기록이 없습니다.</p>
+                  <p className={`text-center py-6 text-sm ${publicTheme.emptyState}`}>경기 기록이 없습니다.</p>
                 ) : (
                   <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
                     {stats.recentMatches.map((m) => (
-                      <div key={m.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-700/50">
+                      <div key={m.id} className={`flex justify-between items-center p-3 rounded-lg border ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900/50 border-gray-700/50"}`}>
                         <div className="flex-1 truncate pr-2">
-                          <p className="text-sm font-bold text-white truncate">{m.gameName}</p>
-                          <p className="text-[10px] text-gray-500">{m.date}</p>
+                          <p className={`text-sm font-bold truncate ${publicTheme.heading}`}>{m.gameName}</p>
+                          <p className={`text-[10px] ${publicTheme.faintText}`}>{m.date}</p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className={`text-xs font-bold ${m.rank === 1 ? 'text-yellow-400' : 'text-gray-400'}`}>{m.rank}위</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded w-14 text-center ${m.scoreChange >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                          <span className={`text-xs font-bold ${m.rank === 1 ? (isLightTheme ? "text-amber-700" : 'text-yellow-400') : (isLightTheme ? "text-slate-500" : 'text-gray-400')}`}>{m.rank}위</span>
+                          <span className={`text-xs px-2 py-0.5 rounded w-14 text-center ${m.scoreChange >= 0 ? (isLightTheme ? "bg-emerald-100 text-emerald-700 font-black" : "bg-green-500/20 text-green-400 font-bold") : (isLightTheme ? "bg-rose-100 text-rose-700 font-black" : "bg-red-500/20 text-red-400 font-bold")}`}>
                             {m.scoreChange > 0 ? "+" : ""}{m.scoreChange}
                           </span>
                         </div>
@@ -7797,44 +10492,99 @@ export default function App() {
         );
       })()}
 
-      <nav className="bg-gray-900 border-b border-gray-800 p-4 flex justify-between sticky top-0 z-50 shadow-md">
-        <div className="max-w-6xl mx-auto w-full flex justify-between items-center overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <nav className={`py-4 px-1.5 md:px-2 flex justify-between sticky top-0 z-50 transition-colors duration-300 ${shellTheme.nav}`}>
+        <div className="max-w-[1296px] mx-auto w-full flex justify-between items-center overflow-x-auto md:overflow-visible [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <h1 className="text-lg md:text-xl font-bold text-white cursor-pointer flex items-center whitespace-nowrap" onClick={() => navigateTo("home")}>
-              <Gamepad2 className="w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 text-green-400" /> 버츄얼 종겜 리그
+            <h1 className={`text-lg md:text-xl font-bold cursor-pointer flex items-center whitespace-nowrap transition-colors ${shellTheme.navTitle}`} onClick={() => navigateTo("home")}>
+              <Gamepad2 className={`w-5 h-5 md:w-6 md:h-6 mr-1.5 md:mr-2 transition-colors ${shellTheme.navTitleIcon}`} /> 버츄얼 종겜 리그
             </h1>
-            <a href="https://www.sooplive.co.kr/station/ecvhao" target="_blank" rel="noopener noreferrer" title="우왁굳 방송국" className="flex items-center justify-center px-2 py-0.5 bg-black text-green-400 border border-green-500/50 rounded text-xs font-black tracking-widest hover:bg-green-400 hover:text-black transition-all duration-300 shadow-[0_0_10px_rgba(74,222,128,0.3)] hover:shadow-[0_0_15px_rgba(74,222,128,0.6)]">
+            <a href="https://www.sooplive.co.kr/station/ecvhao" target="_blank" rel="noopener noreferrer" title="우왁굳 방송국" className={shellTheme.brandBadge}>
               WAK
             </a>
             {lastUpdated && (
-              <span className="ml-2 md:ml-3 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
+              <span className={`ml-2 md:ml-3 ${shellTheme.metaChip}`}>
                 <RefreshCw className="w-3 h-3 mr-1 opacity-70" /> 최근 갱신: {formatLastUpdated(lastUpdated)}
               </span>
             )}
-            <span className="ml-1 md:ml-2 text-[10px] md:text-xs font-medium text-white/90 bg-gray-800 px-2 py-1 rounded border border-gray-600 shadow-sm flex items-center whitespace-nowrap">
+            <span className={`ml-1 md:ml-2 ${shellTheme.metaChip}`}>
               <Users className="w-3 h-3 mr-1 opacity-70" /> 오늘 방문자: {todayVisits}
             </span>
           </div>
-          <div className="flex space-x-1 md:space-x-2 ml-4 flex-shrink-0">
-            <button onClick={() => navigateTo("home")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "home" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>홈</button>
-            <button onClick={() => navigateTo("players")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "players" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>선수</button>
-            <button onClick={() => navigateTo("matches")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "matches" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>경기</button>
-            <button onClick={() => navigateTo("stats")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "stats" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>통계</button>
-            <button onClick={() => navigateTo("tier")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "tier" ? "bg-gray-800 text-green-400" : "text-gray-300 hover:text-white"}`}>티어</button>
-            <button onClick={() => navigateTo("wow")} className={`px-3 py-1.5 rounded text-sm font-medium flex items-center whitespace-nowrap ${activeTab === "wow" ? "bg-blue-900/50 text-blue-400 border border-blue-500/50" : "text-blue-300 hover:text-white hover:bg-gray-800"}`}>
-              <Shield className="w-4 h-4 mr-1" /> WOW
-            </button>
-            <button onClick={() => navigateTo("wowraid")} className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap ${activeTab === "wowraid" ? "bg-violet-900/50 text-violet-300 border border-violet-500/50" : "text-violet-300 hover:text-white hover:bg-gray-800"}`}>
-              WOW레이드
-            </button>
-            <button onClick={() => navigateTo("admin")} className={`px-3 py-1.5 rounded border border-gray-600 flex items-center text-sm font-medium whitespace-nowrap ${activeTab === "admin" ? "bg-gray-800 text-green-400 border-green-500" : "text-gray-400 hover:text-white hover:border-gray-400"}`}>
+          <div className="flex items-center gap-1 md:gap-1.5 ml-3 md:ml-4 flex-shrink-0">
+            <button onClick={() => navigateTo("home")} className={getDesktopNavButtonClasses("home")}>홈</button>
+            <button onClick={() => navigateTo("players")} className={getDesktopNavButtonClasses("players")}>선수</button>
+            <button onClick={() => navigateTo("matches")} className={getDesktopNavButtonClasses("matches")}>경기</button>
+            <button onClick={() => navigateTo("stats")} className={getDesktopNavButtonClasses("stats")}>통계</button>
+            <button onClick={() => navigateTo("tier")} className={getDesktopNavButtonClasses("tier")}>티어</button>
+            <div className="relative flex items-center gap-1" data-wow-nav-layer="true">
+              <button
+                type="button"
+                onClick={() => handleWowSectionNavigation("wow")}
+                className={getDesktopNavButtonClasses("wow", "wow", { isActive: isWowSectionActive })}
+              >
+                <Shield className="w-4 h-4 mr-1" /> WOW
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsWowNavMenuOpen((prev) => !prev)}
+                className={getDesktopNavButtonClasses("wow", "wow", { isActive: isWowSectionActive || isWowNavMenuOpen })}
+                aria-haspopup="menu"
+                aria-expanded={isWowNavMenuOpen}
+                aria-label="WOW 하위 메뉴 열기"
+              >
+                {isWowNavMenuOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {isWowNavMenuOpen && (
+                <div className={`absolute left-0 top-[calc(100%+10px)] z-[80] w-72 rounded-2xl border p-2 shadow-2xl ${isLightTheme ? "border-slate-200 bg-white" : "border-gray-700 bg-gray-950/95 backdrop-blur"}`}>
+                  <div className={`px-2 pb-2 pt-1 text-[11px] font-black tracking-[0.12em] ${isLightTheme ? "text-slate-400" : "text-gray-500"}`}>
+                    WOW 메뉴
+                  </div>
+                  <div className="space-y-1">
+                    {WOW_NAV_ITEMS.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleWowSectionNavigation(item.id)}
+                          className={getWowNavMenuItemClasses(item.id)}
+                        >
+                          <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${activeTab === item.id ? (isLightTheme ? "border-blue-200 bg-white text-blue-700" : "border-blue-400/35 bg-blue-500/10 text-blue-200") : (isLightTheme ? "border-slate-200 bg-white text-slate-500" : "border-gray-700 bg-gray-900 text-gray-300")}`}>
+                            <Icon className="w-4 h-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-black">{item.label}</span>
+                            <span className={`mt-0.5 block text-[11px] ${isLightTheme ? (activeTab === item.id ? "text-blue-500" : "text-slate-500") : (activeTab === item.id ? "text-blue-200/80" : "text-gray-400")}`}>
+                              {item.description}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button onClick={() => navigateTo("admin")} className={getDesktopNavButtonClasses("admin", "admin")}>
               {isAdminAuth ? <Unlock className="w-3 h-3 mr-1" /> : <Lock className="w-3 h-3 mr-1" />} 관리
+            </button>
+            <button
+              onClick={handleToggleTheme}
+              className={`px-2.5 py-1.5 rounded-lg border flex items-center text-sm font-medium whitespace-nowrap transition-colors ${
+                isLightTheme
+                  ? "bg-white text-slate-900 border-slate-200 hover:border-amber-200 hover:bg-amber-50"
+                  : "bg-gray-800 text-yellow-300 border-gray-600 hover:text-white hover:border-yellow-400/60"
+              }`}
+            >
+              {isLightTheme ? <Sun className="w-4 h-4 mr-1.5" /> : <Moon className="w-4 h-4 mr-1.5" />}
+              {isLightTheme ? "라이트 모드" : "다크 모드"}
             </button>
           </div>
         </div>
       </nav>
 
-      <main className={`mx-auto py-8 relative w-full ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
+      <main className={`mx-auto py-8 relative w-full transition-colors duration-300 ${activeTab === "raid" ? "max-w-[1800px] px-3 md:px-5 lg:px-6" : activeTab === "wow" ? "max-w-[1320px] px-4 md:px-4 lg:px-5" : activeTab === "dungeontier" ? "max-w-[1800px] px-3 md:px-4 lg:px-5" : activeTab === "wowraid" ? "max-w-6xl px-4" : "max-w-6xl px-4"}`}>
 
         {activeTab === "home" && renderHomeView()}
         {activeTab === "players" && renderPlayersView()}
@@ -7843,6 +10593,7 @@ export default function App() {
         {activeTab === "tier" && renderTierListView()}
         {activeTab === "wow" && renderWowView()}
         {activeTab === "wowraid" && renderWowRaidView()}
+        {activeTab === "dungeontier" && renderDungeonTierGameView()}
         {activeTab === "raid" && renderRaidView()}
         {activeTab === "admin" && renderAdminView()}
       </main>
@@ -7853,7 +10604,7 @@ export default function App() {
       {/* 바탕 어두워지는 레이어 (메뉴 밖을 클릭하면 닫히게 함) */}
       {isMobileMenuOpen && (
         <div
-          className="fixed inset-0 z-[390] bg-black/40 backdrop-blur-sm md:hidden transition-opacity"
+          className={shellTheme.mobileOverlay}
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
@@ -7873,9 +10624,6 @@ export default function App() {
             { id: "matches", label: "경기", icon: Swords },
             { id: "stats", label: "통계", icon: BarChart3 },
             { id: "tier", label: "티어", icon: Trophy },
-            { id: "wow", label: "WOW", icon: Shield },
-            { id: "wowraid", label: "WOW레이드", icon: null },
-            { id: "admin", label: "관리", icon: isAdminAuth ? Unlock : Lock },
           ].map((item) => (
             <button
               key={item.id}
@@ -7883,26 +10631,76 @@ export default function App() {
                 navigateTo(item.id);
                 setIsMobileMenuOpen(false); // 탭 이동 후 메뉴 자동 닫기
               }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${
-                activeTab === item.id
-                  ? "bg-gray-800 border-green-500/50 text-green-400 font-black shadow-[0_0_10px_rgba(74,222,128,0.2)]"
-                  : "bg-gray-800/90 border-gray-700/50 text-white font-bold hover:bg-gray-700"
-              }`}
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${activeTab === item.id ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
             >
               {item.icon ? <item.icon className="w-5 h-5" /> : null}
               <span className="text-sm">{item.label}</span>
             </button>
           ))}
+          <div className="flex flex-col gap-2" data-wow-nav-layer="true">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleWowSectionNavigation("wow", { closeMobileMenu: true })}
+                className={`flex items-center gap-3 flex-1 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${(isWowSectionActive || isMobileWowMenuOpen) ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
+              >
+                <Shield className="w-5 h-5" />
+                <span className="text-sm flex-1 text-left">WOW</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileWowMenuOpen((prev) => !prev)}
+                className={`flex items-center justify-center px-3.5 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${(isWowSectionActive || isMobileWowMenuOpen) ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
+                aria-expanded={isMobileWowMenuOpen}
+                aria-label="WOW 하위 메뉴 열기"
+              >
+                {isMobileWowMenuOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <div className={`flex flex-col gap-2 pl-4 transition-all duration-200 ${isMobileWowMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 overflow-hidden pointer-events-none"}`}>
+              {WOW_NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleWowSectionNavigation(item.id, { closeMobileMenu: true })}
+                    className={getMobileWowMenuItemClasses(item.id)}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm">{item.label}</span>
+                      <span className={`mt-0.5 block text-[11px] ${isLightTheme ? "text-slate-500" : "text-gray-400"}`}>{item.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              navigateTo("admin");
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${activeTab === "admin" ? shellTheme.mobileMenuActive : shellTheme.mobileMenuInactive}`}
+          >
+            {isAdminAuth ? <Unlock className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
+            <span className="text-sm">관리</span>
+          </button>
+          <button
+            onClick={handleToggleTheme}
+            className={`flex items-center gap-3 px-4 py-3 rounded-2xl border backdrop-blur-md shadow-lg transition-all ${shellTheme.mobileThemeButton}`}
+          >
+            {isLightTheme ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            <span className="text-sm">{isLightTheme ? "라이트 모드" : "다크 모드"}</span>
+          </button>
         </div>
 
         {/* 동그란 메인 토글 버튼 */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_0_15px_rgba(34,197,94,0.4)] transition-all duration-300 transform active:scale-95 ${
-            isMobileMenuOpen 
-              ? "bg-gray-800 border border-gray-600 rotate-90 shadow-none text-gray-400" 
-              : "bg-green-600 hover:bg-green-500 rotate-0"
-          }`}
+          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 transform active:scale-95 ${isMobileMenuOpen ? shellTheme.mobileFabOpen : shellTheme.mobileFabClosed}`}
         >
           {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
