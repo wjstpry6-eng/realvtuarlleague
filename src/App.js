@@ -3635,6 +3635,50 @@ export default function App() {
     return { type: streakType, count };
   };
 
+  const getPlayerSignatureGame = (playerMatches = [], playerName = "") => {
+    const gameStats = {};
+
+    playerMatches.forEach((match) => {
+      const result = match.results?.find((entry) => entry.playerName === playerName);
+      const gameName = `${match?.gameName || ""}`.trim();
+      const rank = Number(result?.rank);
+
+      if (!gameName || !Number.isFinite(rank) || rank <= 0) return;
+
+      if (!gameStats[gameName]) {
+        gameStats[gameName] = {
+          gameName,
+          bestRank: rank,
+          firstPlaceCount: 0,
+          totalRank: 0,
+          playCount: 0,
+        };
+      }
+
+      const currentGameStats = gameStats[gameName];
+      currentGameStats.bestRank = Math.min(currentGameStats.bestRank, rank);
+      currentGameStats.firstPlaceCount += rank === 1 ? 1 : 0;
+      currentGameStats.totalRank += rank;
+      currentGameStats.playCount += 1;
+    });
+
+    // "주력 종목"은 최고 성적과 꾸준함을 함께 반영해서 고릅니다.
+    const rankedGames = Object.values(gameStats)
+      .map((game) => ({
+        ...game,
+        averageRank: game.playCount > 0 ? game.totalRank / game.playCount : Number.POSITIVE_INFINITY,
+      }))
+      .sort((a, b) => {
+        if (a.bestRank !== b.bestRank) return a.bestRank - b.bestRank;
+        if (a.firstPlaceCount !== b.firstPlaceCount) return b.firstPlaceCount - a.firstPlaceCount;
+        if (a.averageRank !== b.averageRank) return a.averageRank - b.averageRank;
+        if (a.playCount !== b.playCount) return b.playCount - a.playCount;
+        return a.gameName.localeCompare(b.gameName, "ko");
+      });
+
+    return rankedGames[0]?.gameName || "전적 없음";
+  };
+
   const getPlayerStats = (playerName) => {
     const playerMatches = matches.filter((m) => m.results?.some((r) => r.playerName === playerName));
     const totalMatches = playerMatches.length;
@@ -3643,17 +3687,12 @@ export default function App() {
       return r && r.rank === 1;
     }).length;
     const winRate = totalMatches === 0 ? 0 : Math.round((wins / totalMatches) * 100);
-    const gameCounts = {};
-    playerMatches.forEach((m) => { gameCounts[m.gameName] = (gameCounts[m.gameName] || 0) + 1; });
-    let mostPlayedGame = "전적 없음", maxCount = 0;
-    for (const [game, count] of Object.entries(gameCounts)) {
-      if (count > maxCount) { maxCount = count; mostPlayedGame = game; }
-    }
+    const signatureGame = getPlayerSignatureGame(playerMatches, playerName);
     const recentMatches = playerMatches.map((m) => {
       const r = m.results.find((res) => res.playerName === playerName);
       return { id: m.id, gameName: m.gameName, date: m.date, rank: r.rank, scoreChange: r.scoreChange };
     });
-    return { totalMatches, wins, winRate, mostPlayedGame, recentMatches };
+    return { totalMatches, wins, winRate, signatureGame, recentMatches };
   };
 
   const handleCheerPlayer = async (playerId, playerName) => {
@@ -10406,19 +10445,19 @@ export default function App() {
         return (
           <div className={`fixed inset-0 z-[150] flex items-center justify-center px-4 py-4 backdrop-blur-sm ${isLightTheme ? "bg-slate-950/45" : "bg-black/80"}`} onClick={() => setSelectedPlayer(null)}>
             <div className={`rounded-2xl w-full max-w-md max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col ${isLightTheme ? "bg-white border border-slate-200 shadow-[0_28px_70px_rgba(15,23,42,0.18)]" : "bg-gray-800 border border-gray-700 shadow-2xl"}`} onClick={e => e.stopPropagation()}>
-              <div className={`p-6 flex flex-col items-center relative border-b ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900 border-gray-700"}`}>
+              <div className={`p-5 flex flex-col items-center relative border-b shrink-0 ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900 border-gray-700"}`}>
                 <button onClick={() => setSelectedPlayer(null)} className={`absolute top-4 right-4 transition ${isLightTheme ? "text-slate-400 hover:text-slate-900" : "text-gray-500 hover:text-white"}`}><X className="w-6 h-6" /></button>
-                <div className={`w-24 h-24 rounded-2xl overflow-hidden mb-4 ${isLightTheme ? "bg-white border-2 border-slate-200 shadow-md" : "border-4 shadow-lg bg-gray-700 border-green-500/50"}`}>
+                <div className={`w-20 h-20 rounded-2xl overflow-hidden mb-3 ${isLightTheme ? "bg-white border-2 border-slate-200 shadow-md" : "border-4 shadow-lg bg-gray-700 border-green-500/50"}`}>
                   <img src={getAvatarSrc(selectedPlayer)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${selectedPlayer}`; }} alt={selectedPlayer} className="w-full h-full object-cover" />
                 </div>
                 <h3 className={`text-2xl font-black ${publicTheme.heading}`}>{selectedPlayer}</h3>
                 <span className={`mt-2 inline-flex items-center justify-center px-3 py-1 rounded-full text-sm ${isLightTheme ? "bg-emerald-100 text-emerald-700 font-black shadow-sm" : "font-bold text-green-400 text-lg"}`}>{playerInfo.points} pt</span>
 
-                <div className="flex flex-col items-center mt-5 w-full gap-2">
+                <div className="flex flex-col items-center mt-4 w-full gap-2">
                   <button
                     onClick={() => handleCheerPlayer(playerInfo.id, selectedPlayer)}
                     disabled={cheeringPlayerId === playerInfo.id}
-                    className={`flex items-center justify-center px-6 py-2.5 rounded-full font-bold text-base transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
+                    className={`flex items-center justify-center px-6 py-2 rounded-full font-bold text-sm transition-all duration-300 transform hover:scale-105 active:scale-95 w-full ${
                       cheeringPlayerId === playerInfo.id
                         ? (isLightTheme ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed hover:scale-100 active:scale-100" : "bg-gray-700 border border-gray-600 text-gray-400 cursor-not-allowed hover:scale-100 active:scale-100")
                         : hasVotedToday
@@ -10440,38 +10479,38 @@ export default function App() {
                     href={broadcastLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={isLightTheme ? "flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 font-bold text-base transition-all duration-300 transform hover:scale-105 w-full" : "flex items-center justify-center px-6 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-base transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"}
+                    className={isLightTheme ? "flex items-center justify-center px-6 py-2 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 font-bold text-sm transition-all duration-300 transform hover:scale-105 w-full" : "flex items-center justify-center px-6 py-2 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all duration-300 transform hover:scale-105 w-full shadow-[0_0_15px_rgba(79,70,229,0.4)]"}
                   >
                     <Tv className="w-5 h-5 mr-2" /> 방송국 가기
                   </a>
 
-                  <p className={`text-xs mt-2 px-3 py-1.5 rounded-lg border text-center break-keep w-full ${isLightTheme ? "text-slate-500 bg-slate-50 border-slate-200" : "text-gray-500 bg-gray-800 border-gray-700"}`}>
+                  <p className={`text-[11px] mt-1 px-3 py-1.5 rounded-lg border text-center break-keep w-full ${isLightTheme ? "text-slate-500 bg-slate-50 border-slate-200" : "text-gray-500 bg-gray-800 border-gray-700"}`}>
                     💡 스트리머 1명당 <strong className={isLightTheme ? "text-slate-700" : "text-gray-300"}>하루에 1번만</strong> 응원할 수 있습니다.<br/>(다시 누르면 취소됩니다)
                   </p>
                 </div>
               </div>
-              <div className={`mx-6 mt-5 mb-1 grid grid-cols-3 divide-x rounded-xl border overflow-hidden ${isLightTheme ? "divide-slate-200 bg-slate-50 border-slate-200" : "divide-gray-700 bg-gray-800/50 border-gray-700"}`}>
-                <div className="flex flex-col items-center py-4">
-                  <span className={`text-xs font-medium mb-1 ${publicTheme.mutedText}`}>총 참가</span>
-                  <span className={`text-xl font-bold ${publicTheme.heading}`}>{stats.totalMatches}전</span>
+              <div className={`mx-5 mt-4 mb-0 grid h-[64px] shrink-0 grid-cols-3 divide-x rounded-xl border overflow-hidden ${isLightTheme ? "divide-slate-200 bg-slate-50 border-slate-200" : "divide-gray-700 bg-gray-800/50 border-gray-700"}`}>
+                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-2">
+                  <span className={`mb-1 text-[10px] font-semibold leading-none whitespace-nowrap ${publicTheme.mutedText}`}>총 참가</span>
+                  <span className={`text-base font-black leading-tight ${publicTheme.heading}`}>{stats.totalMatches}전</span>
                 </div>
-                <div className="flex flex-col items-center py-4">
-                  <span className={`text-xs font-medium mb-1 ${publicTheme.mutedText}`}>우승 확률(1위)</span>
-                  <span className={`text-xl font-bold ${isLightTheme ? "text-blue-600" : "text-yellow-400"}`}>{stats.winRate}%</span>
+                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-2">
+                  <span className={`mb-1 text-[10px] font-semibold leading-none whitespace-nowrap ${publicTheme.mutedText}`}>우승 확률(1위)</span>
+                  <span className={`text-base font-black leading-tight ${isLightTheme ? "text-blue-600" : "text-yellow-400"}`}>{stats.winRate}%</span>
                 </div>
-                <div className="flex flex-col items-center py-4 px-2 text-center">
-                  <span className={`text-xs font-medium mb-1 ${publicTheme.mutedText}`}>주력 종목</span>
-                  <span className={`text-sm font-bold leading-tight break-keep ${isLightTheme ? "text-slate-900" : "text-indigo-300"}`}>{stats.mostPlayedGame}</span>
+                <div className="flex min-w-0 flex-col items-center justify-center px-2 py-2 text-center">
+                  <span className={`mb-1 text-[10px] font-semibold leading-none whitespace-nowrap ${publicTheme.mutedText}`}>주력 종목</span>
+                  <span title={stats.signatureGame} className={`w-full truncate text-xs font-black leading-tight ${isLightTheme ? "text-slate-900" : "text-indigo-300"}`}>{stats.signatureGame}</span>
                 </div>
               </div>
-              <div className="p-6 flex-1 min-h-0 flex flex-col">
-                <h4 className={`text-sm font-bold mb-3 flex items-center ${publicTheme.mutedText}`}><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 ({stats.recentMatches.length}경기)</h4>
+              <div className="p-5 pt-4 flex-1 min-h-0 flex flex-col">
+                <h4 className={`text-xs font-bold mb-2 flex items-center shrink-0 ${publicTheme.mutedText}`}><Activity className="w-4 h-4 mr-1.5" /> 최근 전적 ({stats.recentMatches.length}경기)</h4>
                 {stats.recentMatches.length === 0 ? (
                   <p className={`text-center py-6 text-sm ${publicTheme.emptyState}`}>경기 기록이 없습니다.</p>
                 ) : (
                   <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1 min-h-0">
                     {stats.recentMatches.map((m) => (
-                      <div key={m.id} className={`flex justify-between items-center p-3 rounded-lg border ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900/50 border-gray-700/50"}`}>
+                      <div key={m.id} className={`flex justify-between items-center p-2.5 rounded-lg border ${isLightTheme ? "bg-slate-50 border-slate-200" : "bg-gray-900/50 border-gray-700/50"}`}>
                         <div className="flex-1 truncate pr-2">
                           <p className={`text-sm font-bold truncate ${publicTheme.heading}`}>{m.gameName}</p>
                           <p className={`text-[10px] ${publicTheme.faintText}`}>{m.date}</p>
