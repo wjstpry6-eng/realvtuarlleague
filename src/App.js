@@ -575,10 +575,17 @@ const WOW_RAID_DETAIL_TABS = [
 
 const getDefaultWowRaidGuestAvatar = (participant) => `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent((participant?.displayName || participant?.wowNickname || 'guest').trim() || 'guest')}`;
 const createWowRaidGuestId = () => `guest_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+const normalizeWowRaidGuestLevel = (value) => {
+  if (value === "" || value === null || value === undefined) return 60;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 60;
+  return Math.max(1, Math.min(70, Math.round(parsed)));
+};
 const createEmptyWowRaidGuestForm = () => ({
   id: createWowRaidGuestId(),
   displayName: '',
   wowNickname: '',
+  level: '60',
   imageMode: 'default',
   imageUrl: '',
   jobClass: '',
@@ -662,6 +669,7 @@ const normalizeWowRaidGuestParticipant = (participant = {}) => {
     id: participant?.id || createWowRaidGuestId(),
     displayName: participant?.displayName || '',
     wowNickname: participant?.wowNickname || '',
+    level: normalizeWowRaidGuestLevel(participant?.level),
     imageMode: participant?.imageMode === 'custom' ? 'custom' : 'default',
     imageUrl: participant?.imageUrl || '',
     jobClass,
@@ -683,7 +691,7 @@ const createWowRaidGuestParticipantSnapshot = (participant = {}) => {
     streamerName: normalizedGuest.displayName || normalizedGuest.wowNickname || '일반인',
     wowNickname: normalizedGuest.wowNickname || normalizedGuest.displayName || '일반인',
     jobClass: normalizedGuest.jobClass || '',
-    level: 60,
+    level: normalizedGuest.level,
     imageUrl: normalizedGuest.imageMode === 'custom' && normalizedGuest.imageUrl ? normalizedGuest.imageUrl : getDefaultWowRaidGuestAvatar(normalizedGuest),
     preferredPositions: normalizePreferredPositions(normalizedGuest.preferredPositions),
     mainSpec: normalizedGuest.mainSpec,
@@ -5653,6 +5661,9 @@ export default function App() {
         if (field === 'imageMode') {
           return { ...participant, imageMode: value === 'custom' ? 'custom' : 'default', imageUrl: value === 'custom' ? participant.imageUrl : '' };
         }
+        if (field === 'level') {
+          return { ...participant, level: `${value || ''}`.replace(/[^0-9]/g, '') };
+        }
         if (field === 'raidGroupNumber') {
           return participant;
         }
@@ -5691,6 +5702,7 @@ export default function App() {
         id: participant.sourceId || participant.id,
         displayName: participant.displayName || participant.streamerName,
         wowNickname: participant.wowNickname,
+        level: participant.level,
         imageMode: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? 'custom' : 'default',
         imageUrl: participant.imageUrl && participant.imageUrl !== getDefaultWowRaidGuestAvatar(participant) ? participant.imageUrl : '',
         jobClass: participant.jobClass,
@@ -9381,6 +9393,7 @@ export default function App() {
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                               <input type="text" value={guest.displayName} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'displayName', e.target.value)} placeholder="이름 입력" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
                               <input type="text" value={guest.wowNickname} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'wowNickname', e.target.value)} placeholder="와우 닉네임 입력" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
+                              <input type="number" value={guest.level ?? '60'} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'level', e.target.value)} placeholder="레벨" min="1" max="70" className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none" />
                               <select value={guest.jobClass} onChange={(e) => handleWowRaidGuestFieldChange(guest.id, 'jobClass', e.target.value)} className="bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 text-sm focus:border-emerald-500 outline-none">
                                 <option value="">직업 선택</option>
                                 {WOW_JOB_OPTIONS.map((jobClass) => <option key={jobClass} value={jobClass}>{jobClass}</option>)}
@@ -9412,7 +9425,7 @@ export default function App() {
                                 <img src={guest.imageMode === 'custom' && guest.imageUrl ? guest.imageUrl : getDefaultWowRaidGuestAvatar(guest)} onError={(e) => { e.target.src = getDefaultWowRaidGuestAvatar(guest); }} alt={guest.displayName || '일반 참가자'} className="w-12 h-12 rounded-full object-cover border border-gray-600 bg-gray-900" />
                                 <div className="min-w-0">
                                   <div className="text-sm font-black text-white truncate">{guest.displayName || '이름 미입력'}</div>
-                                  <div className="text-xs text-gray-400 truncate">{guest.wowNickname || '와우 닉네임 미입력'}{guest.jobClass ? ` · ${guest.jobClass}` : ''}{guest.mainSpec ? ` · ${guest.mainSpec}` : ''}</div>
+                                  <div className="text-xs text-gray-400 truncate">{guest.wowNickname || '와우 닉네임 미입력'} · Lv.{normalizeWowRaidGuestLevel(guest.level)}{guest.jobClass ? ` · ${guest.jobClass}` : ''}{guest.mainSpec ? ` · ${guest.mainSpec}` : ''}</div>
                                 </div>
                               </div>
                             </div>
@@ -9437,7 +9450,7 @@ export default function App() {
                           <img src={getWowAvatarSrc(participant)} onError={(e) => { e.target.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${participant.displayName || participant.streamerName}`; }} alt={participant.streamerName} className="w-7 h-7 rounded-full object-cover bg-gray-900 border border-gray-600" />
                           <div className="min-w-0">
                             <div className="text-xs font-black text-white truncate">{participant.displayName || participant.streamerName}</div>
-                            <div className="text-[10px] text-gray-400 truncate">{participant.jobClass}{participant.mainSpec ? ` · ${participant.mainSpec}` : ''}{participant.sourceType === 'guest' ? ' · 일반 참가자' : ''}</div>
+                            <div className="text-[10px] text-gray-400 truncate">Lv.{participant.level}{participant.jobClass ? ` · ${participant.jobClass}` : ''}{participant.mainSpec ? ` · ${participant.mainSpec}` : ''}{participant.sourceType === 'guest' ? ' · 일반 참가자' : ''}</div>
                           </div>
                         </div>
                       ))}
